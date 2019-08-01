@@ -1,0 +1,12 @@
+[package]
+name = "zanthe"
+version = "0.1.0"
+authors = ["Morgan Fogg"]
+edition = "2018"
+publish = false
+
+[dependencies]
+log = "0.4.6"
+simplelog = "0.5.3"
+rand = "0.6.5"
+clap = "2.33.0"
