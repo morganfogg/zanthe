@@ -17,7 +17,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = run(args) {
-        println!("{}", e);
+        eprintln!("{}", e);
         error!("Exited with error: {}", e);
         std::process::exit(1);
     }

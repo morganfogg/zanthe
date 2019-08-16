@@ -15,7 +15,7 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
     {
         Ok(data) => data,
         Err(e) => {
-        return Err(format!("Couldn't prepare log file: {}", e));
+            return Err(format!("Couldn't prepare log file: {}", e));
         }
     };
 
