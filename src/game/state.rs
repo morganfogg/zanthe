@@ -20,21 +20,20 @@ impl GameState {
     }
 
     fn get_word_from_data(data: &[u8], address: usize) -> u16 {
-        ((data[address] as u16) << 8) + data[address + 1] as u16
+        ((data[address] as u16) << 8) | data[address + 1] as u16
     }
 
     pub fn _get_word(&self, address: usize) -> u16 {
         GameState::get_word_from_data(&self.data, address)
     }
 
+    /// Calculates and checks the checksum of the file, by summing all
+    /// all bytes from the end of the header to the stated end of the
+    /// file as defined in the header, modulo 0x10000. The interpreter
+    /// should continue as normal even if the checksum is incorrect.
+    /// Refer to `verify` in Chapter 15 of the specification.
     fn calculate_checksum(data: &[u8]) -> bool {
-        /*! Calculates and checks the checksum of the file, by summing all
-            all bytes from the end of the header to the stated end of the
-            file as defined in the header, modulo 0x10000. The interpreter
-            should continue as normal even if the checksum is incorrect. 
-            Refer to `verify` in Chapter 15 of the specification. */
-
-        // The file 
+        // The file length field is divided by a factor, which differs between versions.
         let factor = match data[address::VERSION] {
             1...3 => 2,
             4...5 => 4,
@@ -44,14 +43,17 @@ impl GameState {
         let mut file_length: usize =
             GameState::get_word_from_data(&data, address::FILE_LENGTH) as usize * factor;
         if file_length > data.len() {
+            warn!("File length header invalid");
             return false;
         }
 
+        // File length of 0 is used by V6/V7 files that exceed the specification's size limits.
         if file_length == 0 {
             file_length = data.len();
+            
         }
 
-        let expected = GameState::get_word_from_data(&data, address::CHECKSUM) as usize;
+        let expected: usize = GameState::get_word_from_data(&data, address::CHECKSUM).into();
         let result: usize = data[0x40..file_length.into()]
             .iter()
             .fold(0usize, |acc, x| acc + *x as usize)
@@ -60,7 +62,7 @@ impl GameState {
             info!(
                 "Checksum OKAY: Expected {:x}, found {:x}. Stated file length {}",
                 expected, result, file_length
-            );    
+            );
         } else {
             warn!(
                 "Checksum ERROR: Expected {:x}, found {:x}. Stated file length {}",
@@ -70,7 +72,8 @@ impl GameState {
         expected == result
     }
 
-    /// Does some sanity checking on the header section of the file to ensure the input is valid.
+    /// Does some sanity checking on the header section of the file to
+    /// ensure the input is valid.
     fn validate_header(data: &[u8]) -> Result<(), GameError> {
         let len = data.len();
         if len < 64 {
@@ -99,23 +102,23 @@ impl GameState {
             return Err(GameError::InvalidFile);
         }
 
-        let static_memory_base = GameState::get_word_from_data(&data, address::STATIC_MEMORY_BASE);
-        if static_memory_base < 64 || static_memory_base as usize > len - 1 {
+        let static_memory_base: usize = GameState::get_word_from_data(&data, address::STATIC_MEMORY_BASE).into();
+        if static_memory_base < 64 || static_memory_base > len - 1 {
             error!("Invalid static memory base");
             return Err(GameError::InvalidFile);
         }
-
-        let high_memory_base = GameState::get_word_from_data(&data, address::HIGH_MEMORY_BASE);
+        
+        let high_memory_base: usize = GameState::get_word_from_data(&data, address::HIGH_MEMORY_BASE).into();
         if high_memory_base < 64
-            || high_memory_base as usize > len - 1
+            || high_memory_base > len - 1
             || high_memory_base <= static_memory_base
         {
             error!("Invalid high memory base");
             return Err(GameError::InvalidFile);
         }
 
-        let program_counter_starts =
-            GameState::get_word_from_data(&data, address::PROGRAM_COUNTER_STARTS);
+        let program_counter_starts: usize =
+            GameState::get_word_from_data(&data, address::PROGRAM_COUNTER_STARTS).into();
         if program_counter_starts < high_memory_base {
             error!("Program counter does not start in high memory");
             return Err(GameError::InvalidFile);
@@ -126,5 +129,5 @@ impl GameState {
             static_memory_base, high_memory_base, program_counter_starts,
         );
         Ok(())
-    }
+    }    
 }
