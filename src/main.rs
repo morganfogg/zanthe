@@ -3,7 +3,7 @@ use log::{error, info};
 use zanthe::run;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-const APP_NAME: &str = "Zanthe";
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() {
     let args = App::new(APP_NAME)

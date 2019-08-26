@@ -15,7 +15,7 @@ impl GameState {
         memory.validate_header()?;
         Ok(GameState {
             counter: memory.get_word(address::PROGRAM_COUNTER_STARTS),
-            checksum_valid: memory.checksum(),
+            checksum_valid: memory.verify(),
             memory,
         })
     }

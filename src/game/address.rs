@@ -6,7 +6,7 @@ pub const VERSION: usize = 0x0;
 pub const _FLAGS_1: usize = 0x1;
 pub const HIGH_MEMORY_BASE: usize = 0x4;
 pub const PROGRAM_COUNTER_STARTS: usize = 0x6;
-pub const _DICTIONARY_LOCATION: usize = 0x8;
+pub const DICTIONARY_LOCATION: usize = 0x8;
 pub const _OBJECT_TABLE_LOCATION: usize = 0xA;
 pub const _GLOBAL_VARIABLE_TABLE_LOCATION: usize = 0xC;
 pub const STATIC_MEMORY_BASE: usize = 0xE;
@@ -14,7 +14,7 @@ pub const _FLAGS_2: usize = 0x10;
 pub const _STANDARD_REVISION_NUMBER: usize = 0x32;
 
 // Version 2+
-pub const _ABBREVIATION_TABLE_LOCATION: usize = 0x18;
+pub const ABBREVIATION_TABLE_LOCATION: usize = 0x18;
 
 // Version 3+
 pub const FILE_LENGTH: usize = 0x1A; // Not present in some early version 3 files
