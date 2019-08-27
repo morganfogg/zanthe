@@ -67,6 +67,7 @@ impl Memory {
         match self.version() {
             1...3 => 128 * 1024,
             4...5 => 256 * 1024,
+            6...7 => 576 * 1024,
             _ => 512 * 1024,
         }
     }
@@ -214,13 +215,9 @@ impl Memory {
             return Err(GameError::InvalidFile);
         }
         if len > self.max_file_length() {
-            // File is too large for its version, this is permitted in Version 6-7.
-            if self.version() >= 6 && self.version <= 7 {
-                error!("Invalid file size");
-                return Err(GameError::InvalidFile);
-            } else {
-                warn!("File exceeds standard size limit");
-            }
+            // File is too large for its version
+            error!("Invalid file size");
+            return Err(GameError::InvalidFile);
         }
 
         let static_memory_base: usize = self.static_memory_base().into();
