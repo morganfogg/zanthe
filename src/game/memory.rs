@@ -214,8 +214,8 @@ impl Memory {
             return Err(GameError::InvalidFile);
         }
         if len > self.max_file_length() {
-            // File is too large for its version, this is permitted in Version 7+
-            if self.version() < 7 {
+            // File is too large for its version, this is permitted in Version 6-7.
+            if self.version() >= 6 && self.version <= 7 {
                 error!("Invalid file size");
                 return Err(GameError::InvalidFile);
             } else {
