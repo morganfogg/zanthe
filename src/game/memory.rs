@@ -2,16 +2,14 @@ use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
-use std::io::{self, Seek, SeekFrom};
 
 pub struct Memory {
     data: Vec<u8>,
-    cursor: usize,
 }
 
 impl Memory {
     pub fn new(data: Vec<u8>) -> Memory {
-        Memory { data, cursor: 0 }
+        Memory { data }
     }
 
     pub fn get_word(&self, address: usize) -> u16 {
@@ -20,12 +18,6 @@ impl Memory {
 
     pub fn get_byte(&self, address: usize) -> u8 {
         self.data[address]
-    }
-
-    pub fn read_word(&mut self) -> u16 {
-        let result = self.get_word(self.cursor);
-        self.cursor += 2;
-        result
     }
 
     pub fn version(&self) -> u8 {
@@ -246,52 +238,5 @@ impl Memory {
             static_memory_base, high_memory_base, program_counter_starts,
         );
         Ok(())
-    }
-}
-
-impl Seek for Memory {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64, io::Error> {
-        let old_cursor = self.cursor;
-        match pos {
-            SeekFrom::Start(e) => {
-                if e as usize > self.data.len() - 1 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "Seek out of bounds",
-                    ));
-                }
-                self.cursor = e as usize;
-            }
-            SeekFrom::End(e) => {
-                self.cursor = match (self.data.len() - 1).checked_add(e as usize) {
-                    Some(i) => i,
-                    None => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "Seek out of bounds",
-                        ))
-                    }
-                };
-            }
-            SeekFrom::Current(e) => {
-                self.cursor = match self.cursor.checked_add(e as usize) {
-                    Some(i) => i,
-                    None => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "Seek out of bounds",
-                        ))
-                    }
-                };
-            }
-        }
-        if self.cursor > self.data.len() - 1 {
-            self.cursor = old_cursor;
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "Seek out of bounds",
-            ));
-        }
-        Ok(self.cursor as u64)
     }
 }
