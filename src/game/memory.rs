@@ -64,6 +64,7 @@ impl Memory {
         }
     }
 
+    /// Extract a ZSCII-encoded string from the data.
     /// TODO: Implement custom alphabet tables
     fn ztext_to_string(&self, mut cursor: usize) -> String {
         let mut result: Vec<char> = vec![];
@@ -113,6 +114,7 @@ impl Memory {
         result.iter().collect()
     }
 
+    /// Return the separator characters used when parsing input
     fn separators(&self) -> Vec<char> {
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
@@ -128,7 +130,8 @@ impl Memory {
             })
             .collect()
     }
-
+    
+    /// Look up a word in the dictionary table.
     fn dictionary_entry(&self, index: usize) -> String {
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
