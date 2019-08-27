@@ -72,7 +72,7 @@ impl Memory {
     }
 
     /// TODO: Implement custom alphabet tables
-    fn ztext_to_string(&mut self, mut cursor: usize) -> String {
+    fn ztext_to_string(&self, mut cursor: usize) -> String {
         let mut result: Vec<char> = vec![];
         let mut active = Alphabet::A0;
         let mut shift = false;
@@ -120,11 +120,11 @@ impl Memory {
         result.iter().collect()
     }
 
-    fn dictionary(&mut self) {
+    fn separators(&self) -> Vec<char> {
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
         cursor += 1;
-        let separators: Vec<char> = (0..num_separators)
+        (0..num_separators)
             .map(|i| {
                 let result = self.get_byte(cursor + i);
                 if result < 33 || result > 126 {
@@ -133,16 +133,21 @@ impl Memory {
                 }
                 result as char
             })
-            .collect();
-        cursor += num_separators;
+            .collect()
+    }
+
+    fn dictionary_entry(&self, index: usize) -> String {
+        let mut cursor: usize = self.dictionary_location().into();
+        let num_separators: usize = self.get_byte(cursor).into();
+        cursor += num_separators + 1;
         let data_length: usize = self.get_byte(cursor).into();
         cursor += 1;
         let entry_count: usize = self.get_word(cursor).into();
-        cursor += 2;
-        println!("Data length {}, Entry count {}", data_length, entry_count);
-        for x in (0..(entry_count * data_length)).step_by(data_length) {
-            println!("{}", self.ztext_to_string(cursor + x));
+        if index > entry_count {
+            panic!("Invalid dictionary entry");
         }
+        cursor += 2;
+        self.ztext_to_string(cursor + (index - 1) * data_length)
     }
 
     /// Calculates and checks the checksum of the file. The interpreter
@@ -151,7 +156,6 @@ impl Memory {
     /// will change during execution.
     /// Refer to `verify` in Chapter 15 of the specification.
     pub fn verify(&mut self) -> bool {
-        self.dictionary();
         // The file length field is divided by a factor, which differs between versions.
         let factor = match self.version() {
             1...3 => 2,
