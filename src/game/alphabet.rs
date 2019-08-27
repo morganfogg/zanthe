@@ -20,7 +20,7 @@ impl Alphabet {
             },
         }
     }
-    
+
     pub fn character(&self, version: u8, i: u8) -> char {
         self.value(version)[i as usize] as char
     }

@@ -11,7 +11,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(data: Vec<u8>) -> Result<GameState, GameError> {
-        let memory = Memory::new(data);
+        let mut memory = Memory::new(data);
         memory.validate_header()?;
         Ok(GameState {
             counter: memory.get_word(address::PROGRAM_COUNTER_STARTS),

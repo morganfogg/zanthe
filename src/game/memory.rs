@@ -1,8 +1,8 @@
 use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
-use std::io::{self, Seek, SeekFrom};
 use log::{error, info, warn};
+use std::io::{self, Seek, SeekFrom};
 
 pub struct Memory {
     data: Vec<u8>,
@@ -17,7 +17,11 @@ impl Memory {
     pub fn get_word(&self, address: usize) -> u16 {
         ((self.data[address] as u16) << 8) | self.data[address + 1] as u16
     }
-    
+
+    pub fn get_byte(&self, address: usize) -> u8 {
+        self.data[address]
+    }
+
     pub fn read_word(&mut self) -> u16 {
         let result = self.get_word(self.cursor);
         self.cursor += 2;
@@ -27,30 +31,55 @@ impl Memory {
     pub fn version(&self) -> u8 {
         self.data[address::VERSION]
     }
-    
+
     pub fn checksum(&self) -> u16 {
         self.get_word(address::CHECKSUM)
     }
-    
+
     pub fn high_memory_base(&self) -> u16 {
         self.get_word(address::HIGH_MEMORY_BASE)
     }
-    
+
     pub fn program_counter_starts(&self) -> u16 {
         self.get_word(address::PROGRAM_COUNTER_STARTS)
     }
-    
+
     pub fn static_memory_base(&self) -> u16 {
         self.get_word(address::STATIC_MEMORY_BASE)
     }
 
+    pub fn abbreviation_table_location(&self) -> u16 {
+        self.get_word(address::ABBREVIATION_TABLE_LOCATION)
+    }
+
+    pub fn dictionary_location(&self) -> u16 {
+        self.get_word(address::DICTIONARY_LOCATION)
+    }
+
+    pub fn dictionary_word_length(&self) -> usize {
+        match self.version() {
+            1...3 => 4,
+            _ => 6,
+        }
+    }
+
+    pub fn max_file_length(&self) -> usize {
+        match self.version() {
+            1...3 => 128 * 1024,
+            4...5 => 256 * 1024,
+            _ => 512 * 1024,
+        }
+    }
+
     /// TODO: Implement custom alphabet tables
-    fn ztext_to_string(&mut self) -> String {
+    fn ztext_to_string(&mut self, mut cursor: usize) -> String {
         let mut result: Vec<char> = vec![];
         let mut active = Alphabet::A0;
         let mut shift = false;
         loop {
-            let word = self.read_word();
+            let word = self.get_word(cursor);
+            cursor += 2;
+
             let chars = vec![
                 ((word >> 10) & 0b11111) as u8,
                 ((word >> 5) & 0b11111) as u8,
@@ -91,12 +120,38 @@ impl Memory {
         result.iter().collect()
     }
 
+    fn dictionary(&mut self) {
+        let mut cursor: usize = self.dictionary_location().into();
+        let num_separators: usize = self.get_byte(cursor).into();
+        cursor += 1;
+        let separators: Vec<char> = (0..num_separators)
+            .map(|i| {
+                let result = self.get_byte(cursor + i);
+                if result < 33 || result > 126 {
+                    error!("Unexpected word separator");
+                    panic!("Unexpected word separator");
+                }
+                result as char
+            })
+            .collect();
+        cursor += num_separators;
+        let data_length: usize = self.get_byte(cursor).into();
+        cursor += 1;
+        let entry_count: usize = self.get_word(cursor).into();
+        cursor += 2;
+        println!("Data length {}, Entry count {}", data_length, entry_count);
+        for x in (0..(entry_count * data_length)).step_by(data_length) {
+            println!("{}", self.ztext_to_string(cursor + x));
+        }
+    }
+
     /// Calculates and checks the checksum of the file. The interpreter
     /// should continue as normal even if the checksum is incorrect.
     /// Should only be run once before program execution, as the data
     /// will change during execution.
     /// Refer to `verify` in Chapter 15 of the specification.
-    pub fn verify(&self) -> bool {
+    pub fn verify(&mut self) -> bool {
+        self.dictionary();
         // The file length field is divided by a factor, which differs between versions.
         let factor = match self.version() {
             1...3 => 2,
@@ -154,13 +209,14 @@ impl Memory {
             error!("Invalid version byte");
             return Err(GameError::InvalidFile);
         }
-        if len > 512 * 1024
-            || (self.version() <= 5 && len > 256 * 1024)
-            || (self.version() <= 3 && len > 128 * 1024)
-        {
-            // File is too large for its version
-            error!("Invalid file size");
-            return Err(GameError::InvalidFile);
+        if len > self.max_file_length() {
+            // File is too large for its version, this is permitted in Version 7+
+            if self.version() < 7 {
+                error!("Invalid file size");
+                return Err(GameError::InvalidFile);
+            } else {
+                warn!("File exceeds standard size limit");
+            }
         }
 
         let static_memory_base: usize = self.static_memory_base().into();
@@ -198,26 +254,42 @@ impl Seek for Memory {
         match pos {
             SeekFrom::Start(e) => {
                 if e as usize > self.data.len() - 1 {
-                    return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Seek out of bounds"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "Seek out of bounds",
+                    ));
                 }
                 self.cursor = e as usize;
             }
             SeekFrom::End(e) => {
                 self.cursor = match (self.data.len() - 1).checked_add(e as usize) {
                     Some(i) => i,
-                    None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Seek out of bounds"))
+                    None => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "Seek out of bounds",
+                        ))
+                    }
                 };
             }
             SeekFrom::Current(e) => {
                 self.cursor = match self.cursor.checked_add(e as usize) {
                     Some(i) => i,
-                    None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Seek out of bounds"))
+                    None => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "Seek out of bounds",
+                        ))
+                    }
                 };
             }
         }
         if self.cursor > self.data.len() - 1 {
             self.cursor = old_cursor;
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Seek out of bounds"));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Seek out of bounds",
+            ));
         }
         Ok(self.cursor as u64)
     }
