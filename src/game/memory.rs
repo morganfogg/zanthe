@@ -2,7 +2,6 @@ use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
-use std::io::SeekFrom;
 
 pub struct Memory {
     data: Vec<u8>,
@@ -55,8 +54,8 @@ impl Memory {
 
     fn file_length(&self) -> usize {
         let factor = match self.version() {
-            1...3 => 2,
-            4...5 => 4,
+            1..=3 => 2,
+            4..=5 => 4,
             _ => 8,
         };
         self.get_word(address::FILE_LENGTH) as usize * factor
@@ -64,14 +63,14 @@ impl Memory {
 
     fn property_defaults_length(&self) -> usize {
         match self.version() {
-            1...3 => 31,
+            1..=3 => 31,
             _ => 63,
         }
     }
 
     fn object_attribute_length(&self) -> usize {
         match self.version() {
-            1...3 => 4,
+            1..=3 => 4,
             _ => 6,
         }
     }
@@ -82,23 +81,23 @@ impl Memory {
 
     fn dictionary_word_length(&self) -> usize {
         match self.version() {
-            1...3 => 4,
+            1..=3 => 4,
             _ => 6,
         }
     }
 
     fn max_file_length(&self) -> usize {
         match self.version() {
-            1...3 => 128 * 1024,
-            4...5 => 256 * 1024,
-            6...7 => 576 * 1024,
+            1..=3 => 128 * 1024,
+            4..=5 => 256 * 1024,
+            6..=7 => 576 * 1024,
             _ => 512 * 1024,
         }
     }
 
     fn object_flag_length(&self) -> usize {
         match self.version() {
-            1...3 => 4,
+            1..=3 => 4,
             _ => 6,
         }
     }
@@ -121,7 +120,7 @@ impl Memory {
             for c in chars.iter() {
                 match c {
                     0 => result.push(' '),
-                    1...3 => {
+                    1..=3 => {
                         // TODO: Actually implement this
                         result.push('@');
                     }
@@ -138,7 +137,7 @@ impl Memory {
                         }
                     }
                     _ => {
-                        result.push(active.character(self.version(), c - 6));
+                        result.push(active.character(self.version(), *c));
                         if shift {
                             active = Alphabet::A0;
                             shift = false;
@@ -192,7 +191,7 @@ impl Memory {
         let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
         cursor += self.object_attribute_length();
         let (parent, sibling, child) = match self.version() {
-            1...3 => {
+            1..=3 => {
                 let result = (
                     self.get_byte(cursor) as u16,
                     self.get_byte(cursor + 1) as u16,
