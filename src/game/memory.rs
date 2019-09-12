@@ -2,6 +2,7 @@ use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
+use std::io::SeekFrom;
 
 pub struct Memory {
     data: Vec<u8>,
@@ -20,47 +21,85 @@ impl Memory {
         self.data[address]
     }
 
-    pub fn version(&self) -> u8 {
+    pub fn get_bytes(&self, start: usize, length: usize) -> Vec<u8> {
+        self.data[start..start + length].iter().cloned().collect()
+    }
+
+    fn version(&self) -> u8 {
         self.data[address::VERSION]
     }
 
-    pub fn checksum(&self) -> u16 {
+    fn checksum(&self) -> u16 {
         self.get_word(address::CHECKSUM)
     }
 
-    pub fn high_memory_base(&self) -> u16 {
+    fn high_memory_base(&self) -> u16 {
         self.get_word(address::HIGH_MEMORY_BASE)
     }
 
-    pub fn program_counter_starts(&self) -> u16 {
+    fn program_counter_starts(&self) -> u16 {
         self.get_word(address::PROGRAM_COUNTER_STARTS)
     }
 
-    pub fn static_memory_base(&self) -> u16 {
+    fn static_memory_base(&self) -> u16 {
         self.get_word(address::STATIC_MEMORY_BASE)
     }
 
-    pub fn abbreviation_table_location(&self) -> u16 {
+    fn abbreviation_table_location(&self) -> u16 {
         self.get_word(address::ABBREVIATION_TABLE_LOCATION)
     }
 
-    pub fn dictionary_location(&self) -> u16 {
-        self.get_word(address::DICTIONARY_LOCATION)
+    fn object_table_location(&self) -> u16 {
+        self.get_word(address::OBJECT_TABLE_LOCATION)
     }
 
-    pub fn dictionary_word_length(&self) -> usize {
+    fn file_length(&self) -> usize {
+        let factor = match self.version() {
+            1...3 => 2,
+            4...5 => 4,
+            _ => 8,
+        };
+        self.get_word(address::FILE_LENGTH) as usize * factor
+    }
+
+    fn property_defaults_length(&self) -> usize {
+        match self.version() {
+            1...3 => 31,
+            _ => 63,
+        }
+    }
+
+    fn object_attribute_length(&self) -> usize {
         match self.version() {
             1...3 => 4,
             _ => 6,
         }
     }
 
-    pub fn max_file_length(&self) -> usize {
+    fn dictionary_location(&self) -> u16 {
+        self.get_word(address::DICTIONARY_LOCATION)
+    }
+
+    fn dictionary_word_length(&self) -> usize {
+        match self.version() {
+            1...3 => 4,
+            _ => 6,
+        }
+    }
+
+    fn max_file_length(&self) -> usize {
         match self.version() {
             1...3 => 128 * 1024,
             4...5 => 256 * 1024,
             6...7 => 576 * 1024,
             _ => 512 * 1024,
+        }
+    }
+
+    fn object_flag_length(&self) -> usize {
+        match self.version() {
+            1...3 => 4,
+            _ => 6,
         }
     }
 
@@ -130,7 +169,7 @@ impl Memory {
             })
             .collect()
     }
-    
+
     /// Look up a word in the dictionary table.
     fn dictionary_entry(&self, index: usize) -> String {
         let mut cursor: usize = self.dictionary_location().into();
@@ -146,20 +185,47 @@ impl Memory {
         self.ztext_to_string(cursor + (index - 1) * data_length)
     }
 
+    /// Look up an object in the object table
+    fn object_entry(&self) {
+        let mut cursor: usize = self.object_table_location().into();
+        cursor += self.property_defaults_length() * 2;
+        let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
+        cursor += self.object_attribute_length();
+        let (parent, sibling, child) = match self.version() {
+            1...3 => {
+                let result = (
+                    self.get_byte(cursor) as u16,
+                    self.get_byte(cursor + 1) as u16,
+                    self.get_byte(cursor + 2) as u16,
+                );
+                cursor += 3;
+                result
+            }
+            _ => {
+                let result = (
+                    self.get_word(cursor),
+                    self.get_word(cursor + 2),
+                    self.get_word(cursor + 4),
+                );
+                cursor += 6;
+                result
+            }
+        };
+        let properties_address = self.get_word(cursor);
+        println!(
+            "Parent {} Sibling {} Child {} Properties {:x}",
+            parent, sibling, child, properties_address
+        );
+    }
+
     /// Calculates and checks the checksum of the file. The interpreter
     /// should continue as normal even if the checksum is incorrect.
     /// Should only be run once before program execution, as the data
     /// will change during execution.
     /// Refer to `verify` in Chapter 15 of the specification.
     pub fn verify(&mut self) -> bool {
-        // The file length field is divided by a factor, which differs between versions.
-        let factor = match self.version() {
-            1...3 => 2,
-            4...5 => 4,
-            6...8 => 8,
-            _ => panic!("Not implemented"),
-        };
-        let mut file_length: usize = self.get_word(address::FILE_LENGTH) as usize * factor;
+        self.object_entry();
+        let mut file_length = self.file_length();
         if file_length > self.data.len() {
             warn!("File length header invalid");
             return false;
@@ -184,7 +250,7 @@ impl Memory {
             warn!(
                 "Checksum ERROR: Expected {:x}, found {:x}. Stated file length {}. Actual file length {}",
                 expected, result, file_length, self.data.len()
-            )
+            );
         }
         expected == result
     }
