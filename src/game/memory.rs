@@ -111,7 +111,7 @@ impl Memory {
 
     /// Extract a ZSCII-encoded string from the data.
     /// TODO: Implement custom alphabet tables
-    fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, String> {
+    fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, GameError> {
         let mut result: Vec<char> = vec![];
         let mut active = Alphabet::A0;
         let mut shift = false;
@@ -136,7 +136,9 @@ impl Memory {
                 0 => result.push(' '),
                 1 => {
                     if !abbreviations {
-                        return Err("Found abbreviation within an abbreviation".into());
+                        return Err(GameError::InvalidData(
+                            "Found abbreviation within an abbreviation".into(),
+                        ));
                     }
                     if let Some(abbreviation_id) = z_chars.next() {
                         let mut abbreviation: Vec<char> = self
@@ -145,7 +147,7 @@ impl Memory {
                             .collect();
                         result.append(&mut abbreviation);
                     } else {
-                        return Err("String terminated unexpectedly".into());
+                        return Err(GameError::InvalidData("String ended unexpectedly".into()));
                     }
                 }
                 2..=3 => {
@@ -163,7 +165,9 @@ impl Memory {
                         }
                     } else {
                         if !abbreviations {
-                            return Err("Found abbreviation within an abbreviation".into());
+                            return Err(GameError::InvalidData(
+                                "Found abbreviation within an abbreviation".into(),
+                            ));
                         }
                         if let Some(abbreviation_id) = z_chars.next() {
                             let mut abbreviation: Vec<char> = self
@@ -172,7 +176,7 @@ impl Memory {
                                 .collect();
                             result.append(&mut abbreviation);
                         } else {
-                            return Err("String terminated unexpectedly".into());
+                            return Err(GameError::InvalidData("String ended unexpectedly".into()));
                         }
                     }
                 }
@@ -201,7 +205,7 @@ impl Memory {
     }
 
     /// Return the separator characters used when parsing input
-    fn separators(&self) -> Vec<char> {
+    fn separators(&self) -> Result<Vec<char>, GameError> {
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
         cursor += 1;
@@ -209,16 +213,15 @@ impl Memory {
             .map(|i| {
                 let result = self.get_byte(cursor + i);
                 if result < 33 || result > 126 {
-                    error!("Unexpected word separator");
-                    panic!("Unexpected word separator");
+                    return Err(GameError::InvalidData("Unexpected word separator".into()));
                 }
-                result as char
+                Ok(result as char)
             })
             .collect()
     }
 
     /// Look up an abbreviation from the abbreviation table
-    fn abbreviation_entry(&self, table: usize, index: usize) -> Result<String, String> {
+    fn abbreviation_entry(&self, table: usize, index: usize) -> Result<String, GameError> {
         println!("{} {}", table, index);
         let address = self
             .get_word(self.abbreviation_table_location() as usize + (32 * (table - 1) + index) * 2)
@@ -227,7 +230,12 @@ impl Memory {
     }
 
     /// Look up a word in the dictionary table.
-    fn dictionary_entry(&self, index: usize) -> Result<String, String> {
+    fn dictionary_entry(&self, index: usize) -> Result<String, GameError> {
+        if index == 0 {
+            return Err(GameError::InvalidData(
+                "Dictionary index out of bounds".into(),
+            ));
+        }
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
         cursor += num_separators + 1;
@@ -235,7 +243,9 @@ impl Memory {
         cursor += 1;
         let entry_count: usize = self.get_word(cursor).into();
         if index > entry_count {
-            panic!("Invalid dictionary entry");
+            return Err(GameError::InvalidData(
+                "Dictionary index out of bounds".into(),
+            ));
         }
         cursor += 2;
         self.ztext_to_string(cursor + (index - 1) * data_length, true)
