@@ -101,13 +101,26 @@ impl Memory {
             _ => 6,
         }
     }
+    
+    fn object_entry_length(&self) -> usize {
+        match self.version() {
+            1..=3 => 9,
+            _ => 14
+        }
+    }
 
+    fn zchar_iter(&self, start: usize) {
+    
+    
+    }
+    
     /// Extract a ZSCII-encoded string from the data.
     /// TODO: Implement custom alphabet tables
     fn ztext_to_string(&self, mut cursor: usize) -> String {
         let mut result: Vec<char> = vec![];
         let mut active = Alphabet::A0;
         let mut shift = false;
+        
         loop {
             let word = self.get_word(cursor);
             cursor += 2;
@@ -185,11 +198,13 @@ impl Memory {
     }
 
     /// Look up an object in the object table
-    fn object_entry(&self) {
+    fn object_entry(&self, id: usize) {
+        assert!(id != 0, "There is no object at entry 0");
         let mut cursor: usize = self.object_table_location().into();
         cursor += self.property_defaults_length() * 2;
         let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
         cursor += self.object_attribute_length();
+        cursor += (id - 1) * self.object_entry_length();
         let (parent, sibling, child) = match self.version() {
             1..=3 => {
                 let result = (
@@ -215,6 +230,12 @@ impl Memory {
             "Parent {} Sibling {} Child {} Properties {:x}",
             parent, sibling, child, properties_address
         );
+        cursor = properties_address.into();
+        
+        let short_name_length = self.get_byte(cursor);
+        cursor+=1;
+        let short_name = self.ztext_to_string(cursor);
+        println!("{}", short_name);
     }
 
     /// Calculates and checks the checksum of the file. The interpreter
@@ -223,7 +244,9 @@ impl Memory {
     /// will change during execution.
     /// Refer to `verify` in Chapter 15 of the specification.
     pub fn verify(&mut self) -> bool {
-        self.object_entry();
+        for x in 1..=10 {
+            self.object_entry(x);
+        }
         let mut file_length = self.file_length();
         if file_length > self.data.len() {
             warn!("File length header invalid");
