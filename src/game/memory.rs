@@ -2,6 +2,7 @@ use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
+use std::iter;
 
 pub struct Memory {
     data: Vec<u8>,
@@ -108,11 +109,6 @@ impl Memory {
             _ => 14
         }
     }
-
-    fn zchar_iter(&self, start: usize) {
-    
-    
-    }
     
     /// Extract a ZSCII-encoded string from the data.
     /// TODO: Implement custom alphabet tables
@@ -121,45 +117,48 @@ impl Memory {
         let mut active = Alphabet::A0;
         let mut shift = false;
         
+        let mut z_chars = Vec::new();
+        
         loop {
             let word = self.get_word(cursor);
-            cursor += 2;
-
-            let chars = vec![
-                ((word >> 10) & 0b11111) as u8,
-                ((word >> 5) & 0b11111) as u8,
-                (word & 0b11111) as u8,
-            ];
-            for c in chars.iter() {
-                match c {
-                    0 => result.push(' '),
-                    1..=3 => {
-                        // TODO: Actually implement this
-                        result.push('@');
-                    }
-                    4 => {
-                        active = active.next();
-                        if self.version() > 3 {
-                            shift = true;
-                        }
-                    }
-                    5 => {
-                        active = active.previous();
-                        if self.version() > 3 {
-                            shift = true;
-                        }
-                    }
-                    _ => {
-                        result.push(active.character(self.version(), *c));
-                        if shift {
-                            active = Alphabet::A0;
-                            shift = false;
-                        }
-                    }
-                }
-            }
+            z_chars.push(((word >> 10) & 0b11111) as u8);
+            z_chars.push(((word >> 5) & 0b11111) as u8);
+            z_chars.push((word & 0b11111) as u8);
             if word >> 15 != 0 {
                 break;
+            }
+            cursor += 2;
+        }
+        
+        let mut z_chars = z_chars.iter();
+        
+        while let Some(c) = z_chars.next() {
+            match c {
+                0 => result.push(' '),
+                1..=3 => {
+                    // TODO: Actually implement this
+                    z_chars.next();
+                    result.push('@');
+                }
+                4 => {
+                    active = active.next();
+                    if self.version() > 3 {
+                        shift = true;
+                    }
+                }
+                5 => {
+                    active = active.previous();
+                    if self.version() > 3 {
+                        shift = true;
+                    }
+                }
+                _ => {
+                    result.push(active.character(self.version(), *c));
+                    if shift {
+                        active = Alphabet::A0;
+                        shift = false;
+                    }
+                }
             }
         }
         result.iter().collect()
@@ -199,7 +198,6 @@ impl Memory {
 
     /// Look up an object in the object table
     fn object_entry(&self, id: usize) {
-        assert!(id != 0, "There is no object at entry 0");
         let mut cursor: usize = self.object_table_location().into();
         cursor += self.property_defaults_length() * 2;
         let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
