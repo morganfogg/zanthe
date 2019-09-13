@@ -2,7 +2,6 @@ use crate::game::address;
 use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
-use std::iter;
 
 pub struct Memory {
     data: Vec<u8>,
@@ -102,23 +101,23 @@ impl Memory {
             _ => 6,
         }
     }
-    
+
     fn object_entry_length(&self) -> usize {
         match self.version() {
             1..=3 => 9,
-            _ => 14
+            _ => 14,
         }
     }
-    
+
     /// Extract a ZSCII-encoded string from the data.
     /// TODO: Implement custom alphabet tables
-    fn ztext_to_string(&self, mut cursor: usize) -> String {
+    fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, String> {
         let mut result: Vec<char> = vec![];
         let mut active = Alphabet::A0;
         let mut shift = false;
-        
+
         let mut z_chars = Vec::new();
-        
+
         loop {
             let word = self.get_word(cursor);
             z_chars.push(((word >> 10) & 0b11111) as u8);
@@ -129,16 +128,53 @@ impl Memory {
             }
             cursor += 2;
         }
-        
+
         let mut z_chars = z_chars.iter();
-        
+
         while let Some(c) = z_chars.next() {
             match c {
                 0 => result.push(' '),
-                1..=3 => {
-                    // TODO: Actually implement this
-                    z_chars.next();
-                    result.push('@');
+                1 => {
+                    if !abbreviations {
+                        return Err("Found abbreviation within an abbreviation".into());
+                    }
+                    if let Some(abbreviation_id) = z_chars.next() {
+                        let mut abbreviation: Vec<char> = self
+                            .abbreviation_entry(*c as usize, *abbreviation_id as usize)?
+                            .chars()
+                            .collect();
+                        result.append(&mut abbreviation);
+                    } else {
+                        return Err("String terminated unexpectedly".into());
+                    }
+                }
+                2..=3 => {
+                    if self.version() < 3 {
+                        match c {
+                            2 => {
+                                active = active.next();
+                                shift = true;
+                            }
+                            3 => {
+                                active = active.previous();
+                                shift = true;
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        if !abbreviations {
+                            return Err("Found abbreviation within an abbreviation".into());
+                        }
+                        if let Some(abbreviation_id) = z_chars.next() {
+                            let mut abbreviation: Vec<char> = self
+                                .abbreviation_entry(*c as usize, *abbreviation_id as usize)?
+                                .chars()
+                                .collect();
+                            result.append(&mut abbreviation);
+                        } else {
+                            return Err("String terminated unexpectedly".into());
+                        }
+                    }
                 }
                 4 => {
                     active = active.next();
@@ -161,7 +197,7 @@ impl Memory {
                 }
             }
         }
-        result.iter().collect()
+        Ok(result.iter().collect())
     }
 
     /// Return the separator characters used when parsing input
@@ -181,8 +217,17 @@ impl Memory {
             .collect()
     }
 
+    /// Look up an abbreviation from the abbreviation table
+    fn abbreviation_entry(&self, table: usize, index: usize) -> Result<String, String> {
+        println!("{} {}", table, index);
+        let address = self
+            .get_word(self.abbreviation_table_location() as usize + (32 * (table - 1) + index) * 2)
+            * 2;
+        self.ztext_to_string(address.into(), false)
+    }
+
     /// Look up a word in the dictionary table.
-    fn dictionary_entry(&self, index: usize) -> String {
+    fn dictionary_entry(&self, index: usize) -> Result<String, String> {
         let mut cursor: usize = self.dictionary_location().into();
         let num_separators: usize = self.get_byte(cursor).into();
         cursor += num_separators + 1;
@@ -193,7 +238,7 @@ impl Memory {
             panic!("Invalid dictionary entry");
         }
         cursor += 2;
-        self.ztext_to_string(cursor + (index - 1) * data_length)
+        self.ztext_to_string(cursor + (index - 1) * data_length, true)
     }
 
     /// Look up an object in the object table
@@ -229,10 +274,10 @@ impl Memory {
             parent, sibling, child, properties_address
         );
         cursor = properties_address.into();
-        
+
         let short_name_length = self.get_byte(cursor);
-        cursor+=1;
-        let short_name = self.ztext_to_string(cursor);
+        cursor += 1;
+        let short_name = self.ztext_to_string(cursor, true).unwrap();
         println!("{}", short_name);
     }
 
