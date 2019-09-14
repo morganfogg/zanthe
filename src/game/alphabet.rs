@@ -3,7 +3,7 @@ const ALPHABET_1: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const ALPHABET_2: &[u8] = b"@\n0123456789.,!?_#'\"/\\-:()";
 const ALPHABET_2_V1: &[u8] = b"@0123456789.,!?_#'\"/\\<-:()";
 
-pub enum AlphabetTable {
+enum AlphabetTable {
     A0,
     A1,
     A2,

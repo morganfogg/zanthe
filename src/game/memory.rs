@@ -7,51 +7,70 @@ pub struct Memory {
     data: Vec<u8>,
 }
 
+/// Stores and directly operates on the game's memory. The story file represents the initial state
+/// of the game's memory.
 impl Memory {
     pub fn new(data: Vec<u8>) -> Memory {
         Memory { data }
     }
 
+    /// Returns a 2 byte word from the game memory (most significant byte first).
     pub fn get_word(&self, address: usize) -> u16 {
         ((self.data[address] as u16) << 8) | self.data[address + 1] as u16
     }
 
+    /// Returns a single byte from the memory.
     pub fn get_byte(&self, address: usize) -> u8 {
         self.data[address]
     }
 
+    /// Return a series of bytes from the memory.
     pub fn get_bytes(&self, start: usize, length: usize) -> Vec<u8> {
         self.data[start..start + length].iter().cloned().collect()
     }
 
+    /// Return the story file version.
     fn version(&self) -> u8 {
         self.get_byte(address::VERSION)
     }
 
+    /// Return the expected result of the checksum operation.
     fn checksum(&self) -> u16 {
         self.get_word(address::CHECKSUM)
     }
 
+    /// Return the starting point of high memory (containing the game's programming)
     fn high_memory_base(&self) -> u16 {
         self.get_word(address::HIGH_MEMORY_BASE)
     }
 
+    /// Return the initial position of the program counter.
     fn program_counter_starts(&self) -> u16 {
         self.get_word(address::PROGRAM_COUNTER_STARTS)
     }
 
+    /// Return the starting point of static memory (containing immutable game data).
     fn static_memory_base(&self) -> u16 {
         self.get_word(address::STATIC_MEMORY_BASE)
     }
 
+    /// Return the location of the abbreviation table.
     fn abbreviation_table_location(&self) -> u16 {
         self.get_word(address::ABBREVIATION_TABLE_LOCATION)
     }
 
+    /// Return the location of the object table
     fn object_table_location(&self) -> u16 {
         self.get_word(address::OBJECT_TABLE_LOCATION)
     }
 
+    /// Return the location of the dictionary table
+    fn dictionary_location(&self) -> u16 {
+        self.get_word(address::DICTIONARY_LOCATION)
+    }
+
+    /// Return the story file's declared length (in bytes). This may be shorter than its actual
+    /// length, as some files are zero-padded.
     fn file_length(&self) -> usize {
         let factor = match self.version() {
             1..=3 => 2,
@@ -61,13 +80,7 @@ impl Memory {
         self.get_word(address::FILE_LENGTH) as usize * factor
     }
 
-    fn property_defaults_length(&self) -> usize {
-        match self.version() {
-            1..=3 => 31,
-            _ => 63,
-        }
-    }
-
+    /// Return the length of each objects's attribute flags (in bytes).
     fn object_attribute_length(&self) -> usize {
         match self.version() {
             1..=3 => 4,
@@ -75,17 +88,7 @@ impl Memory {
         }
     }
 
-    fn dictionary_location(&self) -> u16 {
-        self.get_word(address::DICTIONARY_LOCATION)
-    }
-
-    fn dictionary_word_length(&self) -> usize {
-        match self.version() {
-            1..=3 => 4,
-            _ => 6,
-        }
-    }
-
+    /// Returns the maximum permitted file size for the file's version.
     fn max_file_length(&self) -> usize {
         match self.version() {
             1..=3 => 128 * 1024,
@@ -95,6 +98,15 @@ impl Memory {
         }
     }
 
+    /// Return the total length of the object property defaults table (in words).
+    fn property_defaults_length(&self) -> usize {
+        match self.version() {
+            1..=3 => 31,
+            _ => 63,
+        }
+    }
+
+    /// Return the length of an object's flag fields (in bytes)
     fn object_flag_length(&self) -> usize {
         match self.version() {
             1..=3 => 4,
@@ -102,6 +114,7 @@ impl Memory {
         }
     }
 
+    /// Return the total length of each entry in the object table (in bytes)
     fn object_entry_length(&self) -> usize {
         match self.version() {
             1..=3 => 9,
@@ -109,7 +122,7 @@ impl Memory {
         }
     }
 
-    /// Extract a ZSCII-encoded string from the data.
+    /// Extract a ZSCII-encoded string from the memory.
     /// TODO: Implement custom alphabet tables
     fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, GameError> {
         let mut result: Vec<char> = vec![];
