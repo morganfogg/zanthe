@@ -25,7 +25,7 @@ impl Memory {
     }
 
     fn version(&self) -> u8 {
-        self.data[address::VERSION]
+        self.get_byte(address::VERSION)
     }
 
     fn checksum(&self) -> u16 {
@@ -113,7 +113,7 @@ impl Memory {
     /// TODO: Implement custom alphabet tables
     fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, GameError> {
         let mut result: Vec<char> = vec![];
-        let mut active = Alphabet::A0;
+        let mut alphabet = Alphabet::new(self.version());
         let mut shift = false;
 
         let mut z_chars = Vec::new();
@@ -154,11 +154,11 @@ impl Memory {
                     if self.version() < 3 {
                         match c {
                             2 => {
-                                active = active.next();
+                                alphabet.next();
                                 shift = true;
                             }
                             3 => {
-                                active = active.previous();
+                                alphabet.previous();
                                 shift = true;
                             }
                             _ => {}
@@ -181,21 +181,21 @@ impl Memory {
                     }
                 }
                 4 => {
-                    active = active.next();
+                    alphabet.next();
                     if self.version() > 3 {
                         shift = true;
                     }
                 }
                 5 => {
-                    active = active.previous();
+                    alphabet.previous();
                     if self.version() > 3 {
                         shift = true;
                     }
                 }
                 _ => {
-                    result.push(active.character(self.version(), *c));
+                    result.push(alphabet.character(*c));
                     if shift {
-                        active = Alphabet::A0;
+                        alphabet.default();
                         shift = false;
                     }
                 }
