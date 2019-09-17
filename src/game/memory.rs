@@ -3,12 +3,12 @@ use crate::game::alphabet::Alphabet;
 use crate::game::error::GameError;
 use log::{error, info, warn};
 
+/// Stores and directly operates on the game's memory. The story file represents the initial state
+/// of the game's memory.
 pub struct Memory {
     data: Vec<u8>,
 }
 
-/// Stores and directly operates on the game's memory. The story file represents the initial state
-/// of the game's memory.
 impl Memory {
     pub fn new(data: Vec<u8>) -> Memory {
         Memory { data }
@@ -125,7 +125,7 @@ impl Memory {
     /// Extract a ZSCII-encoded string from the memory.
     /// TODO: Implement custom alphabet tables
     fn ztext_to_string(&self, mut cursor: usize, abbreviations: bool) -> Result<String, GameError> {
-        let mut result: Vec<char> = vec![];
+        let mut result: Vec<char> = Vec::new();
         let mut alphabet = Alphabet::new(self.version());
         let mut shift = false;
 
@@ -147,7 +147,7 @@ impl Memory {
         while let Some(c) = z_chars.next() {
             match c {
                 0 => result.push(' '),
-                1 => {
+                1..=3 if (self.version() >= 3 || *c == 1) => {
                     if !abbreviations {
                         return Err(GameError::InvalidData(
                             "Found abbreviation within an abbreviation".into(),
@@ -163,45 +163,23 @@ impl Memory {
                         return Err(GameError::InvalidData("String ended unexpectedly".into()));
                     }
                 }
-                2..=3 => {
-                    if self.version() < 3 {
-                        match c {
-                            2 => {
-                                alphabet.next();
-                                shift = true;
-                            }
-                            3 => {
-                                alphabet.previous();
-                                shift = true;
-                            }
-                            _ => {}
-                        }
-                    } else {
-                        if !abbreviations {
-                            return Err(GameError::InvalidData(
-                                "Found abbreviation within an abbreviation".into(),
-                            ));
-                        }
-                        if let Some(abbreviation_id) = z_chars.next() {
-                            let mut abbreviation: Vec<char> = self
-                                .abbreviation_entry(*c as usize, *abbreviation_id as usize)?
-                                .chars()
-                                .collect();
-                            result.append(&mut abbreviation);
-                        } else {
-                            return Err(GameError::InvalidData("String ended unexpectedly".into()));
-                        }
-                    }
+                2 => {
+                    alphabet.next();
+                    shift = true;
+                }
+                3 => {
+                    alphabet.previous();
+                    shift = true;
                 }
                 4 => {
                     alphabet.next();
-                    if self.version() > 3 {
+                    if self.version() >= 3 {
                         shift = true;
                     }
                 }
                 5 => {
                     alphabet.previous();
-                    if self.version() > 3 {
+                    if self.version() >= 3 {
                         shift = true;
                     }
                 }
