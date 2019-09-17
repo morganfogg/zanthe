@@ -1,4 +1,3 @@
-use crate::game::address;
 use crate::game::error::GameError;
 use crate::game::memory::Memory;
 use std::vec::Vec;
@@ -14,7 +13,7 @@ impl GameState {
         let mut memory = Memory::new(data);
         memory.validate_header()?;
         Ok(GameState {
-            counter: memory.get_word(address::PROGRAM_COUNTER_STARTS),
+            counter: memory.program_counter_starts(),
             checksum_valid: memory.verify(),
             memory,
         })

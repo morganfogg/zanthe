@@ -15,17 +15,17 @@ impl Memory {
     }
 
     /// Returns a 2 byte word from the game memory (most significant byte first).
-    pub fn get_word(&self, address: usize) -> u16 {
+    fn get_word(&self, address: usize) -> u16 {
         ((self.data[address] as u16) << 8) | self.data[address + 1] as u16
     }
 
     /// Returns a single byte from the memory.
-    pub fn get_byte(&self, address: usize) -> u8 {
+    fn get_byte(&self, address: usize) -> u8 {
         self.data[address]
     }
 
     /// Return a series of bytes from the memory.
-    pub fn get_bytes(&self, start: usize, length: usize) -> Vec<u8> {
+    fn get_bytes(&self, start: usize, length: usize) -> Vec<u8> {
         self.data[start..start + length].iter().cloned().collect()
     }
 
@@ -45,7 +45,7 @@ impl Memory {
     }
 
     /// Return the initial position of the program counter.
-    fn program_counter_starts(&self) -> u16 {
+    pub fn program_counter_starts(&self) -> u16 {
         self.get_word(address::PROGRAM_COUNTER_STARTS)
     }
 
