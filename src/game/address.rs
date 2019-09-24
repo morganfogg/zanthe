@@ -34,5 +34,5 @@ pub const _FONT_HEIGHT: usize = 0x27;
 pub const _DEFAULT_BACKGROUND_COLOUR: usize = 0x2C;
 pub const _DEFAULT_FOREGROUND_COLOR: usize = 0x2D;
 pub const _TERMINATING_CHARACTER_TABLE_LOCATION: usize = 0x2E;
-pub const _ALPHABET_TABLE_LOCATION: usize = 0x34;
+pub const ALPHABET_TABLE_LOCATION: usize = 0x34;
 pub const _HEADER_EXTENSION_TABLE_LOCATION: usize = 0x36;

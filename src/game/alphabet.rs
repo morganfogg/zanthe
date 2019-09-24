@@ -1,58 +1,64 @@
-const ALPHABET_0: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
-const ALPHABET_1: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const ALPHABET_2: &[u8] = b"@\n0123456789.,!?_#'\"/\\-:()";
-const ALPHABET_2_V1: &[u8] = b"@0123456789.,!?_#'\"/\\<-:()";
+const ALPHABET_0: &[u8; 26] = b"abcdefghijklmnopqrstuvwxyz";
+const ALPHABET_1: &[u8; 26] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ALPHABET_2: &[u8; 26] = b"@\n0123456789.,!?_#'\"/\\-:()";
+const ALPHABET_2_V1: &[u8; 26] = b"@0123456789.,!?_#'\"/\\<-:()";
 
-enum AlphabetTable {
-    A0,
-    A1,
-    A2,
+#[derive(Copy, Clone)]
+pub enum AlphabetTable {
+    A0 = 0,
+    A1 = 1,
+    A2 = 2,
 }
 
-pub struct Alphabet {
-    version: u8,
-    active: AlphabetTable,
+pub struct Alphabet<'a> {
+    a0: &'a [u8],
+    a1: &'a [u8],
+    a2: &'a [u8],
 }
 
-impl Alphabet {
-    pub fn new(version: u8) -> Self {
-        Alphabet {
-            version,
-            active: AlphabetTable::A0,
-        }
+impl<'a> Alphabet<'a> {
+    pub fn new(a0: &'a [u8], a1: &'a [u8], a2: &'a [u8]) -> Self {
+        Self { a0, a1, a2 }
     }
 
-    fn value(&self) -> &[u8] {
-        match self.active {
-            AlphabetTable::A0 => ALPHABET_0,
-            AlphabetTable::A1 => ALPHABET_1,
-            AlphabetTable::A2 => match self.version {
+    pub fn default(version: u8) -> Self {
+        Self {
+            a0: ALPHABET_0,
+            a1: ALPHABET_1,
+            a2: match version {
                 1 => ALPHABET_2_V1,
                 _ => ALPHABET_2,
             },
         }
     }
 
-    pub fn character(&self, i: u8) -> char {
-        self.value()[i as usize - 6] as char
+    pub fn value(&self, table: AlphabetTable, char: u8) -> char {
+        (match table {
+            AlphabetTable::A0 => self.a0,
+            AlphabetTable::A1 => self.a1,
+            AlphabetTable::A2 => self.a2,
+        })[char as usize]
+            .into()
     }
+}
 
-    pub fn next(&mut self) {
-        self.active = match self.active {
+impl AlphabetTable {
+    pub fn next(&mut self) -> Self {
+        match self {
             AlphabetTable::A0 => AlphabetTable::A1,
             AlphabetTable::A1 => AlphabetTable::A2,
             AlphabetTable::A2 => AlphabetTable::A0,
         }
     }
 
-    pub fn previous(&mut self) {
-        self.active = match self.active {
+    pub fn previous(&mut self) -> Self {
+        match self {
             AlphabetTable::A0 => AlphabetTable::A2,
             AlphabetTable::A1 => AlphabetTable::A0,
             AlphabetTable::A2 => AlphabetTable::A1,
         }
     }
-    pub fn default(&mut self) {
-        self.active = AlphabetTable::A0;
+    pub fn default() -> Self {
+        AlphabetTable::A0
     }
 }
