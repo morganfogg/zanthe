@@ -18,5 +18,7 @@ impl<'a> Routine<'a> {
             memory,
         }
     }
-    pub fn invoke(&mut self) {}
+    pub fn invoke(&mut self) {
+
+    }
 }

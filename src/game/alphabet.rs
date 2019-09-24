@@ -37,7 +37,7 @@ impl<'a> Alphabet<'a> {
             AlphabetTable::A0 => self.a0,
             AlphabetTable::A1 => self.a1,
             AlphabetTable::A2 => self.a2,
-        })[char as usize]
+        })[char as usize - 6]
             .into()
     }
 }

@@ -160,17 +160,19 @@ impl Memory {
     }
 
     /// Extract an encoded ZSCII character sequence from the memory.
-    pub fn zscii_sequence(&self, mut cursor: usize) -> Vec<u8> {
+    pub fn zscii_sequence(&self, mut start: usize) -> Vec<u8> {
         let mut z_chars = Vec::new();
+        let mut cursor = self.cursor(start);
+
         loop {
-            let word = self.get_word(cursor);
-            z_chars.push((word >> 10) as u8);
-            z_chars.push((word >> 5) as u8);
-            z_chars.push(word as u8);
+            let word = cursor.read_word();
+            z_chars.push(((word >> 10) & 0b11111) as u8);
+            z_chars.push(((word >> 5) & 0b11111) as u8);
+            z_chars.push((word & 0b11111) as u8);
+
             if word >> 15 != 0 {
                 break;
             }
-            cursor += 2;
         }
         z_chars
     }
@@ -190,6 +192,69 @@ impl Memory {
             })
             .collect()
     }
+    
+    pub fn dictionary_entry(&self, index: usize) -> Result<String, GameError> {
+        if index == 0 {
+            return Err(GameError::InvalidData(
+                "Dictionary index out of bounds".into(),
+            ));
+        }
+        let mut cursor: usize = self.dictionary_location().into();
+        let num_separators: usize = self.get_byte(cursor).into();
+        cursor += num_separators + 1;
+        let data_length: usize = self.get_byte(cursor).into();
+        cursor += 1;
+        let entry_count: usize = self.get_word(cursor).into();
+        if index > entry_count {
+            return Err(GameError::InvalidData(
+                "Dictionary index out of bounds".into(),
+            ));
+        }
+        cursor += 2;
+        self.extract_string(cursor + (index - 1) * data_length, true)
+    }
+    
+    
+    /// Look up an object in the object table
+    pub fn object_entry(&self, id: usize) {
+        let mut cursor: usize = self.object_table_location().into();
+        cursor += self.property_defaults_length() * 2;
+        let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
+        cursor += self.object_attribute_length();
+        cursor += (id - 1) * self.object_entry_length();
+        let (parent, sibling, child) = match self.version() {
+            1..=3 => {
+                let result = (
+                    self.get_byte(cursor) as u16,
+                    self.get_byte(cursor + 1) as u16,
+                    self.get_byte(cursor + 2) as u16,
+                );
+                cursor += 3;
+                result
+            }
+            _ => {
+                let result = (
+                    self.get_word(cursor),
+                    self.get_word(cursor + 2),
+                    self.get_word(cursor + 4),
+                );
+                cursor += 6;
+                result
+            }
+        };
+        let properties_address = self.get_word(cursor);
+        println!(
+            "Parent {} Sibling {} Child {} Properties {:x}",
+            parent, sibling, child, properties_address
+        );
+        cursor = properties_address.into();
+
+        let short_name_length = self.get_byte(cursor);
+        cursor += 1;
+        let short_name = self.extract_string(cursor, true).unwrap();
+        println!("{}", short_name);
+    }
+
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
     pub fn abbreviation_entry(&self, table: usize, index: usize) -> usize {
