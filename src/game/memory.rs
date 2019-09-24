@@ -109,6 +109,10 @@ impl Memory {
         self.get_word(address::FILE_LENGTH) as usize * factor
     }
 
+    pub fn data_length(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn abbreviation_count(&self) -> usize {
         match self.version() {
             1 => 0,
@@ -192,7 +196,7 @@ impl Memory {
             })
             .collect()
     }
-    
+
     pub fn dictionary_entry(&self, index: usize) -> Result<String, GameError> {
         if index == 0 {
             return Err(GameError::InvalidData(
@@ -213,8 +217,7 @@ impl Memory {
         cursor += 2;
         self.extract_string(cursor + (index - 1) * data_length, true)
     }
-    
-    
+
     /// Look up an object in the object table
     pub fn object_entry(&self, id: usize) {
         let mut cursor: usize = self.object_table_location().into();
@@ -254,7 +257,6 @@ impl Memory {
         let short_name = self.extract_string(cursor, true).unwrap();
         println!("{}", short_name);
     }
-
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
     pub fn abbreviation_entry(&self, table: usize, index: usize) -> usize {
