@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 
 pub enum GameError {
@@ -29,3 +30,5 @@ impl Debug for GameError {
         Display::fmt(&self, f)
     }
 }
+
+impl Error for GameError {}

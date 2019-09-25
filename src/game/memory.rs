@@ -3,6 +3,8 @@ use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
 use log::{error, info, warn};
+use std::error::Error;
+use std::io::{Seek, SeekFrom};
 
 /// Stores the game's internal memory.
 pub struct Memory {
@@ -38,11 +40,11 @@ impl Memory {
         self.data[address + 1] = content as u8;
     }
 
-    fn cursor(&self, start: usize) -> Cursor<&Memory> {
+    pub fn cursor(&self, start: usize) -> Cursor<&Memory> {
         Cursor::new(self, start)
     }
 
-    fn mut_cursor(&mut self, start: usize) -> Cursor<&mut Memory> {
+    pub fn mut_cursor(&mut self, start: usize) -> Cursor<&mut Memory> {
         Cursor::new(self, start)
     }
 
@@ -164,7 +166,7 @@ impl Memory {
     }
 
     /// Extract an encoded ZSCII character sequence from the memory.
-    pub fn zscii_sequence(&self, mut start: usize) -> Vec<u8> {
+    pub fn zscii_sequence(&self, start: usize) -> Vec<u8> {
         let mut z_chars = Vec::new();
         let mut cursor = self.cursor(start);
 
@@ -197,32 +199,26 @@ impl Memory {
             .collect()
     }
 
-    pub fn dictionary_entry(&self, index: usize) -> Result<String, GameError> {
+    pub fn dictionary_entry(&self, index: usize) -> Result<String, Box<dyn Error>> {
         if index == 0 {
-            return Err(GameError::InvalidData(
-                "Dictionary index out of bounds".into(),
-            ));
+            return Err(GameError::InvalidData("Dictionary index out of bounds".into()).into());
         }
-        let mut cursor: usize = self.dictionary_location().into();
-        let num_separators: usize = self.get_byte(cursor).into();
-        cursor += num_separators + 1;
-        let data_length: usize = self.get_byte(cursor).into();
-        cursor += 1;
-        let entry_count: usize = self.get_word(cursor).into();
+        let mut cursor = self.cursor(self.dictionary_location().into());
+        let num_separators: usize = cursor.read_byte().into();
+        cursor.seek(SeekFrom::Current(num_separators as i64))?;
+        let data_length: usize = cursor.read_byte().into();
+        let entry_count: usize = cursor.read_word().into();
         if index > entry_count {
-            return Err(GameError::InvalidData(
-                "Dictionary index out of bounds".into(),
-            ));
+            return Err(GameError::InvalidData("Dictionary index out of bounds".into()).into());
         }
-        cursor += 2;
-        self.extract_string(cursor + (index - 1) * data_length, true)
+        self.extract_string(cursor.tell() + (index - 1) * data_length, true)
     }
 
     /// Look up an object in the object table
     pub fn object_entry(&self, id: usize) {
         let mut cursor: usize = self.object_table_location().into();
         cursor += self.property_defaults_length() * 2;
-        let flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
+        let _flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
         cursor += self.object_attribute_length();
         cursor += (id - 1) * self.object_entry_length();
         let (parent, sibling, child) = match self.version() {
@@ -252,7 +248,7 @@ impl Memory {
         );
         cursor = properties_address.into();
 
-        let short_name_length = self.get_byte(cursor);
+        let _short_name_length = self.get_byte(cursor);
         cursor += 1;
         let short_name = self.extract_string(cursor, true).unwrap();
         println!("{}", short_name);
@@ -276,9 +272,13 @@ impl Memory {
         )
     }
 
-    pub fn extract_string(&self, start: usize, abbreviations: bool) -> Result<String, GameError> {
+    pub fn extract_string(
+        &self,
+        start: usize,
+        abbreviations: bool,
+    ) -> Result<String, Box<dyn Error>> {
         let sequence = self.zscii_sequence(start);
-        let byte_length = sequence.len() / 3 * 2;
+        let _byte_length = sequence.len() / 3 * 2;
         let mut sequence = sequence.iter();
         let mut result = Vec::new();
         let mut shift = false;
@@ -291,7 +291,8 @@ impl Memory {
                     if !abbreviations {
                         return Err(GameError::InvalidData(
                             "Found abbreviation within an abbreviation".into(),
-                        ));
+                        )
+                        .into());
                     }
                     if let Some(abbreviation_id) = sequence.next() {
                         let abbreviation: String = self.extract_string(
@@ -300,7 +301,9 @@ impl Memory {
                         )?;
                         result.append(&mut abbreviation.chars().collect());
                     } else {
-                        return Err(GameError::InvalidData("String ended unexpectedly".into()));
+                        return Err(
+                            GameError::InvalidData("String ended unexpectedly".into()).into()
+                        );
                     }
                 }
                 2 => {
