@@ -22,6 +22,10 @@ where
         }
     }
 
+    pub fn tell(&self) -> usize {
+        self.cursor
+    }
+
     pub fn read_byte(&mut self) -> u8 {
         let result = self.memory.borrow().get_byte(self.cursor);
         self.cursor += 1;
@@ -32,6 +36,10 @@ where
         let result = self.memory.borrow().get_word(self.cursor);
         self.cursor += 2;
         result
+    }
+    
+    pub fn borrow(&self) -> &Memory {
+        return self.memory.borrow();
     }
 }
 
