@@ -30,12 +30,14 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
         }
     };
 
-    let _game_state = match GameState::new(game_file) {
+    let mut game_state = match GameState::new(game_file) {
         Ok(state) => state,
         Err(error) => {
             return Err(format!("Error loading story file: {}", error));
         }
     };
+
+    game_state.run();
 
     Ok(())
 }
