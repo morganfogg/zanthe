@@ -1,10 +1,12 @@
 mod game;
 
-use clap::ArgMatches;
-use game::state::GameState;
-use simplelog::*;
 use std::fs;
 use std::fs::OpenOptions;
+
+use clap::ArgMatches;
+use simplelog::*;
+
+use game::state::GameState;
 
 pub fn run(args: ArgMatches) -> Result<(), String> {
     let log_file = match OpenOptions::new()

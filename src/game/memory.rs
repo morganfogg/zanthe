@@ -1,10 +1,12 @@
+use std::error::Error;
+use std::io::{Seek, SeekFrom};
+
+use log::{error, info, warn};
+
 use crate::game::address;
 use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
-use log::{error, info, warn};
-use std::error::Error;
-use std::io::{Seek, SeekFrom};
 
 /// Stores the game's internal memory.
 pub struct Memory {

@@ -1,5 +1,6 @@
 use clap::{App, Arg};
 use log::{error, info};
+
 use zanthe::run;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
