@@ -21,7 +21,6 @@ impl GameState {
         })
     }
 
-
     pub fn run(&mut self) {
         let mut cursor = self
             .memory

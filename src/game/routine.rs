@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
-use crate::game::memory::Memory;
 use crate::game::cursor::Cursor;
+use crate::game::memory::Memory;
 
 #[derive(Debug)]
 enum Instruction {
@@ -73,7 +73,7 @@ impl<'a> Routine<'a> {
             _ => unreachable!(),
         }
     }
-    
+
     pub fn invoke(&mut self) {
         println!("Okay!");
         let op = self.cursor.read_byte();

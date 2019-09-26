@@ -37,7 +37,7 @@ where
         self.cursor += 2;
         result
     }
-    
+
     pub fn borrow(&self) -> &Memory {
         return self.memory.borrow();
     }
