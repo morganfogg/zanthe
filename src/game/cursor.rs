@@ -1,7 +1,8 @@
-use crate::game::memory::Memory;
 use std::borrow::Borrow;
 use std::convert::TryFrom;
 use std::io::{Error as IOError, ErrorKind, Seek, SeekFrom};
+
+use crate::game::memory::Memory;
 
 pub struct Cursor<T>
 where
@@ -38,7 +39,7 @@ where
         result
     }
 
-    pub fn borrow(&self) -> &Memory {
+    pub fn inner(&self) -> &Memory {
         return self.memory.borrow();
     }
 }

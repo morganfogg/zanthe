@@ -51,7 +51,7 @@ impl<'a> Routine<'a> {
         Routine {
             stack: Vec::new(),
             variables: Vec::new(),
-            version: cursor.borrow().version(),
+            version: cursor.inner().version(),
             cursor,
         }
     }
@@ -75,7 +75,6 @@ impl<'a> Routine<'a> {
     }
 
     pub fn invoke(&mut self) {
-        println!("Okay!");
         let op = self.cursor.read_byte();
 
         let instruction;
