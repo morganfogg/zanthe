@@ -5,9 +5,9 @@ const ALPHABET_2_V1: &[u8; 26] = b"@0123456789.,!?_#'\"/\\<-:()";
 
 #[derive(Copy, Clone)]
 pub enum AlphabetTable {
-    A0 = 0,
-    A1 = 1,
-    A2 = 2,
+    A0,
+    A1,
+    A2,
 }
 
 pub struct Alphabet<'a> {
