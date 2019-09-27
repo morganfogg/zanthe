@@ -1,10 +1,8 @@
-use std::fmt::Debug;
-
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
 use crate::game::instruction::{Instruction, InstructionResult, InstructionSet};
 use crate::game::memory::Memory;
-use crate::game::operand::{AdditionalOperand, Operand};
+use crate::game::operand::Operand;
 
 enum InstructionForm {
     Long,
