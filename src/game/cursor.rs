@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::convert::TryFrom;
+use std::error::Error;
 use std::io::{Error as IOError, ErrorKind, Seek, SeekFrom};
 
 use crate::game::memory::Memory;
@@ -37,6 +38,20 @@ where
         let result = self.memory.borrow().get_word(self.cursor);
         self.cursor += 2;
         result
+    }
+
+    pub fn read_string(&mut self) -> Result<String, Box<dyn Error>> {
+        let (string, len) = self.memory.borrow().extract_string(self.cursor, true)?;
+        self.cursor += len;
+        Ok(string)
+    }
+
+    pub fn peek_byte(&self) -> u8 {
+        self.memory.borrow().get_byte(self.cursor)
+    }
+
+    pub fn peek_word(&self) -> u16 {
+        self.memory.borrow().get_word(self.cursor)
     }
 
     pub fn inner(&self) -> &Memory {
