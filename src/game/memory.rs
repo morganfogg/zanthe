@@ -213,7 +213,9 @@ impl Memory {
         if index > entry_count {
             return Err(GameError::InvalidData("Dictionary index out of bounds".into()).into());
         }
-        self.extract_string(cursor.tell() + (index - 1) * data_length, true)
+        Ok(self
+            .extract_string(cursor.tell() + (index - 1) * data_length, true)?
+            .0)
     }
 
     /// Look up an object in the object table
@@ -252,7 +254,7 @@ impl Memory {
 
         let _short_name_length = self.get_byte(cursor);
         cursor += 1;
-        let short_name = self.extract_string(cursor, true).unwrap();
+        let short_name = self.extract_string(cursor, true).unwrap().0;
         println!("{}", short_name);
     }
 
@@ -278,9 +280,9 @@ impl Memory {
         &self,
         start: usize,
         abbreviations: bool,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<(String, usize), Box<dyn Error>> {
         let sequence = self.zscii_sequence(start);
-        let _byte_length = sequence.len() / 3 * 2;
+        let byte_length = sequence.len() / 3 * 2;
         let mut sequence = sequence.iter();
         let mut result = Vec::new();
         let mut shift = false;
@@ -297,10 +299,12 @@ impl Memory {
                         .into());
                     }
                     if let Some(abbreviation_id) = sequence.next() {
-                        let abbreviation: String = self.extract_string(
-                            self.abbreviation_entry(*c as usize, *abbreviation_id as usize),
-                            false,
-                        )?;
+                        let abbreviation: String = self
+                            .extract_string(
+                                self.abbreviation_entry(*c as usize, *abbreviation_id as usize),
+                                false,
+                            )?
+                            .0;
                         result.append(&mut abbreviation.chars().collect());
                     } else {
                         return Err(
@@ -337,7 +341,7 @@ impl Memory {
                 }
             }
         }
-        Ok(result.iter().collect())
+        Ok((result.iter().collect(), byte_length))
     }
 
     /// Calculates and checks the checksum of the file. The interpreter
