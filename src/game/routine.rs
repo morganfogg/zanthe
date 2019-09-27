@@ -1,42 +1,16 @@
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::Debug;
 
 use crate::game::cursor::Cursor;
+use crate::game::error::GameError;
+use crate::game::instruction::{Instruction, InstructionResult, InstructionSet};
 use crate::game::memory::Memory;
+use crate::game::operand::{AdditionalOperand, Operand};
 
-#[derive(Debug)]
-enum Instruction {
-    Long(u8),
-    Short(u8),
-    Extended(u8),
-    Variable(u8),
-}
-
-enum Operand {
-    LargeConstant(u16),
-    SmallConstant(u8),
-    Variable(u8),
-    Omitted,
-}
-
-impl Display for Operand {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match &self {
-                Operand::LargeConstant(v) => format!("LargeConstant({:x})", v),
-                Operand::SmallConstant(v) => format!("SmallConstant({:x})", v),
-                Operand::Variable(v) => format!("Variable({:x})", v),
-                Operand::Omitted => "Omitted".to_string(),
-            }
-        )
-    }
-}
-
-impl Debug for Operand {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self, f)
-    }
+enum InstructionForm {
+    Long,
+    Short,
+    Extended,
+    Variable,
 }
 
 pub struct Routine<'a> {
@@ -44,14 +18,19 @@ pub struct Routine<'a> {
     variables: Vec<u8>,
     version: u8,
     cursor: &'a mut Cursor<&'a Memory>,
+    instruction_set: &'a InstructionSet,
 }
 
 impl<'a> Routine<'a> {
-    pub fn new(cursor: &'a mut Cursor<&'a Memory>) -> Routine<'a> {
+    pub fn new(
+        cursor: &'a mut Cursor<&'a Memory>,
+        instruction_set: &'a InstructionSet,
+    ) -> Routine<'a> {
         Routine {
             stack: Vec::new(),
             variables: Vec::new(),
             version: cursor.inner().version(),
+            instruction_set,
             cursor,
         }
     }
@@ -74,25 +53,40 @@ impl<'a> Routine<'a> {
         }
     }
 
-    pub fn invoke(&mut self) {
-        let op = self.cursor.read_byte();
+    pub fn memory(&self) -> &Memory {
+        self.cursor.inner()
+    }
 
-        let instruction;
+    pub fn invoke(&mut self) -> Result<(), GameError> {
+        for _ in 1..=2 {
+            let next = self.next();
+            println!("{:?}", next);
+        }
+        Ok(())
+    }
+
+    fn next(&mut self) -> InstructionResult {
+        println!("{:x}", self.cursor.tell());
+        let mut code = self.cursor.read_byte();
+        let form;
         let mut operands: Vec<Operand> = vec![];
-        if op == 190 {
-            instruction = Instruction::Extended(self.cursor.read_byte());
+        if code == 190 {
+            form = InstructionForm::Extended;
+            code = self.cursor.read_byte();
         } else {
-            instruction = match op >> 6 {
-                0b11 => Instruction::Variable(op & 0b11111),
-                0b10 => Instruction::Short(op & 0b1111),
-                _ => Instruction::Long(op & 0b11111),
+            form = match code >> 6 {
+                0b11 => InstructionForm::Variable,
+                0b10 => InstructionForm::Short,
+                _ => InstructionForm::Long,
             };
         }
-        match instruction {
-            Instruction::Short(_) => {
-                operands.push(self.read_operand_other((op >> 4) & 0b11));
+        match form {
+            InstructionForm::Short => {
+                if code >> 4 == 3 {
+                    operands.push(self.read_operand_other((code >> 4) & 0b11));
+                }
             }
-            Instruction::Variable(code) if self.version >= 5 && (code == 0xC || code == 0x1A) => {
+            InstructionForm::Variable if self.version >= 5 && (code == 236 || code == 250) => {
                 let op_types = self.cursor.read_word();
                 operands = (0..=12)
                     .rev()
@@ -100,7 +94,7 @@ impl<'a> Routine<'a> {
                     .map(|x| self.read_operand_other(((op_types >> x) & 0b11) as u8))
                     .collect()
             }
-            Instruction::Variable(_) | Instruction::Extended(_) => {
+            InstructionForm::Variable | InstructionForm::Extended => {
                 let op_types = self.cursor.read_byte();
                 operands = (0..=6)
                     .rev()
@@ -108,10 +102,43 @@ impl<'a> Routine<'a> {
                     .map(|x| self.read_operand_other((op_types >> x) & 0b11))
                     .collect();
             }
-            Instruction::Long(_) => {
+            InstructionForm::Long => {
                 for x in 6..=5 {
-                    operands.push(self.read_operand_long((op >> x) & 0b1));
+                    operands.push(self.read_operand_long((code >> x) & 0b1));
                 }
+            }
+        }
+
+        let instruction = self.instruction_set.get(code);
+        let instruction = match instruction {
+            Some(i) => i,
+            None => return InstructionResult::Error("Illegal opcode".into()),
+        };
+        match instruction {
+            Instruction::Normal(f) => f(self, operands),
+            Instruction::Branch(f) => {
+                let condition = self.cursor.peek_byte() >> 7 == 1;
+                let label = match self.cursor.peek_byte() >> 6 & 1 {
+                    0 => (self.cursor.read_byte() & 0x3f) as u16,
+                    1 => self.cursor.read_word() & 0x3fff,
+                    _ => unreachable!(),
+                };
+                f(self, operands, condition, label)
+            }
+            Instruction::Return(f) => {
+                let variable = self.cursor.read_byte();
+                f(self, operands, variable)
+            }
+            Instruction::StringLiteral(f) => {
+                let string = match self.cursor.read_string() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return InstructionResult::Error(
+                            format!("Error reading string literal: {}", e).into(),
+                        )
+                    }
+                };
+                f(self, string)
             }
         }
     }

@@ -1,6 +1,8 @@
+use std::error::Error;
 use std::vec::Vec;
 
 use crate::game::error::GameError;
+use crate::game::instruction::InstructionSet;
 use crate::game::memory::Memory;
 use crate::game::routine::Routine;
 
@@ -8,6 +10,7 @@ pub struct GameState {
     pub memory: Memory,
     pub checksum_valid: bool,
     pub version: u8,
+    pub instruction_set: InstructionSet,
 }
 
 impl GameState {
@@ -17,14 +20,16 @@ impl GameState {
         Ok(GameState {
             checksum_valid: memory.verify(),
             version: memory.version(),
+            instruction_set: InstructionSet::new(memory.version()),
             memory,
         })
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         let mut cursor = self
             .memory
             .cursor(self.memory.program_counter_starts().into());
-        Routine::new(&mut cursor).invoke();
+        Routine::new(&mut cursor, &self.instruction_set).invoke()?;
+        Ok(())
     }
 }

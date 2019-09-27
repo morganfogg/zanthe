@@ -39,7 +39,9 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
         }
     };
 
-    game_state.run();
+    if let Err(e) = game_state.run() {
+        return Err(format!("{}", e));
+    };
 
     Ok(())
 }
