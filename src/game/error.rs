@@ -5,6 +5,7 @@ pub enum GameError {
     VersionSix,
     InvalidFile,
     InvalidData(String),
+    IllegalOperation(String),
 }
 
 impl Display for GameError {
@@ -19,6 +20,9 @@ impl Display for GameError {
                 }
                 GameError::InvalidData(e) => {
                     format!("Error while reading game data: {}", e)
+                }
+                GameError::IllegalOperation(e) => {
+                    format!("Illegal operation: {}", e)
                 }
             }
         )
