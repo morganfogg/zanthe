@@ -55,12 +55,17 @@ impl<'a> Routine<'a> {
         self.cursor.inner()
     }
 
-    pub fn invoke(&mut self) -> Result<(), GameError> {
-        for _ in 1..=2 {
+    pub fn invoke(&mut self) -> InstructionResult {
+        loop {
             let next = self.next();
             println!("{:?}", next);
+            match next {
+                InstructionResult::Continue => {}
+                _ => {
+                    return next;
+                }
+            }
         }
-        Ok(())
     }
 
     fn next(&mut self) -> InstructionResult {

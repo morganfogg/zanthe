@@ -2,7 +2,7 @@ use std::error::Error;
 use std::vec::Vec;
 
 use crate::game::error::GameError;
-use crate::game::instruction::InstructionSet;
+use crate::game::instruction::{InstructionResult, InstructionSet};
 use crate::game::memory::Memory;
 use crate::game::routine::Routine;
 
@@ -29,7 +29,16 @@ impl GameState {
         let mut cursor = self
             .memory
             .cursor(self.memory.program_counter_starts().into());
-        Routine::new(&mut cursor, &self.instruction_set).invoke()?;
-        Ok(())
+        match Routine::new(&mut cursor, &self.instruction_set).invoke() {
+            InstructionResult::Quit => Ok(()),
+            InstructionResult::Continue => {panic!("Unexpeded continue")},
+            InstructionResult::Return(_) => Err(GameError::IllegalOperation(
+                "Cannot return from main routine".into(),
+            ).into()),
+            InstructionResult::Throw(_) => {
+                Err(GameError::IllegalOperation("Uncaught throw".into()).into())
+            }
+            InstructionResult::Error(e) => Err(e),
+        }
     }
 }

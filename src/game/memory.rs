@@ -166,6 +166,15 @@ impl Memory {
             _ => 14,
         }
     }
+    
+    pub fn unpack_address(&self, address: usize) -> usize {
+        match self.version() {
+            1..=3 => 2 * address,
+            4..=5 => 4 * address,
+            8 => 8 * address,
+            _ => panic!("Implement me"), //TODO: Implement this
+        }
+    }
 
     /// Extract an encoded ZSCII character sequence from the memory.
     pub fn zscii_sequence(&self, start: usize) -> Vec<u8> {
