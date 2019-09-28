@@ -30,6 +30,8 @@ pub struct InstructionSet {
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
         let mut instructions: HashMap<u8, Instruction> = [
+            (176, Instruction::Normal(&common::rtrue)),
+            (177, Instruction::Normal(&common::rfalse)),
             (178, Instruction::StringLiteral(&common::print)),
             (186, Instruction::Normal(&common::quit)),
         ]
@@ -55,6 +57,14 @@ impl InstructionSet {
 
 mod common {
     use super::*;
+
+    pub fn rtrue(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
+        InstructionResult::Return(1)
+    }
+
+    pub fn rfalse(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
+        InstructionResult::Return(0)
+    }
 
     pub fn quit(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
         InstructionResult::Quit
