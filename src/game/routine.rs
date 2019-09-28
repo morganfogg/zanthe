@@ -88,8 +88,17 @@ impl<'a> Routine<'a> {
         }
     }
 
-    pub fn get_variable(&self, variable: u8) -> u16 {
-        self.locals[variable as usize]
+    pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+        match variable {
+            0 => match self.stack.pop() {
+                Some(v) => Ok(v),
+                None => {
+                    Err(GameError::IllegalOperation("Tried to read from empty stack".into()).into())
+                }
+            },
+            1..=16 => Ok(self.locals[variable as usize - 1]),
+            _ => Ok(self.cursor.mut_inner().get_global(variable)),
+        }
     }
 
     pub fn invoke(&mut self) -> InstructionResult {

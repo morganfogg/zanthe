@@ -82,7 +82,10 @@ mod version_gte4 {
         let address = match ops[0] {
             Operand::LargeConstant(v) => v,
             Operand::SmallConstant(v) => v as u16,
-            Operand::Variable(v) => routine.get_variable(v),
+            Operand::Variable(v) => match routine.get_variable(v) {
+                Ok(v) => v,
+                Err(e) => return InstructionResult::Error(e),
+            },
             Operand::Omitted => {
                 return InstructionResult::Error(
                     GameError::InvalidData("Required operand not present".into()).into(),
