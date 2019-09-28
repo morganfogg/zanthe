@@ -16,7 +16,7 @@ pub struct Routine<'a> {
     variables: Vec<u8>,
     version: u8,
     cursor: &'a mut Cursor<&'a Memory>,
-    instruction_set: &'a InstructionSet,
+    pub instruction_set: &'a InstructionSet,
 }
 
 impl<'a> Routine<'a> {
