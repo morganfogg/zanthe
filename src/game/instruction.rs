@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
 
+use crate::game::cursor::Cursor;
+use crate::game::error::GameError;
 use crate::game::operand::Operand;
 use crate::game::routine::Routine;
-use crate::game::cursor::Cursor;
 
+#[derive(Clone)]
 pub enum Instruction {
     Normal(&'static dyn Fn(&mut Routine, Vec<Operand>) -> InstructionResult),
     Branch(&'static dyn Fn(&mut Routine, Vec<Operand>, bool, u16) -> InstructionResult),
@@ -15,7 +17,7 @@ pub enum Instruction {
 #[derive(Debug)]
 pub enum InstructionResult {
     Continue,
-    Return(u8),
+    Return(u16),
     Throw(usize),
     Quit,
     Error(Box<dyn Error>),
@@ -27,11 +29,20 @@ pub struct InstructionSet {
 
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
-        let mut instructions = HashMap::new();
-        instructions.insert(178, Instruction::StringLiteral(&common::print));
-        instructions.insert(186, Instruction::Normal(&common::quit));
+        let mut instructions: HashMap<u8, Instruction> = [
+            (178, Instruction::StringLiteral(&common::print)),
+            (186, Instruction::Normal(&common::quit)),
+        ]
+        .iter()
+        .cloned()
+        .collect();
         if version >= 4 {
-            instructions.insert(224, Instruction::Return(&common::call_vs));
+            instructions.extend(
+                [(224, Instruction::Return(&version_gte4::call_vs))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<u8, Instruction>>(),
+            );
         }
 
         InstructionSet { instructions }
@@ -43,18 +54,51 @@ impl InstructionSet {
 }
 
 mod common {
-    use super::{InstructionResult, Operand, Routine, Cursor};
+    use super::*;
 
     pub fn quit(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
         InstructionResult::Quit
     }
-    
+
     pub fn print(routine: &mut Routine, string: String) -> InstructionResult {
         println!("print called with {}", string);
         InstructionResult::Continue
     }
+}
 
-    pub fn call_vs(routine: &mut Routine, ops: Vec<Operand>, result: u8) -> InstructionResult {
-        InstructionResult::Continue
+mod version_gte4 {
+    use super::*;
+    pub fn call_vs(routine: &mut Routine, ops: Vec<Operand>, variable: u8) -> InstructionResult {
+        let address = match ops[0] {
+            Operand::LargeConstant(v) => v,
+            Operand::SmallConstant(v) => v as u16,
+            Operand::Variable(v) => routine.get_variable(v),
+            Operand::Omitted => {
+                return InstructionResult::Error(
+                    GameError::InvalidData("Required operand not present".into()).into(),
+                )
+            }
+        };
+
+        let mut subroutine_cursor = &mut Cursor::new(
+            routine.memory(),
+            routine.memory().unpack_address(address as usize),
+        );
+
+        let mut subroutine = Routine::new(&mut subroutine_cursor, routine.instruction_set);
+        if let Err(e) = subroutine.prepare_locals() {
+            return InstructionResult::Error(e);
+        }
+        let result = subroutine.invoke();
+
+        match result {
+            InstructionResult::Continue => unreachable!(),
+            InstructionResult::Return(e) => {
+                routine.set_variable(variable, e);
+                InstructionResult::Continue
+            }
+            InstructionResult::Error(_) | InstructionResult::Quit => result,
+            InstructionResult::Throw(_) => unimplemented!(), //TODO: Implement this
+        }
     }
 }

@@ -166,7 +166,7 @@ impl Memory {
             _ => 14,
         }
     }
-    
+
     pub fn unpack_address(&self, address: usize) -> usize {
         match self.version() {
             1..=3 => 2 * address,

@@ -31,10 +31,10 @@ impl GameState {
             .cursor(self.memory.program_counter_starts().into());
         match Routine::new(&mut cursor, &self.instruction_set).invoke() {
             InstructionResult::Quit => Ok(()),
-            InstructionResult::Continue => {panic!("Unexpeded continue")},
-            InstructionResult::Return(_) => Err(GameError::IllegalOperation(
-                "Cannot return from main routine".into(),
-            ).into()),
+            InstructionResult::Continue => panic!("Unexpeded continue"),
+            InstructionResult::Return(_) => {
+                Err(GameError::IllegalOperation("Cannot return from main routine".into()).into())
+            }
             InstructionResult::Throw(_) => {
                 Err(GameError::IllegalOperation("Uncaught throw".into()).into())
             }

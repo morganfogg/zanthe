@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
 use crate::game::instruction::{Instruction, InstructionResult, InstructionSet};
@@ -13,7 +15,7 @@ enum InstructionForm {
 
 pub struct Routine<'a> {
     stack: Vec<u8>,
-    variables: Vec<u8>,
+    locals: Vec<u16>,
     version: u8,
     cursor: &'a mut Cursor<&'a Memory>,
     pub instruction_set: &'a InstructionSet,
@@ -26,7 +28,7 @@ impl<'a> Routine<'a> {
     ) -> Routine<'a> {
         Routine {
             stack: Vec::new(),
-            variables: Vec::new(),
+            locals: Vec::new(),
             version: cursor.inner().version(),
             instruction_set,
             cursor,
@@ -53,6 +55,32 @@ impl<'a> Routine<'a> {
 
     pub fn memory(&self) -> &Memory {
         self.cursor.inner()
+    }
+
+    pub fn prepare_locals(&mut self) -> Result<(), Box<dyn Error>> {
+        let locals_count = self.cursor.read_byte();
+        if locals_count > 16 {
+            return Err(GameError::InvalidData(
+                "Tried to create routine with more than 16 locals".into(),
+            )
+            .into());
+        }
+        if self.version < 5 {
+            for _ in 0..locals_count {
+                self.locals.push(self.cursor.read_word());
+            }
+        } else {
+            self.locals = vec![0; locals_count as usize];
+        }
+        Ok(())
+    }
+
+    pub fn set_variable(&mut self, variable: u8, value: u16) {
+        self.locals[variable as usize] = value;
+    }
+
+    pub fn get_variable(&self, variable: u8) -> u16 {
+        self.locals[variable as usize]
     }
 
     pub fn invoke(&mut self) -> InstructionResult {
