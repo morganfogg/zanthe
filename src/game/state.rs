@@ -28,8 +28,8 @@ impl GameState {
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         let mut cursor = self
             .memory
-            .cursor(self.memory.program_counter_starts().into());
-        match Routine::new(&mut cursor, &self.instruction_set).invoke() {
+            .mut_cursor(self.memory.program_counter_starts().into());
+        match Routine::new(cursor, &self.instruction_set).invoke() {
             InstructionResult::Quit => Ok(()),
             InstructionResult::Continue => panic!("Unexpeded continue"),
             InstructionResult::Return(_) => {

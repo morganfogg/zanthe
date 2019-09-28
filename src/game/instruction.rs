@@ -80,12 +80,14 @@ mod version_gte4 {
             }
         };
 
-        let mut subroutine_cursor = &mut Cursor::new(
-            routine.memory(),
-            routine.memory().unpack_address(address as usize),
-        );
+        let instruction_set = routine.instruction_set;
+        let memory = routine.mut_memory();
+        let address = memory.unpack_address(address as usize);
+        let mut subroutine_cursor = Cursor::new(memory, address as usize);
 
-        let mut subroutine = Routine::new(&mut subroutine_cursor, routine.instruction_set);
+        println!("Addr {:x}", address);
+
+        let mut subroutine = Routine::new(subroutine_cursor, instruction_set);
         if let Err(e) = subroutine.prepare_locals() {
             return InstructionResult::Error(e);
         }

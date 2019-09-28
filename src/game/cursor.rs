@@ -55,7 +55,7 @@ where
     }
 
     pub fn inner(&self) -> &Memory {
-        return self.memory.borrow();
+        self.memory.borrow()
     }
 }
 
@@ -70,6 +70,9 @@ where
     pub fn write_word(&mut self, content: u16) {
         self.memory.borrow_mut().write_word(self.cursor, content);
         self.cursor += 2;
+    }
+    pub fn mut_inner(&mut self) -> &mut Memory {
+        self.memory.borrow_mut()
     }
 }
 

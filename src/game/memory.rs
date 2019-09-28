@@ -91,6 +91,11 @@ impl Memory {
         self.get_word(address::ALPHABET_TABLE_LOCATION)
     }
 
+    /// Return the location of the global variable table.
+    fn global_variable_table_location(&self) -> u16 {
+        self.get_word(address::GLOBAL_VARIABLE_TABLE_LOCATION)
+    }
+
     /// Returns the content of the nth alphabet table.
     fn alphabet_table(&self, table: AlphabetTable) -> &[u8] {
         let start = self.alphabet_table_location() as usize + (table as usize * 26);
@@ -274,6 +279,17 @@ impl Memory {
                 self.abbreviation_table_location() as usize + (32 * (table - 1) + index) * 2,
             ) * 2,
         )
+    }
+
+    pub fn get_global(&self, number: u8) -> u16 {
+        self.get_word(self.global_variable_table_location() as usize + 2 * number as usize)
+    }
+
+    pub fn set_global(&mut self, number: u8, value: u16) {
+        self.write_word(
+            self.global_variable_table_location() as usize + 2 * number as usize,
+            value,
+        );
     }
 
     ///

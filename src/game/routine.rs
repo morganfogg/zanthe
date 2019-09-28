@@ -14,18 +14,15 @@ enum InstructionForm {
 }
 
 pub struct Routine<'a> {
-    stack: Vec<u8>,
+    stack: Vec<u16>,
     locals: Vec<u16>,
     version: u8,
-    cursor: &'a mut Cursor<&'a Memory>,
+    cursor: Cursor<&'a mut Memory>,
     pub instruction_set: &'a InstructionSet,
 }
 
 impl<'a> Routine<'a> {
-    pub fn new(
-        cursor: &'a mut Cursor<&'a Memory>,
-        instruction_set: &'a InstructionSet,
-    ) -> Routine<'a> {
+    pub fn new(cursor: Cursor<&'a mut Memory>, instruction_set: &'a InstructionSet) -> Routine<'a> {
         Routine {
             stack: Vec::new(),
             locals: Vec::new(),
@@ -57,6 +54,10 @@ impl<'a> Routine<'a> {
         self.cursor.inner()
     }
 
+    pub fn mut_memory(&mut self) -> &mut Memory {
+        self.cursor.mut_inner()
+    }
+
     pub fn prepare_locals(&mut self) -> Result<(), Box<dyn Error>> {
         let locals_count = self.cursor.read_byte();
         if locals_count > 16 {
@@ -76,7 +77,15 @@ impl<'a> Routine<'a> {
     }
 
     pub fn set_variable(&mut self, variable: u8, value: u16) {
-        self.locals[variable as usize] = value;
+        match variable {
+            0 => self.stack.push(value),
+            1..=16 => {
+                self.locals[variable as usize - 1] = value;
+            }
+            _ => {
+                self.cursor.mut_inner().set_global(variable, value);
+            }
+        }
     }
 
     pub fn get_variable(&self, variable: u8) -> u16 {
