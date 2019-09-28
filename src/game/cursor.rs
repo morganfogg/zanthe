@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::convert::TryFrom;
 use std::error::Error;
 use std::io::{Error as IOError, ErrorKind, Seek, SeekFrom};
@@ -61,14 +61,14 @@ where
 
 impl<'a, T> Cursor<T>
 where
-    T: Borrow<Memory> + AsMut<Memory>,
+    T: Borrow<Memory> + BorrowMut<Memory>,
 {
     pub fn write_byte(&mut self, content: u8) {
-        self.memory.as_mut().write_byte(self.cursor, content);
+        self.memory.borrow_mut().write_byte(self.cursor, content);
         self.cursor += 1;
     }
     pub fn write_word(&mut self, content: u16) {
-        self.memory.as_mut().write_word(self.cursor, content);
+        self.memory.borrow_mut().write_word(self.cursor, content);
         self.cursor += 2;
     }
 }
