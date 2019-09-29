@@ -8,10 +8,27 @@ use crate::game::routine::Routine;
 
 #[derive(Clone)]
 pub enum Instruction {
-    Normal(&'static dyn Fn(&mut Routine, Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>>),
-    Branch(&'static dyn Fn(&mut Routine, Vec<Operand>, bool, u16) -> Result<InstructionResult, Box<dyn Error>>),
-    Return(&'static dyn Fn(&mut Routine, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),
-    StringLiteral(&'static dyn Fn(&mut Routine, String) -> Result<InstructionResult, Box<dyn Error>>),
+    Normal(
+        &'static dyn Fn(&mut Routine, Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>>,
+    ),
+    Branch(
+        &'static dyn Fn(
+            &mut Routine,
+            Vec<Operand>,
+            bool,
+            u16,
+        ) -> Result<InstructionResult, Box<dyn Error>>,
+    ),
+    Return(
+        &'static dyn Fn(
+            &mut Routine,
+            Vec<Operand>,
+            u8,
+        ) -> Result<InstructionResult, Box<dyn Error>>,
+    ),
+    StringLiteral(
+        &'static dyn Fn(&mut Routine, String) -> Result<InstructionResult, Box<dyn Error>>,
+    ),
 }
 
 #[derive(Debug)]
@@ -69,28 +86,26 @@ mod common {
         Ok(InstructionResult::Quit)
     }
 
-    pub fn print(routine: &mut Routine, string: String) -> Result<InstructionResult, Box<dyn Error>> {
+    pub fn print(
+        routine: &mut Routine,
+        string: String,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
         println!("print called with {}", string);
         Ok(InstructionResult::Continue)
     }
-    
-    
 }
 
 mod version_gte4 {
     use super::*;
-    pub fn call_vs(routine: &mut Routine, ops: Vec<Operand>, variable: u8) -> Result<InstructionResult, Box<dyn Error>> {
-        let address = match ops[0] {
-            Operand::LargeConstant(v) => v,
-            Operand::SmallConstant(v) => v as u16,
-            Operand::Variable(v) => match routine.get_variable(v) {
-                Ok(v) => v,
-                Err(e) => return Err(e),
-            },
-            Operand::Omitted => {
-                return Err(
-                    GameError::InvalidOperation("Required operand not present".into()).into(),
-                )
+    pub fn call_vs(
+        routine: &mut Routine,
+        ops: Vec<Operand>,
+        variable: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = match ops[0].get_value(routine)? {
+            Some(v) => v,
+            None => {
+                return Err(GameError::InvalidOperation("Missing required operand".into()).into())
             }
         };
 
