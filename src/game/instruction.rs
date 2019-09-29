@@ -21,6 +21,10 @@ pub enum InstructionResult {
     Throw(usize),
     Quit,
     Error(Box<dyn Error>),
+    TraceError {
+        position: usize,
+        error: Box<dyn Error>,
+    }
 }
 
 pub struct InstructionSet {
@@ -88,7 +92,7 @@ mod version_gte4 {
             },
             Operand::Omitted => {
                 return InstructionResult::Error(
-                    GameError::InvalidData("Required operand not present".into()).into(),
+                    GameError::InvalidOperation("Required operand not present".into()).into(),
                 )
             }
         };
@@ -96,9 +100,7 @@ mod version_gte4 {
         let instruction_set = routine.instruction_set;
         let memory = routine.mut_memory();
         let address = memory.unpack_address(address as usize);
-        let mut subroutine_cursor = Cursor::new(memory, address as usize);
-
-        println!("Addr {:x}", address);
+        let subroutine_cursor = Cursor::new(memory, address as usize);
 
         let mut subroutine = Routine::new(subroutine_cursor, instruction_set);
         if let Err(e) = subroutine.prepare_locals() {
@@ -112,7 +114,7 @@ mod version_gte4 {
                 routine.set_variable(variable, e);
                 InstructionResult::Continue
             }
-            InstructionResult::Error(_) | InstructionResult::Quit => result,
+            InstructionResult::Error(_) | InstructionResult::TraceError{..} | InstructionResult::Quit => result,
             InstructionResult::Throw(_) => unimplemented!(), //TODO: Implement this
         }
     }

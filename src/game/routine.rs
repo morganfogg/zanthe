@@ -61,7 +61,7 @@ impl<'a> Routine<'a> {
     pub fn prepare_locals(&mut self) -> Result<(), Box<dyn Error>> {
         let locals_count = self.cursor.read_byte();
         if locals_count > 16 {
-            return Err(GameError::InvalidData(
+            return Err(GameError::InvalidOperation(
                 "Tried to create routine with more than 16 locals".into(),
             )
             .into());
@@ -93,7 +93,7 @@ impl<'a> Routine<'a> {
             0 => match self.stack.pop() {
                 Some(v) => Ok(v),
                 None => {
-                    Err(GameError::IllegalOperation("Tried to read from empty stack".into()).into())
+                    Err(GameError::InvalidOperation("Tried to read from empty stack".into()).into())
                 }
             },
             1..=16 => Ok(self.locals[variable as usize - 1]),
@@ -103,10 +103,13 @@ impl<'a> Routine<'a> {
 
     pub fn invoke(&mut self) -> InstructionResult {
         loop {
+            let position = self.cursor.tell();
             let next = self.next();
-            println!("{:?}", next);
             match next {
                 InstructionResult::Continue => {}
+                InstructionResult::Error(error) => {
+                    return InstructionResult::TraceError{error, position};
+                },
                 _ => {
                     return next;
                 }
@@ -115,7 +118,6 @@ impl<'a> Routine<'a> {
     }
 
     fn next(&mut self) -> InstructionResult {
-        println!("{:x}", self.cursor.tell());
         let mut code = self.cursor.read_byte();
         let form;
         let mut operands: Vec<Operand> = vec![];
@@ -161,7 +163,7 @@ impl<'a> Routine<'a> {
         let instruction = self.instruction_set.get(code);
         let instruction = match instruction {
             Some(i) => i,
-            None => return InstructionResult::Error("Illegal opcode".into()),
+            None => return InstructionResult::Error(GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code)).into()),
         };
         match instruction {
             Instruction::Normal(f) => f(self, operands),

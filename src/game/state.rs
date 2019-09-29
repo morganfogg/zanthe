@@ -33,12 +33,13 @@ impl GameState {
             InstructionResult::Quit => Ok(()),
             InstructionResult::Continue => panic!("Unexpeded continue"),
             InstructionResult::Return(_) => {
-                Err(GameError::IllegalOperation("Cannot return from main routine".into()).into())
+                Err(GameError::InvalidOperation("Cannot return from main routine".into()).into())
             }
             InstructionResult::Throw(_) => {
-                Err(GameError::IllegalOperation("Uncaught throw".into()).into())
+                Err(GameError::InvalidOperation("Uncaught throw".into()).into())
             }
             InstructionResult::Error(e) => Err(e),
+            InstructionResult::TraceError{error, position} => Err(format!("Error at {:x}: {}", position, error).into()) 
         }
     }
 }

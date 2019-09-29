@@ -4,8 +4,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 pub enum GameError {
     VersionSix,
     InvalidFile,
-    InvalidData(String),
-    IllegalOperation(String),
+    InvalidOperation(String),
 }
 
 impl Display for GameError {
@@ -18,11 +17,8 @@ impl Display for GameError {
                 GameError::InvalidFile => {
                     "The file you have specified is not a supported Z-Code file".to_string()
                 }
-                GameError::InvalidData(e) => {
-                    format!("Error while reading game data: {}", e)
-                }
-                GameError::IllegalOperation(e) => {
-                    format!("Illegal operation: {}", e)
+                GameError::InvalidOperation(e) => {
+                    format!("Error while running game: {}", e)
                 }
             }
         )
