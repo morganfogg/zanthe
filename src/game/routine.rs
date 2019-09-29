@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use log::{error};
+use log::error;
 
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
@@ -85,7 +85,7 @@ impl<'a> Routine<'a> {
                 self.locals[variable as usize - 1] = value;
             }
             _ => {
-                self.cursor.mut_inner().set_global(variable, value);
+                self.cursor.mut_inner().set_global(variable - 16, value);
             }
         }
     }
@@ -99,7 +99,7 @@ impl<'a> Routine<'a> {
                 }
             },
             1..=16 => Ok(self.locals[variable as usize - 1]),
-            _ => Ok(self.cursor.mut_inner().get_global(variable)),
+            _ => Ok(self.cursor.mut_inner().get_global(variable - 16)),
         }
     }
 
@@ -168,7 +168,11 @@ impl<'a> Routine<'a> {
         let instruction = self.instruction_set.get(code);
         let instruction = match instruction {
             Some(i) => i,
-            None => return Err(GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code)).into()),
+            None => {
+                return Err(
+                    GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code)).into(),
+                )
+            }
         };
         match instruction {
             Instruction::Normal(f) => f(self, operands),
@@ -189,11 +193,11 @@ impl<'a> Routine<'a> {
                 let string = match self.cursor.read_string() {
                     Ok(v) => v,
                     Err(e) => {
-                        return Err(
-                            GameError::InvalidOperation(
-                                format!("Error reading string literal: {}", e)
-                            ).into()
-                        )
+                        return Err(GameError::InvalidOperation(format!(
+                            "Error reading string literal: {}",
+                            e
+                        ))
+                        .into())
                     }
                 };
                 f(self, string)
