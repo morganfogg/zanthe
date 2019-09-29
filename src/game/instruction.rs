@@ -8,10 +8,10 @@ use crate::game::routine::Routine;
 
 #[derive(Clone)]
 pub enum Instruction {
-    Normal(&'static dyn Fn(&mut Routine, Vec<Operand>) -> InstructionResult),
-    Branch(&'static dyn Fn(&mut Routine, Vec<Operand>, bool, u16) -> InstructionResult),
-    Return(&'static dyn Fn(&mut Routine, Vec<Operand>, u8) -> InstructionResult),
-    StringLiteral(&'static dyn Fn(&mut Routine, String) -> InstructionResult),
+    Normal(&'static dyn Fn(&mut Routine, Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>>),
+    Branch(&'static dyn Fn(&mut Routine, Vec<Operand>, bool, u16) -> Result<InstructionResult, Box<dyn Error>>),
+    Return(&'static dyn Fn(&mut Routine, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),
+    StringLiteral(&'static dyn Fn(&mut Routine, String) -> Result<InstructionResult, Box<dyn Error>>),
 }
 
 #[derive(Debug)]
@@ -20,11 +20,6 @@ pub enum InstructionResult {
     Return(u16),
     Throw(usize),
     Quit,
-    Error(Box<dyn Error>),
-    TraceError {
-        position: usize,
-        error: Box<dyn Error>,
-    }
 }
 
 pub struct InstructionSet {
@@ -62,36 +57,38 @@ impl InstructionSet {
 mod common {
     use super::*;
 
-    pub fn rtrue(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
-        InstructionResult::Return(1)
+    pub fn rtrue(_: &mut Routine, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(1))
     }
 
-    pub fn rfalse(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
-        InstructionResult::Return(0)
+    pub fn rfalse(_: &mut Routine, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(0))
     }
 
-    pub fn quit(_: &mut Routine, _: Vec<Operand>) -> InstructionResult {
-        InstructionResult::Quit
+    pub fn quit(_: &mut Routine, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Quit)
     }
 
-    pub fn print(routine: &mut Routine, string: String) -> InstructionResult {
+    pub fn print(routine: &mut Routine, string: String) -> Result<InstructionResult, Box<dyn Error>> {
         println!("print called with {}", string);
-        InstructionResult::Continue
+        Ok(InstructionResult::Continue)
     }
+    
+    
 }
 
 mod version_gte4 {
     use super::*;
-    pub fn call_vs(routine: &mut Routine, ops: Vec<Operand>, variable: u8) -> InstructionResult {
+    pub fn call_vs(routine: &mut Routine, ops: Vec<Operand>, variable: u8) -> Result<InstructionResult, Box<dyn Error>> {
         let address = match ops[0] {
             Operand::LargeConstant(v) => v,
             Operand::SmallConstant(v) => v as u16,
             Operand::Variable(v) => match routine.get_variable(v) {
                 Ok(v) => v,
-                Err(e) => return InstructionResult::Error(e),
+                Err(e) => return Err(e),
             },
             Operand::Omitted => {
-                return InstructionResult::Error(
+                return Err(
                     GameError::InvalidOperation("Required operand not present".into()).into(),
                 )
             }
@@ -103,18 +100,16 @@ mod version_gte4 {
         let subroutine_cursor = Cursor::new(memory, address as usize);
 
         let mut subroutine = Routine::new(subroutine_cursor, instruction_set);
-        if let Err(e) = subroutine.prepare_locals() {
-            return InstructionResult::Error(e);
-        }
-        let result = subroutine.invoke();
+        subroutine.prepare_locals()?;
+        let result = subroutine.invoke()?;
 
         match result {
             InstructionResult::Continue => unreachable!(),
             InstructionResult::Return(e) => {
                 routine.set_variable(variable, e);
-                InstructionResult::Continue
+                Ok(InstructionResult::Continue)
             }
-            InstructionResult::Error(_) | InstructionResult::TraceError{..} | InstructionResult::Quit => result,
+            InstructionResult::Quit => Ok(result),
             InstructionResult::Throw(_) => unimplemented!(), //TODO: Implement this
         }
     }

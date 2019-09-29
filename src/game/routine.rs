@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use log::{error};
+
 use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
 use crate::game::instruction::{Instruction, InstructionResult, InstructionSet};
@@ -101,23 +103,26 @@ impl<'a> Routine<'a> {
         }
     }
 
-    pub fn invoke(&mut self) -> InstructionResult {
+    pub fn invoke(&mut self) -> Result<InstructionResult, Box<dyn Error>> {
         loop {
             let position = self.cursor.tell();
-            let next = self.next();
+            let next = match self.next() {
+                Ok(n) => n,
+                Err(n) => {
+                    error!("Error encountered at address {:x}", position);
+                    return Err(n);
+                }
+            };
             match next {
                 InstructionResult::Continue => {}
-                InstructionResult::Error(error) => {
-                    return InstructionResult::TraceError{error, position};
-                },
                 _ => {
-                    return next;
+                    return Ok(next);
                 }
             }
         }
     }
 
-    fn next(&mut self) -> InstructionResult {
+    fn next(&mut self) -> Result<InstructionResult, Box<dyn Error>> {
         let mut code = self.cursor.read_byte();
         let form;
         let mut operands: Vec<Operand> = vec![];
@@ -163,7 +168,7 @@ impl<'a> Routine<'a> {
         let instruction = self.instruction_set.get(code);
         let instruction = match instruction {
             Some(i) => i,
-            None => return InstructionResult::Error(GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code)).into()),
+            None => return Err(GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code)).into()),
         };
         match instruction {
             Instruction::Normal(f) => f(self, operands),
@@ -184,8 +189,10 @@ impl<'a> Routine<'a> {
                 let string = match self.cursor.read_string() {
                     Ok(v) => v,
                     Err(e) => {
-                        return InstructionResult::Error(
-                            format!("Error reading string literal: {}", e).into(),
+                        return Err(
+                            GameError::InvalidOperation(
+                                format!("Error reading string literal: {}", e)
+                            ).into()
                         )
                     }
                 };

@@ -29,7 +29,7 @@ impl GameState {
         let mut cursor = self
             .memory
             .mut_cursor(self.memory.program_counter_starts().into());
-        match Routine::new(cursor, &self.instruction_set).invoke() {
+        match Routine::new(cursor, &self.instruction_set).invoke()? {
             InstructionResult::Quit => Ok(()),
             InstructionResult::Continue => panic!("Unexpeded continue"),
             InstructionResult::Return(_) => {
@@ -38,8 +38,6 @@ impl GameState {
             InstructionResult::Throw(_) => {
                 Err(GameError::InvalidOperation("Uncaught throw".into()).into())
             }
-            InstructionResult::Error(e) => Err(e),
-            InstructionResult::TraceError{error, position} => Err(format!("Error at {:x}: {}", position, error).into()) 
         }
     }
 }
