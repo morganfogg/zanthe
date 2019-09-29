@@ -317,7 +317,10 @@ impl Memory {
         let mut sequence = sequence.iter();
         let mut result = Vec::new();
         let mut shift = false;
-        let alphabet = Alphabet::default(self.version());
+        let alphabet = match self.alphabet_table_location() {
+            0 => Alphabet::default(self.version()),
+            _ => self.alphabet(),
+        };
         let mut table = AlphabetTable::default();
         while let Some(c) = sequence.next() {
             match c {
