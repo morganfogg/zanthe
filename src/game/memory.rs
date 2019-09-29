@@ -208,7 +208,9 @@ impl Memory {
             .map(|i| {
                 let result = self.get_byte(cursor + i);
                 if result < 33 || result > 126 {
-                    return Err(GameError::InvalidOperation("Unexpected word separator".into()));
+                    return Err(GameError::InvalidOperation(
+                        "Unexpected word separator".into(),
+                    ));
                 }
                 Ok(result as char)
             })
@@ -217,7 +219,9 @@ impl Memory {
 
     pub fn dictionary_entry(&self, index: usize) -> Result<String, Box<dyn Error>> {
         if index == 0 {
-            return Err(GameError::InvalidOperation("Dictionary index out of bounds".into()).into());
+            return Err(
+                GameError::InvalidOperation("Dictionary index out of bounds".into()).into(),
+            );
         }
         let mut cursor = self.cursor(self.dictionary_location().into());
         let num_separators: usize = cursor.read_byte().into();
@@ -225,7 +229,9 @@ impl Memory {
         let data_length: usize = cursor.read_byte().into();
         let entry_count: usize = cursor.read_word().into();
         if index > entry_count {
-            return Err(GameError::InvalidOperation("Dictionary index out of bounds".into()).into());
+            return Err(
+                GameError::InvalidOperation("Dictionary index out of bounds".into()).into(),
+            );
         }
         Ok(self
             .extract_string(cursor.tell() + (index - 1) * data_length, true)?
@@ -332,9 +338,10 @@ impl Memory {
                             .0;
                         result.append(&mut abbreviation.chars().collect());
                     } else {
-                        return Err(
-                            GameError::InvalidOperation("String ended unexpectedly".into()).into()
-                        );
+                        return Err(GameError::InvalidOperation(
+                            "String ended unexpectedly".into(),
+                        )
+                        .into());
                     }
                 }
                 2 => {
