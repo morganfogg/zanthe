@@ -138,7 +138,7 @@ impl<'a> Routine<'a> {
         }
         match form {
             InstructionForm::Short => {
-                if code >> 4 == 3 {
+                if ((code >> 4) & 0b11) != 3 {
                     operands.push(self.read_operand_other((code >> 4) & 0b11));
                 }
             }
