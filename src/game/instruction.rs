@@ -46,6 +46,7 @@ pub struct InstructionSet {
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
         let mut instructions: HashMap<u8, Instruction> = [
+            (141, Instruction::Normal(&common::print_paddr)),
             (176, Instruction::Normal(&common::rtrue)),
             (177, Instruction::Normal(&common::rfalse)),
             (178, Instruction::StringLiteral(&common::print)),
@@ -91,6 +92,19 @@ mod common {
         string: String,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         println!("print called with {}", string);
+        Ok(InstructionResult::Continue)
+    }
+    
+    pub fn print_paddr(routine: &mut Routine, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = match ops[0].get_value(routine)? {
+            Some(v) => v,
+            None => {
+                return Err(GameError::InvalidOperation("Missing required operand".into()).into())
+            }
+        };
+
+        let address = routine.memory().unpack_address(address.into());
+        println!("{}", routine.memory().extract_string(address, true)?.0);
         Ok(InstructionResult::Continue)
     }
 }
