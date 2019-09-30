@@ -94,8 +94,11 @@ mod common {
         println!("print called with {}", string);
         Ok(InstructionResult::Continue)
     }
-    
-    pub fn print_paddr(routine: &mut Routine, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+
+    pub fn print_paddr(
+        routine: &mut Routine,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = match ops[0].get_value(routine)? {
             Some(v) => v,
             None => {
