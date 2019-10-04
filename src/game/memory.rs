@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::{Seek, SeekFrom};
 
 use log::{error, info, warn};
 

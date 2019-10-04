@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use crate::game::error::GameError;
-use crate::game::memory::Memory;
 
 pub struct CallStack {
     frames: Vec<StackFrame>,

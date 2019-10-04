@@ -19,7 +19,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(data: Vec<u8>) -> Result<GameState, GameError> {
-        let mut memory = Memory::new(data);
+        let memory = Memory::new(data);
         memory.validate_header()?;
         Ok(GameState {
             checksum_valid: memory.verify(),
@@ -37,7 +37,7 @@ impl GameState {
             None,
         ));
         loop {
-            let mut frame = self.call_stack.frame();
+            let frame = self.call_stack.frame();
             println!("PC: {0:x} ({0})", frame.pc);
             let mut code = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];

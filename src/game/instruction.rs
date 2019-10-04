@@ -7,7 +7,6 @@ use crate::game::error::GameError;
 use crate::game::memory::Memory;
 use crate::game::operand::Operand;
 use crate::game::stack::StackFrame;
-use crate::game::state::GameState;
 
 pub struct Context<'a> {
     frame: &'a mut StackFrame,
