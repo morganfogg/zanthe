@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
-
-use crate::game::routine::Routine;
-
+use crate::game::instruction::Context;
 pub enum Operand {
     LargeConstant(u16),
     SmallConstant(u8),
@@ -11,11 +9,11 @@ pub enum Operand {
 }
 
 impl Operand {
-    pub fn get_value(&self, routine: &mut Routine) -> Result<Option<u16>, Box<dyn Error>> {
+    pub fn get_value(&self, context: &mut Context) -> Result<Option<u16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v)),
             Operand::SmallConstant(v) => Ok(Some(*v as u16)),
-            Operand::Variable(v) => Ok(Some(routine.get_variable(*v)?)),
+            Operand::Variable(v) => Ok(Some(context.get_variable(*v)?)),
             Operand::Omitted => Ok(None),
         }
     }

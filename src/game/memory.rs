@@ -5,8 +5,8 @@ use log::{error, info, warn};
 
 use crate::game::address;
 use crate::game::alphabet::{Alphabet, AlphabetTable};
-use crate::game::cursor::Cursor;
 use crate::game::error::GameError;
+use crate::game::operand::Operand;
 
 /// Stores the game's internal memory.
 pub struct Memory {
@@ -33,21 +33,60 @@ impl Memory {
         self.data[start..start + length].iter().cloned().collect()
     }
 
-    pub fn write_byte(&mut self, address: usize, content: u8) {
+    pub fn read_byte(&self, cursor: &mut usize) -> u8 {
+        let result = self.get_byte(*cursor);
+        *cursor += 1;
+        result
+    }
+
+    pub fn read_word(&self, cursor: &mut usize) -> u16 {
+        let result = self.get_word(*cursor);
+        *cursor += 2;
+        result
+    }
+
+    pub fn set_byte(&mut self, address: usize, content: u8) {
         self.data[address] = content;
     }
 
-    pub fn write_word(&mut self, address: usize, content: u16) {
+    pub fn set_word(&mut self, address: usize, content: u16) {
         self.data[address] = (content >> 8) as u8;
         self.data[address + 1] = content as u8;
     }
 
-    pub fn cursor(&self, start: usize) -> Cursor<&Memory> {
-        Cursor::new(self, start)
+    pub fn write_byte(&mut self, cursor: &mut usize, content: u8) {
+        self.set_byte(*cursor, content);
+        *cursor += 1;
     }
 
-    pub fn mut_cursor(&mut self, start: usize) -> Cursor<&mut Memory> {
-        Cursor::new(self, start)
+    pub fn write_word(&mut self, cursor: &mut usize, content: u16) {
+        self.set_word(*cursor, content);
+        *cursor += 2;
+    }
+
+    pub fn read_operand_long(&self, cursor: &mut usize, op_type: u8) -> Operand {
+        match op_type {
+            0 => Operand::SmallConstant(self.read_byte(cursor)),
+            1 => Operand::Variable(self.read_byte(cursor)),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn read_operand_other(&mut self, cursor: &mut usize, op_type: u8) -> Operand {
+        match op_type {
+            0 => Operand::LargeConstant(self.read_word(cursor)),
+            1 => Operand::SmallConstant(self.read_byte(cursor)),
+            2 => Operand::Variable(self.read_byte(cursor)),
+            3 => Operand::Omitted,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn read_string(&mut self, cursor: &mut usize) -> Result<String, Box<dyn Error>> {
+        let (string, len) = self.extract_string(*cursor, true)?;
+        *cursor += len;
+
+        Ok(string)
     }
 
     /// Return the story file version.
@@ -182,12 +221,11 @@ impl Memory {
     }
 
     /// Extract an encoded ZSCII character sequence from the memory.
-    pub fn zscii_sequence(&self, start: usize) -> Vec<u8> {
+    pub fn zscii_sequence(&self, mut cursor: usize) -> Vec<u8> {
         let mut z_chars = Vec::new();
-        let mut cursor = self.cursor(start);
 
         loop {
-            let word = cursor.read_word();
+            let word = self.read_word(&mut cursor);
             z_chars.push(((word >> 10) & 0b11111) as u8);
             z_chars.push(((word >> 5) & 0b11111) as u8);
             z_chars.push((word & 0b11111) as u8);
@@ -199,84 +237,6 @@ impl Memory {
         z_chars
     }
 
-    /// Return the separator characters used when parsing input
-    fn separators(&self) -> Result<Vec<char>, GameError> {
-        let mut cursor: usize = self.dictionary_location().into();
-        let num_separators: usize = self.get_byte(cursor).into();
-        cursor += 1;
-        (0..num_separators)
-            .map(|i| {
-                let result = self.get_byte(cursor + i);
-                if result < 33 || result > 126 {
-                    return Err(GameError::InvalidOperation(
-                        "Unexpected word separator".into(),
-                    ));
-                }
-                Ok(result as char)
-            })
-            .collect()
-    }
-
-    pub fn dictionary_entry(&self, index: usize) -> Result<String, Box<dyn Error>> {
-        if index == 0 {
-            return Err(
-                GameError::InvalidOperation("Dictionary index out of bounds".into()).into(),
-            );
-        }
-        let mut cursor = self.cursor(self.dictionary_location().into());
-        let num_separators: usize = cursor.read_byte().into();
-        cursor.seek(SeekFrom::Current(num_separators as i64))?;
-        let data_length: usize = cursor.read_byte().into();
-        let entry_count: usize = cursor.read_word().into();
-        if index > entry_count {
-            return Err(
-                GameError::InvalidOperation("Dictionary index out of bounds".into()).into(),
-            );
-        }
-        Ok(self
-            .extract_string(cursor.tell() + (index - 1) * data_length, true)?
-            .0)
-    }
-
-    /// Look up an object in the object table
-    pub fn object_entry(&self, id: usize) {
-        let mut cursor: usize = self.object_table_location().into();
-        cursor += self.property_defaults_length() * 2;
-        let _flags: Vec<u8> = self.get_bytes(cursor, self.object_attribute_length());
-        cursor += self.object_attribute_length();
-        cursor += (id - 1) * self.object_entry_length();
-        let (parent, sibling, child) = match self.version() {
-            1..=3 => {
-                let result = (
-                    self.get_byte(cursor) as u16,
-                    self.get_byte(cursor + 1) as u16,
-                    self.get_byte(cursor + 2) as u16,
-                );
-                cursor += 3;
-                result
-            }
-            _ => {
-                let result = (
-                    self.get_word(cursor),
-                    self.get_word(cursor + 2),
-                    self.get_word(cursor + 4),
-                );
-                cursor += 6;
-                result
-            }
-        };
-        let properties_address = self.get_word(cursor);
-        println!(
-            "Parent {} Sibling {} Child {} Properties {:x}",
-            parent, sibling, child, properties_address
-        );
-        cursor = properties_address.into();
-
-        let _short_name_length = self.get_byte(cursor);
-        cursor += 1;
-        let short_name = self.extract_string(cursor, true).unwrap().0;
-        println!("{}", short_name);
-    }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
     pub fn abbreviation_entry(&self, table: usize, index: usize) -> usize {
@@ -292,7 +252,7 @@ impl Memory {
     }
 
     pub fn set_global(&mut self, number: u8, value: u16) {
-        self.write_word(
+        self.set_word(
             self.global_variable_table_location() as usize + 2 * number as usize,
             value,
         );

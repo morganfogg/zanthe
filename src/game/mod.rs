@@ -1,9 +1,8 @@
 mod address;
 mod alphabet;
-mod cursor;
 mod error;
 mod instruction;
 mod memory;
 mod operand;
-mod routine;
+mod stack;
 pub mod state;
