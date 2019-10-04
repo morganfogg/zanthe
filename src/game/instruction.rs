@@ -59,7 +59,11 @@ pub enum InstructionResult {
     Continue,
     Return(u16),
     Quit,
-    Invoke{address: usize, store_to: Option<u8>, arguments: Option<Vec<u16>>},
+    Invoke {
+        address: usize,
+        store_to: Option<u8>,
+        arguments: Option<Vec<u16>>,
+    },
 }
 
 pub enum InstructionForm {
@@ -87,12 +91,10 @@ impl InstructionSet {
         .collect();
         if version >= 4 {
             instructions.extend(
-                [
-                    (224, Instruction::Return(&version_gte4::call_vs))
-                ]
-                .iter()
-                .cloned()
-                .collect::<HashMap<u8, Instruction>>(),
+                [(224, Instruction::Return(&version_gte4::call_vs))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<u8, Instruction>>(),
             );
         }
 
@@ -145,17 +147,19 @@ mod version_gte4 {
         ops: Vec<Operand>,
         store_to: u8,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let address = ops[0].get_value(&mut context)?
+        let address = ops[0]
+            .get_value(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
 
         let address = context.memory.unpack_address(address as usize);
-        let arguments: Vec<u16> = ops[1..].iter()
+        let arguments: Vec<u16> = ops[1..]
+            .iter()
             .map(|op| op.get_value(&mut context))
             .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
             .into_iter()
             .while_some()
             .collect();
-        return Ok(InstructionResult::Invoke{
+        return Ok(InstructionResult::Invoke {
             address,
             arguments: Some(arguments),
             store_to: Some(store_to),

@@ -142,10 +142,17 @@ impl GameState {
                         context.set_variable(store_to, result);
                     }
                 }
-                InstructionResult::Invoke{mut address, store_to, arguments} => {
+                InstructionResult::Invoke {
+                    mut address,
+                    store_to,
+                    arguments,
+                } => {
                     let local_count = self.memory.read_byte(&mut address) as usize;
                     if local_count > 15 {
-                        return Err(GameError::InvalidOperation("Routine tried to create more than 15 locals".into()).into())
+                        return Err(GameError::InvalidOperation(
+                            "Routine tried to create more than 15 locals".into(),
+                        )
+                        .into());
                     }
                     let mut locals = vec![0; local_count];
                     if self.version < 5 {
@@ -156,7 +163,8 @@ impl GameState {
                     if let Some(arguments) = arguments {
                         locals.splice(..arguments.len(), arguments.iter().cloned());
                     }
-                    self.call_stack.push(StackFrame::new(address, locals, store_to));
+                    self.call_stack
+                        .push(StackFrame::new(address, locals, store_to));
                 }
             }
         }

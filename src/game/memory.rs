@@ -237,7 +237,6 @@ impl Memory {
         z_chars
     }
 
-
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
     pub fn abbreviation_entry(&self, table: usize, index: usize) -> usize {
         usize::from(
