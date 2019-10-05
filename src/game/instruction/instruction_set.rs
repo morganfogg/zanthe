@@ -57,7 +57,7 @@ mod common {
     }
 
     pub fn print(context: Context, string: String) -> Result<InstructionResult, Box<dyn Error>> {
-        context.interface.print(&string);
+        context.interface.print(&string)?;
         Ok(InstructionResult::Continue)
     }
 
@@ -71,7 +71,7 @@ mod common {
         let address = context.memory.unpack_address(address.into());
         context
             .interface
-            .print(&context.memory.extract_string(address, true)?.0);
+            .print(&context.memory.extract_string(address, true)?.0)?;
         Ok(InstructionResult::Continue)
     }
 }

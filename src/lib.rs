@@ -8,7 +8,7 @@ use clap::ArgMatches;
 use simplelog::*;
 
 use game::state::GameState;
-use ui::{Terminal, Interface};
+use ui::{Interface, Terminal};
 
 pub fn run(args: ArgMatches) -> Result<(), String> {
     let log_file = match OpenOptions::new()
@@ -46,7 +46,7 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
     let result = game_state.run();
     match result {
         Ok(_) => {
-            interface.done();
+            interface.done().map_err(|e| format!("{}", e))?;
         }
         Err(_) => {
             interface.quit();

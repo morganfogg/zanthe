@@ -151,11 +151,8 @@ where
                 InstructionResult::Return(result) => {
                     let old_frame = self.call_stack.pop()?;
                     if let Some(store_to) = old_frame.store_to {
-                        let mut context = Context::new(
-                            self.call_stack.frame(),
-                            &mut self.memory,
-                            self.interface,
-                        );
+                        let mut context =
+                            Context::new(self.call_stack.frame(), &mut self.memory, self.interface);
                         context.set_variable(store_to, result);
                     }
                 }

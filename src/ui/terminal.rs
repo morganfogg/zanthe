@@ -1,13 +1,15 @@
 use std::error::Error;
-use std::thread::sleep_ms;
 use std::io::{self, Stdout, Write};
 
-use crossterm::{self, execute, Goto, Output, AlternateScreen, TerminalInput, TerminalCursor};
+use crossterm::{self, execute, queue, AlternateScreen, Goto, Output, TerminalCursor, TerminalInput};
+use textwrap::fill;
+use log::info;
 
 use crate::ui::Interface;
 
 pub struct Terminal {
     _alt_screen: AlternateScreen,
+    terminal: crossterm::Terminal,
     input: TerminalInput,
     stdout: Stdout,
     cursor: TerminalCursor,
@@ -18,34 +20,37 @@ impl Terminal {
         let mut stdout = io::stdout();
         let input = crossterm::input();
         let _alt_screen = AlternateScreen::to_alternate(true)?;
-        execute!(stdout, Goto(0,0))?;
+        execute!(stdout, Goto(0, 0))?;
         Ok(Terminal {
             _alt_screen,
             input,
             stdout,
+            terminal: crossterm::terminal(),
             cursor: crossterm::cursor(),
         })
     }
     
-    fn carriage_return(&mut self) -> Result<(), Box<dyn Error>>{
-        let (_, y) = self.cursor.pos()?;
-        execute!(self.stdout, Goto(0, y))?;
-        Ok(())
+    fn convert_newlines(&self, input: String) -> String {
+        input.replace("\n", "\n\r")
     }
 }
 
 impl Interface for Terminal {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
-        execute!(self.stdout, Output(string.into()))?;
-        self.carriage_return()?;
+        let (width, _) = self.terminal.size()?; 
+        info!("{}", width);
+        let wrapped = self.convert_newlines(fill(string, width as usize));
+        queue!(self.stdout, Output(wrapped))?;
+        self.stdout.flush()?;
         Ok(())
     }
-    
+
     fn done(&mut self) -> Result<(), Box<dyn Error>> {
-        execute!(self.stdout, Output("[Hit any key to exit...]".into()))?;
-        self.input.read_char();
+        queue!(self.stdout, Output("\n\r[Hit any key to exit...]".into()))?;
+        self.stdout.flush()?;
+        self.input.read_char()?;
         Ok(())
     }
-    
+
     fn quit(&mut self) {}
 }
