@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::vec::Vec;
 
+use log::info;
+
 use crate::game::error::GameError;
 use crate::game::instruction::{
     Context, Form, Instruction, InstructionSet, Operand, Result as InstructionResult,
@@ -40,7 +42,7 @@ impl<T> GameState<T> where T: Interface {
         ));
         loop {
             let frame = self.call_stack.frame();
-            println!("PC: {0:x} ({0})", frame.pc);
+            info!("PC: {0:x} ({0})", frame.pc);
             let mut code = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
             let form;

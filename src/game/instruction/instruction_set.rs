@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use itertools::Itertools;
+use log::info;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{Context, Instruction, Operand, Result as InstructionResult};
@@ -35,7 +36,7 @@ impl InstructionSet {
     }
 
     pub fn get(&self, opcode: u8) -> Option<&Instruction> {
-        println!("Code: {0:x} ({0})", opcode);
+        info!("Code: {0:x} ({0})", opcode);
         self.instructions.get(&opcode)
     }
 }
