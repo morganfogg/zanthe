@@ -17,11 +17,11 @@ pub struct Alphabet<'a> {
 }
 
 impl<'a> Alphabet<'a> {
-    pub fn new(a0: &'a [u8], a1: &'a [u8], a2: &'a [u8]) -> Alphabet {
+    pub fn new(a0: &'a [u8], a1: &'a [u8], a2: &'a [u8]) -> Alphabet<'a> {
         Alphabet { a0, a1, a2 }
     }
 
-    pub fn default(version: u8) -> Alphabet {
+    pub fn default(version: u8) -> Alphabet<'a> {
         Alphabet {
             a0: ALPHABET_0,
             a1: ALPHABET_1,
