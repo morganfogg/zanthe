@@ -1,4 +1,5 @@
 mod game;
+mod ui;
 
 use std::fs;
 use std::fs::OpenOptions;
@@ -7,6 +8,7 @@ use clap::ArgMatches;
 use simplelog::*;
 
 use game::state::GameState;
+use ui::Terminal;
 
 pub fn run(args: ArgMatches) -> Result<(), String> {
     let log_file = match OpenOptions::new()
@@ -31,8 +33,10 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
             return Err(format!("Couldn't open story file: {}", e));
         }
     };
+    
+    let interface = Terminal::new();
 
-    let mut game_state = match GameState::new(game_file) {
+    let mut game_state = match GameState::new(game_file, interface) {
         Ok(state) => state,
         Err(error) => {
             return Err(format!("Error loading story file: {}", error));
