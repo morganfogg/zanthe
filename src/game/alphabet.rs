@@ -17,12 +17,12 @@ pub struct Alphabet<'a> {
 }
 
 impl<'a> Alphabet<'a> {
-    pub fn new(a0: &'a [u8], a1: &'a [u8], a2: &'a [u8]) -> Self {
-        Self { a0, a1, a2 }
+    pub fn new(a0: &'a [u8], a1: &'a [u8], a2: &'a [u8]) -> Alphabet {
+        Alphabet { a0, a1, a2 }
     }
 
-    pub fn default(version: u8) -> Self {
-        Self {
+    pub fn default(version: u8) -> Alphabet {
+        Alphabet {
             a0: ALPHABET_0,
             a1: ALPHABET_1,
             a2: match version {
@@ -43,7 +43,7 @@ impl<'a> Alphabet<'a> {
 }
 
 impl AlphabetTable {
-    pub fn next(&mut self) -> Self {
+    pub fn next(&mut self) -> AlphabetTable {
         match self {
             AlphabetTable::A0 => AlphabetTable::A1,
             AlphabetTable::A1 => AlphabetTable::A2,
@@ -51,14 +51,14 @@ impl AlphabetTable {
         }
     }
 
-    pub fn previous(&mut self) -> Self {
+    pub fn previous(&mut self) -> AlphabetTable {
         match self {
             AlphabetTable::A0 => AlphabetTable::A2,
             AlphabetTable::A1 => AlphabetTable::A0,
             AlphabetTable::A2 => AlphabetTable::A1,
         }
     }
-    pub fn default() -> Self {
+    pub fn default() -> AlphabetTable {
         AlphabetTable::A0
     }
 }
