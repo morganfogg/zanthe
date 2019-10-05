@@ -3,10 +3,9 @@ use std::vec::Vec;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
-    Context, Instruction, InstructionForm, InstructionResult, InstructionSet,
+    Context, Form, Instruction, InstructionSet, Operand, Result as InstructionResult,
 };
 use crate::game::memory::Memory;
-use crate::game::operand::Operand;
 use crate::game::stack::{CallStack, StackFrame};
 
 pub struct GameState {
@@ -43,18 +42,18 @@ impl GameState {
             let mut operands: Vec<Operand> = vec![];
             let form;
             if code == 190 {
-                form = InstructionForm::Extended;
+                form = Form::Extended;
                 code = self.memory.read_byte(&mut frame.pc);
             } else {
                 form = match code >> 6 {
-                    0b11 => InstructionForm::Variable,
-                    0b10 => InstructionForm::Short,
-                    _ => InstructionForm::Long,
+                    0b11 => Form::Variable,
+                    0b10 => Form::Short,
+                    _ => Form::Long,
                 };
             }
 
             match form {
-                InstructionForm::Short => {
+                Form::Short => {
                     if ((code >> 4) & 0b11) != 3 {
                         operands.push(
                             self.memory
@@ -62,7 +61,7 @@ impl GameState {
                         );
                     }
                 }
-                InstructionForm::Variable if self.version >= 5 && (code == 236 || code == 250) => {
+                Form::Variable if self.version >= 5 && (code == 236 || code == 250) => {
                     let op_types = self.memory.read_word(&mut frame.pc);
                     operands = (0..=12)
                         .rev()
@@ -75,7 +74,7 @@ impl GameState {
                         })
                         .collect()
                 }
-                InstructionForm::Variable | InstructionForm::Extended => {
+                Form::Variable | Form::Extended => {
                     let op_types = self.memory.read_byte(&mut frame.pc);
                     operands = (0..=6)
                         .rev()
@@ -88,7 +87,7 @@ impl GameState {
                         })
                         .collect();
                 }
-                InstructionForm::Long => {
+                Form::Long => {
                     for x in 6..=5 {
                         operands.push(
                             self.memory

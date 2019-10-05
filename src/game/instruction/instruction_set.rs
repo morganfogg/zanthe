@@ -4,73 +4,7 @@ use std::error::Error;
 use itertools::Itertools;
 
 use crate::game::error::GameError;
-use crate::game::memory::Memory;
-use crate::game::operand::Operand;
-use crate::game::stack::StackFrame;
-
-pub struct Context<'a> {
-    frame: &'a mut StackFrame,
-    memory: &'a mut Memory,
-}
-
-impl<'a> Context<'a> {
-    pub fn new(frame: &'a mut StackFrame, memory: &'a mut Memory) -> Context<'a> {
-        Context { frame, memory }
-    }
-
-    pub fn set_variable(&mut self, variable: u8, value: u16) {
-        match variable {
-            0 => self.frame.push_stack(value),
-            1..=16 => {
-                self.frame.set_local(variable as usize - 1, value);
-            }
-            _ => {
-                self.memory.set_global(variable - 16, value);
-            }
-        }
-    }
-
-    pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
-        match variable {
-            0 => self.frame.pop_stack(),
-            1..=16 => Ok(self.frame.get_local(variable as usize - 1)),
-            _ => Ok(self.memory.get_global(variable - 16)),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum Instruction {
-    Normal(&'static dyn Fn(Context, Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>>),
-    Branch(
-        &'static dyn Fn(
-            Context,
-            Vec<Operand>,
-            bool,
-            u16,
-        ) -> Result<InstructionResult, Box<dyn Error>>,
-    ),
-    Return(&'static dyn Fn(Context, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),
-    StringLiteral(&'static dyn Fn(Context, String) -> Result<InstructionResult, Box<dyn Error>>),
-}
-
-pub enum InstructionResult {
-    Continue,
-    Return(u16),
-    Quit,
-    Invoke {
-        address: usize,
-        store_to: Option<u8>,
-        arguments: Option<Vec<u16>>,
-    },
-}
-
-pub enum InstructionForm {
-    Long,
-    Short,
-    Extended,
-    Variable,
-}
+use crate::game::instruction::{Context, Instruction, Operand, Result as InstructionResult};
 
 pub struct InstructionSet {
     instructions: HashMap<u8, Instruction>,

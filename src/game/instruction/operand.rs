@@ -1,6 +1,8 @@
-use crate::game::instruction::Context;
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
+
+use crate::game::instruction::Context;
+
 pub enum Operand {
     LargeConstant(u16),
     SmallConstant(u8),

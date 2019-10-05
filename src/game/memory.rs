@@ -5,7 +5,7 @@ use log::{error, info, warn};
 use crate::game::address;
 use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::error::GameError;
-use crate::game::operand::Operand;
+use crate::game::instruction::Operand;
 
 /// Stores the game's internal memory.
 pub struct Memory {
