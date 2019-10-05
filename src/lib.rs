@@ -8,7 +8,7 @@ use clap::ArgMatches;
 use simplelog::*;
 
 use game::state::GameState;
-use ui::Terminal;
+use ui::{Terminal, Interface};
 
 pub fn run(args: ArgMatches) -> Result<(), String> {
     let log_file = match OpenOptions::new()
@@ -34,18 +34,23 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
         }
     };
 
-    let interface = Terminal::new();
+    let mut interface = Terminal::new().map_err(|e| format!("Couldn't start UI: {}", e))?;
 
-    let mut game_state = match GameState::new(game_file, interface) {
+    let mut game_state = match GameState::new(game_file, &mut interface) {
         Ok(state) => state,
         Err(error) => {
             return Err(format!("Error loading story file: {}", error));
         }
     };
 
-    if let Err(e) = game_state.run() {
-        return Err(format!("{}", e));
+    let result = game_state.run();
+    match result {
+        Ok(_) => {
+            interface.done();
+        }
+        Err(_) => {
+            interface.quit();
+        }
     };
-
-    Ok(())
+    result.map_err(|e| format!("{}", e))
 }

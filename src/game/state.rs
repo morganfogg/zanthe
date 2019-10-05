@@ -11,7 +11,7 @@ use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
 use crate::ui::Interface;
 
-pub struct GameState<T>
+pub struct GameState<'a, T>
 where
     T: Interface,
 {
@@ -20,14 +20,14 @@ where
     version: u8,
     instruction_set: InstructionSet,
     call_stack: CallStack,
-    interface: T,
+    interface: &'a mut T,
 }
 
-impl<T> GameState<T>
+impl<'a, T> GameState<'a, T>
 where
     T: Interface,
 {
-    pub fn new(data: Vec<u8>, interface: T) -> Result<GameState<T>, GameError>
+    pub fn new(data: Vec<u8>, interface: &'a mut T) -> Result<GameState<T>, GameError>
     where
         T: Interface,
     {
@@ -119,7 +119,7 @@ where
 
             let result = match instruction {
                 Instruction::Normal(f) => {
-                    let context = Context::new(frame, &mut self.memory, &mut self.interface);
+                    let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, operands)
                 }
                 Instruction::Branch(f) => {
@@ -129,19 +129,19 @@ where
                         1 => self.memory.read_word(&mut frame.pc) & 0x3fff,
                         _ => unreachable!(),
                     };
-                    let context = Context::new(frame, &mut self.memory, &mut self.interface);
+                    let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, operands, condition, label)
                 }
                 Instruction::Return(f) => {
                     let variable = self.memory.read_byte(&mut frame.pc);
-                    let context = Context::new(frame, &mut self.memory, &mut self.interface);
+                    let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, operands, variable)
                 }
                 Instruction::StringLiteral(f) => {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                     })?;
-                    let context = Context::new(frame, &mut self.memory, &mut self.interface);
+                    let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, string)
                 }
             }?;
@@ -154,7 +154,7 @@ where
                         let mut context = Context::new(
                             self.call_stack.frame(),
                             &mut self.memory,
-                            &mut self.interface,
+                            self.interface,
                         );
                         context.set_variable(store_to, result);
                     }
