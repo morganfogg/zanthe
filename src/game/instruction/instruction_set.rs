@@ -32,6 +32,15 @@ impl InstructionSet {
             );
         }
 
+        if version >= 5 {
+            instructions.extend(
+                [(143, Instruction::Normal(&version_gte5::call_1n))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<u8, Instruction>>(),
+            );
+        }
+
         InstructionSet { instructions }
     }
 
@@ -100,6 +109,26 @@ mod version_gte4 {
             address,
             arguments: Some(arguments),
             store_to: Some(store_to),
+        });
+    }
+}
+
+mod version_gte5 {
+    use super::*;
+    pub fn call_1n(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = ops[0]
+            .get_value(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+
+        let address = context.memory.unpack_address(address as usize);
+
+        return Ok(InstructionResult::Invoke {
+            address,
+            arguments: None,
+            store_to: None,
         });
     }
 }

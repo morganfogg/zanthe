@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::io::{self, Stdout, Write};
 
-use crossterm::{self, execute, queue, AlternateScreen, Goto, Output, TerminalCursor, TerminalInput};
-use textwrap::fill;
+use crossterm::{
+    self, execute, queue, AlternateScreen, Goto, Output, TerminalCursor, TerminalInput,
+};
 use log::info;
+use textwrap::fill;
 
 use crate::ui::Interface;
 
@@ -29,7 +31,7 @@ impl Terminal {
             cursor: crossterm::cursor(),
         })
     }
-    
+
     fn convert_newlines(&self, input: String) -> String {
         input.replace("\n", "\n\r")
     }
@@ -37,7 +39,7 @@ impl Terminal {
 
 impl Interface for Terminal {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
-        let (width, _) = self.terminal.size()?; 
+        let (width, _) = self.terminal.size()?;
         info!("{}", width);
         let wrapped = self.convert_newlines(fill(string, width as usize));
         queue!(self.stdout, Output(wrapped))?;
