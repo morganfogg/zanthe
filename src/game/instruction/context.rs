@@ -11,8 +11,16 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn new(frame: &'a mut StackFrame, memory: &'a mut Memory, interface: &'a mut dyn Interface) -> Context<'a> {
-        Context { frame, memory, interface }
+    pub fn new(
+        frame: &'a mut StackFrame,
+        memory: &'a mut Memory,
+        interface: &'a mut dyn Interface,
+    ) -> Context<'a> {
+        Context {
+            frame,
+            memory,
+            interface,
+        }
     }
 
     pub fn set_variable(&mut self, variable: u8, value: u16) {

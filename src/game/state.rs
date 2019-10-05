@@ -11,7 +11,10 @@ use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
 use crate::ui::Interface;
 
-pub struct GameState<T> where T: Interface {
+pub struct GameState<T>
+where
+    T: Interface,
+{
     memory: Memory,
     checksum_valid: bool,
     version: u8,
@@ -20,8 +23,14 @@ pub struct GameState<T> where T: Interface {
     interface: T,
 }
 
-impl<T> GameState<T> where T: Interface {
-    pub fn new(data: Vec<u8>, interface: T) -> Result<GameState<T>, GameError> where T: Interface {
+impl<T> GameState<T>
+where
+    T: Interface,
+{
+    pub fn new(data: Vec<u8>, interface: T) -> Result<GameState<T>, GameError>
+    where
+        T: Interface,
+    {
         let memory = Memory::new(data);
         memory.validate_header()?;
         Ok(GameState {
@@ -30,7 +39,7 @@ impl<T> GameState<T> where T: Interface {
             instruction_set: InstructionSet::new(memory.version()),
             call_stack: CallStack::new(),
             memory,
-            interface
+            interface,
         })
     }
 
@@ -142,7 +151,11 @@ impl<T> GameState<T> where T: Interface {
                 InstructionResult::Return(result) => {
                     let old_frame = self.call_stack.pop()?;
                     if let Some(store_to) = old_frame.store_to {
-                        let mut context = Context::new(self.call_stack.frame(), &mut self.memory, &mut self.interface);
+                        let mut context = Context::new(
+                            self.call_stack.frame(),
+                            &mut self.memory,
+                            &mut self.interface,
+                        );
                         context.set_variable(store_to, result);
                     }
                 }

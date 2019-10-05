@@ -33,7 +33,7 @@ pub fn run(args: ArgMatches) -> Result<(), String> {
             return Err(format!("Couldn't open story file: {}", e));
         }
     };
-    
+
     let interface = Terminal::new();
 
     let mut game_state = match GameState::new(game_file, interface) {

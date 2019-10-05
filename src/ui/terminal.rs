@@ -1,8 +1,6 @@
 use crate::ui::Interface;
 
-pub struct Terminal {
-
-}
+pub struct Terminal {}
 
 impl Terminal {
     pub fn new() -> Terminal {
