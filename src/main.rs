@@ -15,6 +15,13 @@ fn main() {
                 .required(true)
                 .index(1),
         )
+        .arg(
+            Arg::with_name("interface")
+                .short("i")
+                .help("The interface to use")
+                .takes_value(true)
+                .possible_values(&["terminal", "null"]),
+        )
         .get_matches();
 
     if let Err(e) = run(args) {

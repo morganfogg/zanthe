@@ -1,6 +1,7 @@
 mod game;
 mod ui;
 
+use std::error::Error;
 use std::fs;
 use std::fs::OpenOptions;
 
@@ -8,49 +9,44 @@ use clap::ArgMatches;
 use simplelog::*;
 
 use game::state::GameState;
-use ui::{Interface, Terminal};
+use ui::{Interface, NullInterface, TerminalInterface};
 
-pub fn run(args: ArgMatches) -> Result<(), String> {
-    let log_file = match OpenOptions::new()
+pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
+    let log_file = OpenOptions::new()
         .read(true)
         .append(true)
         .create(true)
         .open("main.log")
-    {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(format!("Couldn't prepare log file: {}", e));
-        }
-    };
+        .map_err(|e| format!("Couldn't prepare log file: {}", e))?;
 
     if let Err(e) = WriteLogger::init(LevelFilter::Trace, Config::default(), log_file) {
-        return Err(format!("Couldn't start logger: {}", e));
+        return Err(format!("Couldn't start logger: {}", e).into()).into();
     };
 
-    let game_file = match fs::read(args.value_of("INPUT").unwrap()) {
-        Ok(file) => file,
-        Err(e) => {
-            return Err(format!("Couldn't open story file: {}", e));
+    let game_file = fs::read(args.value_of("INPUT").unwrap())
+        .map_err(|e| format!("Couldn't open story file: {}", e))?;
+
+    let interface_name = args.value_of("interface").unwrap_or("terminal");
+    let mut interface: Box<dyn Interface> = match interface_name {
+        "terminal" => {
+            Box::new(TerminalInterface::new().map_err(|e| format!("Couldn't start UI: {}", e))?)
         }
+        "null" => Box::new(NullInterface::new()),
+        _ => return Err("Invalid interface".into()), // Should be unreachable; CLAP enforces valid parameters.
     };
 
-    let mut interface = Terminal::new().map_err(|e| format!("Couldn't start UI: {}", e))?;
-
-    let mut game_state = match GameState::new(game_file, &mut interface) {
-        Ok(state) => state,
-        Err(error) => {
-            return Err(format!("Error loading story file: {}", error));
-        }
-    };
+    let mut game_state = GameState::new(game_file, interface.as_mut())
+        .map_err(|e| format!("Error loading story file: {}", e))?;
 
     let result = game_state.run();
+
     match result {
         Ok(_) => {
-            interface.done().map_err(|e| format!("{}", e))?;
+            interface.done()?;
         }
         Err(_) => {
             interface.quit();
         }
     };
-    result.map_err(|e| format!("{}", e))
+    result
 }

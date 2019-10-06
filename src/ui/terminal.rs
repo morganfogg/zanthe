@@ -9,7 +9,7 @@ use textwrap::fill;
 
 use crate::ui::Interface;
 
-pub struct Terminal {
+pub struct TerminalInterface {
     _alt_screen: AlternateScreen,
     terminal: crossterm::Terminal,
     input: TerminalInput,
@@ -17,13 +17,13 @@ pub struct Terminal {
     cursor: TerminalCursor,
 }
 
-impl Terminal {
-    pub fn new() -> Result<Terminal, Box<dyn Error>> {
+impl TerminalInterface {
+    pub fn new() -> Result<TerminalInterface, Box<dyn Error>> {
         let mut stdout = io::stdout();
         let input = crossterm::input();
         let _alt_screen = AlternateScreen::to_alternate(true)?;
         execute!(stdout, Goto(0, 0))?;
-        Ok(Terminal {
+        Ok(TerminalInterface {
             _alt_screen,
             input,
             stdout,
@@ -37,7 +37,7 @@ impl Terminal {
     }
 }
 
-impl Interface for Terminal {
+impl Interface for TerminalInterface {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
         let (width, _) = self.terminal.size()?;
         info!("{}", width);

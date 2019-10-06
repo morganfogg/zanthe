@@ -11,26 +11,17 @@ use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
 use crate::ui::Interface;
 
-pub struct GameState<'a, T>
-where
-    T: Interface,
-{
+pub struct GameState<'a> {
     memory: Memory,
     checksum_valid: bool,
     version: u8,
     instruction_set: InstructionSet,
     call_stack: CallStack,
-    interface: &'a mut T,
+    interface: &'a mut dyn Interface,
 }
 
-impl<'a, T> GameState<'a, T>
-where
-    T: Interface,
-{
-    pub fn new(data: Vec<u8>, interface: &'a mut T) -> Result<GameState<T>, GameError>
-    where
-        T: Interface,
-    {
+impl<'a> GameState<'a> {
+    pub fn new(data: Vec<u8>, interface: &'a mut dyn Interface) -> Result<GameState, GameError> {
         let memory = Memory::new(data);
         memory.validate_header()?;
         Ok(GameState {
