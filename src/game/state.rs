@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::vec::Vec;
 
-use log::info;
-
 use crate::game::error::GameError;
 use crate::game::instruction::{
     Context, Form, Instruction, InstructionSet, Operand, Result as InstructionResult,
@@ -42,15 +40,14 @@ impl<'a> GameState<'a> {
         ));
         loop {
             let frame = self.call_stack.frame();
-            info!("PC: {0:x} ({0})", frame.pc);
-            let mut code = self.memory.read_byte(&mut frame.pc);
+            let mut code_byte = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
             let form;
-            if code == 190 {
+            if code_byte == 190 {
                 form = Form::Extended;
-                code = self.memory.read_byte(&mut frame.pc);
+                code_byte = self.memory.read_byte(&mut frame.pc);
             } else {
-                form = match code >> 6 {
+                form = match code_byte >> 6 {
                     0b11 => Form::Variable,
                     0b10 => Form::Short,
                     _ => Form::Long,
@@ -59,14 +56,14 @@ impl<'a> GameState<'a> {
 
             match form {
                 Form::Short => {
-                    if ((code >> 4) & 0b11) != 3 {
+                    if ((code_byte >> 4) & 0b11) != 3 {
                         operands.push(
                             self.memory
-                                .read_operand_other(&mut frame.pc, (code >> 4) & 0b11),
+                                .read_operand_other(&mut frame.pc, (code_byte >> 4) & 0b11),
                         );
                     }
                 }
-                Form::Variable if self.version >= 5 && (code == 236 || code == 250) => {
+                Form::Variable if self.version >= 5 && (code_byte == 236 || code_byte == 250) => {
                     let op_types = self.memory.read_word(&mut frame.pc);
                     operands = (0..=12)
                         .rev()
@@ -96,14 +93,22 @@ impl<'a> GameState<'a> {
                     for x in (5..=6).rev() {
                         operands.push(
                             self.memory
-                                .read_operand_long(&mut frame.pc, (code >> x) & 0b1),
+                                .read_operand_long(&mut frame.pc, (code_byte >> x) & 1),
                         );
                     }
                 }
             }
 
-            let instruction = self.instruction_set.get(code).ok_or_else(|| {
-                GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code))
+            let op_code = match code_byte {
+                _ if form == Form::Extended => code_byte,
+                32..=127 => code_byte - 32,
+                144..=175 => code_byte - 16,
+                192..=223 => code_byte - 192,
+                _ => code_byte,
+            };
+
+            let instruction = self.instruction_set.get(op_code).ok_or_else(|| {
+                GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code_byte))
             })?;
 
             let frame = self.call_stack.frame();
