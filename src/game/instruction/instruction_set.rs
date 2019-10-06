@@ -21,6 +21,7 @@ impl InstructionSet {
             (177, Instruction::Normal(&common::rfalse)),
             (178, Instruction::StringLiteral(&common::print)),
             (186, Instruction::Normal(&common::quit)),
+            (230, Instruction::Normal(&common::print_num)),
         ]
         .iter()
         .cloned()
@@ -60,12 +61,12 @@ mod common {
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let variable: u8 = ops[0]
-            .get_value(&mut context)?
+            .get_unsigned(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?
             .try_into()
             .map_err(|_| GameError::InvalidOperation("Invalid variable number".into()))?;
         let value = ops[1]
-            .get_value(&mut context)?
+            .get_unsigned(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
 
         context.set_variable(variable, value);
@@ -78,7 +79,7 @@ mod common {
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = ops[0]
-            .get_value(&mut context)?
+            .get_unsigned(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
         let address = context.memory.unpack_address(address.into());
         context
@@ -107,6 +108,15 @@ mod common {
     pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
         Ok(InstructionResult::Quit)
     }
+    
+    /// VAR:230 Print a signed number.
+    pub fn print_num(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        let num = ops[0]
+            .get_signed(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        context.interface.print(&format!("{}", num))?;
+        Ok(InstructionResult::Continue)
+    }
 }
 
 mod version_gte4 {
@@ -119,13 +129,13 @@ mod version_gte4 {
         store_to: u8,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = ops[0]
-            .get_value(&mut context)?
+            .get_unsigned(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
 
         let address = context.memory.unpack_address(address as usize);
         let arguments: Vec<u16> = ops[1..]
             .iter()
-            .map(|op| op.get_value(&mut context))
+            .map(|op| op.get_unsigned(&mut context))
             .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
             .into_iter()
             .while_some()
@@ -148,7 +158,7 @@ mod version_gte5 {
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = ops[0]
-            .get_value(&mut context)?
+            .get_unsigned(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
 
         let address = context.memory.unpack_address(address as usize);

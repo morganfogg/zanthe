@@ -11,11 +11,19 @@ pub enum Operand {
 }
 
 impl Operand {
-    pub fn get_value(&self, context: &mut Context) -> Result<Option<u16>, Box<dyn Error>> {
+    pub fn get_unsigned(&self, context: &mut Context) -> Result<Option<u16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v)),
-            Operand::SmallConstant(v) => Ok(Some(*v as u16)),
+            Operand::SmallConstant(v) => Ok(Some(u16::from(*v))),
             Operand::Variable(v) => Ok(Some(context.get_variable(*v)?)),
+            Operand::Omitted => Ok(None),
+        }
+    }
+    pub fn get_signed(&self, context: &mut Context) -> Result<Option<i16>, Box<dyn Error>> {
+        match self {
+            Operand::LargeConstant(v) => Ok(Some(*v as i16)),
+            Operand::SmallConstant(v) => Ok(Some(i16::from(*v as i8))),
+            Operand::Variable(v) => Ok(Some(context.get_variable(*v)? as i16)),
             Operand::Omitted => Ok(None),
         }
     }
