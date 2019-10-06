@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::vec::Vec;
 
+use log::info;
+
 use crate::game::error::GameError;
 use crate::game::instruction::{
-    Context, Form, Instruction, InstructionSet, Operand, Result as InstructionResult,
+    Context, Form, Instruction, InstructionSet, OpCode, Operand, Result as InstructionResult,
 };
 use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
@@ -99,16 +101,27 @@ impl<'a> GameState<'a> {
                 }
             }
 
-            let op_code = match code_byte {
-                _ if form == Form::Extended => code_byte,
-                32..=127 => code_byte - 32,
-                144..=175 => code_byte - 16,
-                192..=223 => code_byte - 192,
-                _ => code_byte,
+            let op_code = match form {
+                Form::Long => OpCode::TwoOp(code_byte & 31),
+                Form::Extended => OpCode::Extended(code_byte),
+                Form::Short => {
+                    if ((code_byte >> 4) & 3) == 3 {
+                        OpCode::ZeroOp(code_byte & 15)
+                    } else {
+                        OpCode::OneOp(code_byte & 15)
+                    }
+                }
+                Form::Variable => {
+                    if ((code_byte >> 5) & 1) == 0 {
+                        OpCode::TwoOp(code_byte & 31)
+                    } else {
+                        OpCode::VarOp(code_byte & 31)
+                    }
+                }
             };
-
-            let instruction = self.instruction_set.get(op_code).ok_or_else(|| {
-                GameError::InvalidOperation(format!("Illegal opcode \"{}\"", code_byte))
+            info!("{}", op_code);
+            let instruction = self.instruction_set.get(&op_code).ok_or_else(|| {
+                GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
             })?;
 
             let frame = self.call_stack.frame();

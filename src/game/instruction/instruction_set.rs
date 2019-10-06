@@ -6,49 +6,63 @@ use itertools::Itertools;
 use log::info;
 
 use crate::game::error::GameError;
-use crate::game::instruction::{Context, Instruction, Operand, Result as InstructionResult};
+use crate::game::instruction::{
+    Context, Instruction, OpCode, Operand, Result as InstructionResult,
+};
 
 pub struct InstructionSet {
-    instructions: HashMap<u8, Instruction>,
+    instructions: HashMap<OpCode, Instruction>,
 }
 
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
-        let mut instructions: HashMap<u8, Instruction> = [
-            (13, Instruction::Normal(&common::store)),
-            (141, Instruction::Normal(&common::print_paddr)),
-            (176, Instruction::Normal(&common::rtrue)),
-            (177, Instruction::Normal(&common::rfalse)),
-            (178, Instruction::StringLiteral(&common::print)),
-            (186, Instruction::Normal(&common::quit)),
-            (230, Instruction::Normal(&common::print_num)),
+        let mut instructions: HashMap<OpCode, Instruction> = [
+            (OpCode::TwoOp(0xD), Instruction::Normal(&common::store)),
+            (
+                OpCode::OneOp(0xD),
+                Instruction::Normal(&common::print_paddr),
+            ),
+            (OpCode::ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
+            (OpCode::ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
+            (
+                OpCode::ZeroOp(0x2),
+                Instruction::StringLiteral(&common::print),
+            ),
+            (OpCode::ZeroOp(0xA), Instruction::Normal(&common::quit)),
+            (OpCode::VarOp(0x6), Instruction::Normal(&common::print_num)),
         ]
         .iter()
         .cloned()
         .collect();
         if version >= 4 {
             instructions.extend(
-                [(224, Instruction::Store(&version_gte4::call_vs))]
-                    .iter()
-                    .cloned()
-                    .collect::<HashMap<u8, Instruction>>(),
+                [(
+                    OpCode::VarOp(0x0),
+                    Instruction::Store(&version_gte4::call_vs),
+                )]
+                .iter()
+                .cloned()
+                .collect::<HashMap<OpCode, Instruction>>(),
             );
         }
 
         if version >= 5 {
             instructions.extend(
-                [(143, Instruction::Normal(&version_gte5::call_1n))]
-                    .iter()
-                    .cloned()
-                    .collect::<HashMap<u8, Instruction>>(),
+                [(
+                    OpCode::OneOp(0xF),
+                    Instruction::Normal(&version_gte5::call_1n),
+                )]
+                .iter()
+                .cloned()
+                .collect::<HashMap<OpCode, Instruction>>(),
             );
         }
 
         InstructionSet { instructions }
     }
 
-    pub fn get(&self, opcode: u8) -> Option<&Instruction> {
-        self.instructions.get(&opcode)
+    pub fn get(&self, opcode: &OpCode) -> Option<&Instruction> {
+        self.instructions.get(opcode)
     }
 }
 
@@ -108,9 +122,12 @@ mod common {
     pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
         Ok(InstructionResult::Quit)
     }
-    
+
     /// VAR:230 Print a signed number.
-    pub fn print_num(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+    pub fn print_num(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
         let num = ops[0]
             .get_signed(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
