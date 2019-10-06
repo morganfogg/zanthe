@@ -93,7 +93,7 @@ impl<'a> GameState<'a> {
                         .collect();
                 }
                 Form::Long => {
-                    for x in 6..=5 {
+                    for x in (5..=6).rev() {
                         operands.push(
                             self.memory
                                 .read_operand_long(&mut frame.pc, (code >> x) & 0b1),
