@@ -7,7 +7,9 @@ use log::info;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
-    Context, Instruction, OpCode, Operand, Result as InstructionResult,
+    Context, Instruction,
+    OpCode::{self, OneOp, TwoOp, VarOp, ZeroOp},
+    Operand, Result as InstructionResult,
 };
 
 pub struct InstructionSet {
@@ -17,19 +19,14 @@ pub struct InstructionSet {
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
         let mut instructions: HashMap<OpCode, Instruction> = [
-            (OpCode::TwoOp(0xD), Instruction::Normal(&common::store)),
-            (
-                OpCode::OneOp(0xD),
-                Instruction::Normal(&common::print_paddr),
-            ),
-            (OpCode::ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
-            (OpCode::ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
-            (
-                OpCode::ZeroOp(0x2),
-                Instruction::StringLiteral(&common::print),
-            ),
-            (OpCode::ZeroOp(0xA), Instruction::Normal(&common::quit)),
-            (OpCode::VarOp(0x6), Instruction::Normal(&common::print_num)),
+            (TwoOp(0xD), Instruction::Normal(&common::store)),
+            (TwoOp(0x14), Instruction::Store(&common::add)),
+            (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
+            (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
+            (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
+            (ZeroOp(0x2), Instruction::StringLiteral(&common::print)),
+            (ZeroOp(0xA), Instruction::Normal(&common::quit)),
+            (VarOp(0x6), Instruction::Normal(&common::print_num)),
         ]
         .iter()
         .cloned()
@@ -37,7 +34,7 @@ impl InstructionSet {
         if version >= 4 {
             instructions.extend(
                 [(
-                    OpCode::VarOp(0x0),
+                    VarOp(0x0),
                     Instruction::Store(&version_gte4::call_vs),
                 )]
                 .iter()
@@ -49,7 +46,7 @@ impl InstructionSet {
         if version >= 5 {
             instructions.extend(
                 [(
-                    OpCode::OneOp(0xF),
+                    OneOp(0xF),
                     Instruction::Normal(&version_gte5::call_1n),
                 )]
                 .iter()
@@ -84,6 +81,21 @@ mod common {
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
 
         context.set_variable(variable, value);
+        Ok(InstructionResult::Continue)
+    }
+    
+    /// 2OP:20 Signed 16-bit addition
+    pub fn add(mut context: Context, ops: Vec<Operand>, store_to: u8) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0]
+            .get_signed(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let second = ops[1]
+            .get_signed(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+            
+        let result = first + second;
+        
+        context.set_variable(store_to, result as u16);
         Ok(InstructionResult::Continue)
     }
 
