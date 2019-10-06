@@ -72,27 +72,6 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
-    /// 0OP:176 Returns true (1).
-    pub fn rtrue(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-        Ok(InstructionResult::Return(1))
-    }
-
-    /// 0OP:177 Returns false (0).
-    pub fn rfalse(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-        Ok(InstructionResult::Return(0))
-    }
-
-    /// 0OP:186 Exits the game.
-    pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-        Ok(InstructionResult::Quit)
-    }
-
-    /// 0OP:178 Prints a string stored immediately after the instruction.
-    pub fn print(context: Context, string: String) -> Result<InstructionResult, Box<dyn Error>> {
-        context.interface.print(&string)?;
-        Ok(InstructionResult::Continue)
-    }
-
     /// 1OP:114 Prints a string stored at a padded address.
     pub fn print_paddr(
         mut context: Context,
@@ -106,6 +85,27 @@ mod common {
             .interface
             .print(&context.memory.extract_string(address, true)?.0)?;
         Ok(InstructionResult::Continue)
+    }
+
+    /// 0OP:176 Returns true (1).
+    pub fn rtrue(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(1))
+    }
+
+    /// 0OP:177 Returns false (0).
+    pub fn rfalse(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(0))
+    }
+
+    /// 0OP:178 Prints a string stored immediately after the instruction.
+    pub fn print(context: Context, string: String) -> Result<InstructionResult, Box<dyn Error>> {
+        context.interface.print(&string)?;
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 0OP:186 Exits the game.
+    pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Quit)
     }
 }
 
@@ -142,7 +142,7 @@ mod version_gte4 {
 mod version_gte5 {
     use super::*;
 
-    /// Calls a routine with no arguments and throws away the result.
+    /// 1OP:143 Calls a routine with no arguments and throws away the result.
     pub fn call_1n(
         mut context: Context,
         ops: Vec<Operand>,
