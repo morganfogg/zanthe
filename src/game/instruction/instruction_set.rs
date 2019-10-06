@@ -66,14 +66,8 @@ mod common {
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let variable: u8 = ops[0]
-            .get_unsigned(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?
-            .try_into()
-            .map_err(|_| GameError::InvalidOperation("Invalid variable number".into()))?;
-        let value = ops[1]
-            .get_unsigned(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let variable = ops[0].variable_id(&mut context)?;
+        let value = ops[1].unsigned(&mut context)?;
 
         context.set_variable(variable, value);
         Ok(InstructionResult::Continue)
@@ -85,12 +79,8 @@ mod common {
         ops: Vec<Operand>,
         store_to: u8,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let first = ops[0]
-            .get_signed(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
-        let second = ops[1]
-            .get_signed(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let first = ops[0].signed(&mut context)?;
+        let second = ops[1].signed(&mut context)?;
 
         let result = first + second;
 
@@ -104,12 +94,8 @@ mod common {
         ops: Vec<Operand>,
         store_to: u8,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let first = ops[0]
-            .get_signed(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
-        let second = ops[1]
-            .get_signed(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let first = ops[0].signed(&mut context)?;
+        let second = ops[1].signed(&mut context)?;
         let result = first - second;
         context.set_variable(store_to, result as u16);
         Ok(InstructionResult::Continue)
@@ -120,9 +106,7 @@ mod common {
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let address = ops[0]
-            .get_unsigned(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let address = ops[0].unsigned(&mut context)?;
         let address = context.memory.unpack_address(address.into());
         context
             .interface
@@ -156,9 +140,7 @@ mod common {
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let num = ops[0]
-            .get_signed(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let num = ops[0].signed(&mut context)?;
         context.interface.print(&format!("{}", num))?;
         Ok(InstructionResult::Continue)
     }
@@ -173,14 +155,11 @@ mod version_gte4 {
         ops: Vec<Operand>,
         store_to: u8,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let address = ops[0]
-            .get_unsigned(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
-
+        let address = ops[0].unsigned(&mut context)?;
         let address = context.memory.unpack_address(address as usize);
         let arguments: Vec<u16> = ops[1..]
             .iter()
-            .map(|op| op.get_unsigned(&mut context))
+            .map(|op| op.try_unsigned(&mut context))
             .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
             .into_iter()
             .while_some()
@@ -202,9 +181,7 @@ mod version_gte5 {
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
-        let address = ops[0]
-            .get_unsigned(&mut context)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let address = ops[0].unsigned(&mut context)?;
 
         let address = context.memory.unpack_address(address as usize);
 
