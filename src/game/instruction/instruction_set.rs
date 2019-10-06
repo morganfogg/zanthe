@@ -21,6 +21,7 @@ impl InstructionSet {
         let mut instructions: HashMap<OpCode, Instruction> = [
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
+            (TwoOp(0x15), Instruction::Store(&common::sub)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
@@ -33,25 +34,19 @@ impl InstructionSet {
         .collect();
         if version >= 4 {
             instructions.extend(
-                [(
-                    VarOp(0x0),
-                    Instruction::Store(&version_gte4::call_vs),
-                )]
-                .iter()
-                .cloned()
-                .collect::<HashMap<OpCode, Instruction>>(),
+                [(VarOp(0x0), Instruction::Store(&version_gte4::call_vs))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<OpCode, Instruction>>(),
             );
         }
 
         if version >= 5 {
             instructions.extend(
-                [(
-                    OneOp(0xF),
-                    Instruction::Normal(&version_gte5::call_1n),
-                )]
-                .iter()
-                .cloned()
-                .collect::<HashMap<OpCode, Instruction>>(),
+                [(OneOp(0xF), Instruction::Normal(&version_gte5::call_1n))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<OpCode, Instruction>>(),
             );
         }
 
@@ -83,18 +78,39 @@ mod common {
         context.set_variable(variable, value);
         Ok(InstructionResult::Continue)
     }
-    
+
     /// 2OP:20 Signed 16-bit addition
-    pub fn add(mut context: Context, ops: Vec<Operand>, store_to: u8) -> Result<InstructionResult, Box<dyn Error>> {
+    pub fn add(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
         let first = ops[0]
             .get_signed(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
         let second = ops[1]
             .get_signed(&mut context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
-            
+
         let result = first + second;
-        
+
+        context.set_variable(store_to, result as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    // 2OP:21 Signed 16-bit subtraction
+    pub fn sub(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0]
+            .get_signed(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let second = ops[1]
+            .get_signed(&mut context)?
+            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()))?;
+        let result = first - second;
         context.set_variable(store_to, result as u16);
         Ok(InstructionResult::Continue)
     }
