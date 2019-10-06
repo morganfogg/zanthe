@@ -123,10 +123,10 @@ impl<'a> GameState<'a> {
                     let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, operands, condition, label)
                 }
-                Instruction::Return(f) => {
-                    let variable = self.memory.read_byte(&mut frame.pc);
+                Instruction::Store(f) => {
+                    let store_to = self.memory.read_byte(&mut frame.pc);
                     let context = Context::new(frame, &mut self.memory, self.interface);
-                    f(context, operands, variable)
+                    f(context, operands, store_to)
                 }
                 Instruction::StringLiteral(f) => {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {

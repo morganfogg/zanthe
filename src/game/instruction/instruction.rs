@@ -13,6 +13,6 @@ pub enum Instruction {
             u16,
         ) -> Result<InstructionResult, Box<dyn Error>>,
     ),
-    Return(&'static dyn Fn(Context, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),
+    Store(&'static dyn Fn(Context, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),
     StringLiteral(&'static dyn Fn(Context, String) -> Result<InstructionResult, Box<dyn Error>>),
 }
