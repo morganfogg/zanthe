@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
+/// A wrapper for op codes to associate them with their argument counts.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum OpCode {
     ZeroOp(u8),

@@ -5,6 +5,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use crate::game::error::GameError;
 use crate::game::instruction::Context;
 
+/// The operands passed to instructions, not including branch, store or string literal operands.
 pub enum Operand {
     LargeConstant(u16),
     SmallConstant(u8),

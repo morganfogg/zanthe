@@ -12,6 +12,7 @@ use crate::game::instruction::{
     Operand, Result as InstructionResult,
 };
 
+/// Represents all the instructions available to the Z-Machine version specified in the game file.
 pub struct InstructionSet {
     instructions: HashMap<OpCode, Instruction>,
 }

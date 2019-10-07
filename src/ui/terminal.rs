@@ -9,6 +9,7 @@ use textwrap::fill;
 
 use crate::ui::Interface;
 
+/// A traditional terminal-based user interface.
 pub struct TerminalInterface {
     _alt_screen: AlternateScreen,
     terminal: crossterm::Terminal,

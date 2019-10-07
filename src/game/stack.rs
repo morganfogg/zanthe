@@ -2,10 +2,12 @@ use std::error::Error;
 
 use crate::game::error::GameError;
 
+/// The call-stack of the machine. Divided into stack frames, representing individual routines.
 pub struct CallStack {
     frames: Vec<StackFrame>,
 }
 
+/// The section of the call stack associated with a particular routine.
 pub struct StackFrame {
     pub pc: usize,
     pub stack: Vec<u16>,

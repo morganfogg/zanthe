@@ -4,6 +4,7 @@ use crate::game::memory::Memory;
 use crate::game::stack::StackFrame;
 use crate::ui::Interface;
 
+/// The context represents the parts of the game state that are passed to instruction calls.
 pub struct Context<'a> {
     pub frame: &'a mut StackFrame,
     pub memory: &'a mut Memory,

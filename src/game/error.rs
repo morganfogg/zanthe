@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 
+/// Errors returned by GameState.
 pub enum GameError {
     VersionSix,
     InvalidFile,

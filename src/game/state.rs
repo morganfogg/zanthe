@@ -11,6 +11,7 @@ use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
 use crate::ui::Interface;
 
+/// Represents the current state of play.
 pub struct GameState<'a> {
     memory: Memory,
     checksum_valid: bool,

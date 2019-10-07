@@ -7,7 +7,7 @@ use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::error::GameError;
 use crate::game::instruction::Operand;
 
-/// Stores the game's internal memory.
+/// Represents the game's internal memory.
 pub struct Memory {
     data: Vec<u8>,
 }

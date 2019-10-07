@@ -1,5 +1,6 @@
 use std::error::Error;
 
+/// The user interface. Responsible for both rendering the game and recieving input.
 pub trait Interface {
     /// Print text to the UI
     fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>>;

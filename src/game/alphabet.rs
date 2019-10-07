@@ -10,6 +10,7 @@ pub enum AlphabetTable {
     A2,
 }
 
+/// Represents the alphabet used by the game's string parser.
 pub struct Alphabet<'a> {
     a0: &'a [u8],
     a1: &'a [u8],

@@ -2,6 +2,7 @@ use std::error::Error;
 
 use crate::game::instruction::{Context, Operand, Result as InstructionResult};
 
+/// A wrapper for instruction functions to associate them with their argument types.
 #[derive(Clone)]
 pub enum Instruction {
     Normal(&'static dyn Fn(Context, Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>>),
