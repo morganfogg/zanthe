@@ -22,6 +22,9 @@ impl InstructionSet {
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
             (TwoOp(0x15), Instruction::Store(&common::sub)),
+            (TwoOp(0x16), Instruction::Store(&common::mul)),
+            (TwoOp(0x17), Instruction::Store(&common::div)),
+            (TwoOp(0x18), Instruction::Store(&common::z_mod)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
@@ -97,6 +100,59 @@ mod common {
         let first = ops[0].signed(&mut context)?;
         let second = ops[1].signed(&mut context)?;
         let result = first - second;
+        context.set_variable(store_to, result as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:22 Signed 16-bit multiplication.
+    pub fn mul(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0].signed(&mut context)?;
+        let second = ops[1].signed(&mut context)?;
+
+        let result = first * second;
+
+        context.set_variable(store_to, result as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:23 Signed 16-bit division.
+    pub fn div(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0].signed(&mut context)?;
+        let second = ops[1].signed(&mut context)?;
+
+        if second == 0 {
+            return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
+        }
+
+        let result = first / second;
+
+        context.set_variable(store_to, result as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:23 Signed 16-bit modulo.
+    pub fn z_mod(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0].signed(&mut context)?;
+        let second = ops[1].signed(&mut context)?;
+
+        if second == 0 {
+            return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
+        }
+
+        let result = first % second;
+
         context.set_variable(store_to, result as u16);
         Ok(InstructionResult::Continue)
     }

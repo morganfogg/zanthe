@@ -1,5 +1,5 @@
-mod game;
-mod ui;
+pub mod game;
+pub mod ui;
 
 use std::error::Error;
 use std::fs;
