@@ -29,6 +29,7 @@ impl InstructionSet {
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
             (ZeroOp(0x2), Instruction::StringLiteral(&common::print)),
+            (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
         ]
@@ -187,6 +188,14 @@ mod common {
     pub fn print(context: Context, string: String) -> Result<InstructionResult, Box<dyn Error>> {
         context.interface.print(&string)?;
         Ok(InstructionResult::Continue)
+    }
+
+    /// 0OP:184 Returns the top of the stack.
+    pub fn ret_popped(
+        context: Context,
+        _: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(context.frame.pop_stack()?))
     }
 
     /// 0OP:186 Exits the game.
