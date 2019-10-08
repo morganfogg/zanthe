@@ -11,7 +11,7 @@ pub enum Instruction {
             Context,
             Vec<Operand>,
             bool,
-            u16,
+            i16,
         ) -> Result<InstructionResult, Box<dyn Error>>,
     ),
     Store(&'static dyn Fn(Context, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>),

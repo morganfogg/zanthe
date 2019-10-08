@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use crate::game::error::GameError;
+use crate::game::instruction::Result as InstructionResult;
 
 /// The call-stack of the machine. Divided into stack frames, representing individual routines.
 pub struct CallStack {
@@ -41,6 +42,19 @@ impl StackFrame {
 
     pub fn push_stack(&mut self, value: u16) {
         self.stack.push(value)
+    }
+    pub fn branch(&mut self, offset: i16) -> InstructionResult {
+        match offset {
+            0..=1 => InstructionResult::Return(offset as u16),
+            _ => {
+                if offset < 0 {
+                    self.pc -= (-offset) as usize - 2;
+                } else {
+                    self.pc += offset as usize - 2;
+                }
+                InstructionResult::Continue
+            }
+        }
     }
 }
 

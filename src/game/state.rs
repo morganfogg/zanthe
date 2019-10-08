@@ -35,6 +35,7 @@ impl<'a> GameState<'a> {
         })
     }
 
+    /// Start the game
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         self.call_stack.push(StackFrame::new(
             self.memory.program_counter_starts().into(),
@@ -134,13 +135,20 @@ impl<'a> GameState<'a> {
                 }
                 Instruction::Branch(f) => {
                     let condition = self.memory.get_byte(frame.pc) >> 7 == 1;
-                    let label = match self.memory.get_byte(frame.pc) >> 6 & 1 {
-                        0 => (self.memory.read_byte(&mut frame.pc) & 0x3f) as u16,
-                        1 => self.memory.read_word(&mut frame.pc) & 0x3fff,
-                        _ => unreachable!(),
+                    let offset = if self.memory.get_byte(frame.pc) >> 6 & 1 == 1 {
+                        // The offset is an unsigned 6-bit number.
+                        (self.memory.read_byte(&mut frame.pc) & 0x3f) as i16
+                    } else {
+                        // The offset is a signed 14-bit number.
+                        let base = self.memory.read_word(&mut frame.pc);
+                        if base >> 13 == 1 {
+                            -((base & 0x1fff) as i16)
+                        } else {
+                            (base & 0x1fff) as i16
+                        }
                     };
                     let context = Context::new(frame, &mut self.memory, self.interface);
-                    f(context, operands, condition, label)
+                    f(context, operands, condition, offset)
                 }
                 Instruction::Store(f) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);

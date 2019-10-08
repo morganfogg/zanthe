@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
-use log::info;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
@@ -20,6 +18,7 @@ pub struct InstructionSet {
 impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
         let mut instructions: HashMap<OpCode, Instruction> = [
+            (TwoOp(0x1), Instruction::Branch(&common::je)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
             (TwoOp(0x15), Instruction::Store(&common::sub)),
@@ -68,6 +67,27 @@ impl InstructionSet {
 
 mod common {
     use super::*;
+
+    ///20P:1 Branch if the first operand is equal to any subsequent operands
+    pub fn je(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let first = ops[0].unsigned(&mut context)?;
+
+        for op in ops[1..].iter() {
+            if let Some(value) = op.try_unsigned(&mut context)? {
+                if (value == first) == condition {
+                    return Ok(context.frame.branch(offset));
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(InstructionResult::Continue)
+    }
 
     /// 2OP:13 Set the variable referenced by the operand to value
     pub fn store(
@@ -143,7 +163,7 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
-    /// 2OP:23 Signed 16-bit modulo.
+    /// 2OP:24 Signed 16-bit modulo.
     pub fn z_mod(
         mut context: Context,
         ops: Vec<Operand>,
@@ -226,7 +246,6 @@ mod version_gte4 {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = ops[0].unsigned(&mut context)?;
         let address = context.memory.unpack_address(address as usize);
-
         let arguments = vec![ops[1].unsigned(&mut context)?];
         return Ok(InstructionResult::Invoke {
             address,
