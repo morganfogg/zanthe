@@ -17,7 +17,7 @@ impl Memory {
         Memory { data }
     }
 
-    /// Returns a 2 byte word from the game memory (most significant byte first).
+    /// Returns a 2-byte word from the game memory (most significant byte first).
     pub fn get_word(&self, address: usize) -> u16 {
         ((self.data[address] as u16) << 8) | self.data[address + 1] as u16
     }
@@ -32,37 +32,44 @@ impl Memory {
         self.data[start..start + length].iter().cloned().collect()
     }
 
+    /// Read a byte from the memory, placing the cursor at the end of the word.
     pub fn read_byte(&self, cursor: &mut usize) -> u8 {
         let result = self.get_byte(*cursor);
         *cursor += 1;
         result
     }
 
+    /// Read a 2-byte word from the memory, placing the cursor at the end of the word.
     pub fn read_word(&self, cursor: &mut usize) -> u16 {
         let result = self.get_word(*cursor);
         *cursor += 2;
         result
     }
 
+    /// Update a byte in memory.
     pub fn set_byte(&mut self, address: usize, content: u8) {
         self.data[address] = content;
     }
 
+    /// Update a word in memory.
     pub fn set_word(&mut self, address: usize, content: u16) {
         self.data[address] = (content >> 8) as u8;
         self.data[address + 1] = content as u8;
     }
 
+    /// Update a byte in memory, placing the cursor after the byte updated.
     pub fn write_byte(&mut self, cursor: &mut usize, content: u8) {
         self.set_byte(*cursor, content);
         *cursor += 1;
     }
 
+    /// Update a word to the memory, placing the cursor after the word updated.
     pub fn write_word(&mut self, cursor: &mut usize, content: u16) {
         self.set_word(*cursor, content);
         *cursor += 2;
     }
 
+    /// Read an operand from a long-form operation.
     pub fn read_operand_long(&self, cursor: &mut usize, op_type: u8) -> Operand {
         match op_type {
             0 => Operand::SmallConstant(self.read_byte(cursor)),
@@ -71,6 +78,7 @@ impl Memory {
         }
     }
 
+    /// Read an operand from a short, variable or extended-form operation.
     pub fn read_operand_other(&mut self, cursor: &mut usize, op_type: u8) -> Operand {
         match op_type {
             0 => Operand::LargeConstant(self.read_word(cursor)),
@@ -81,6 +89,7 @@ impl Memory {
         }
     }
 
+    /// Extract a string from the memory, placing the cursor at the end of the string.
     pub fn read_string(&mut self, cursor: &mut usize) -> Result<String, Box<dyn Error>> {
         let (string, len) = self.extract_string(*cursor, true)?;
         *cursor += len;
@@ -156,16 +165,9 @@ impl Memory {
         self.get_word(address::FILE_LENGTH) as usize * factor
     }
 
+    /// Returns the actual length of the game data.
     pub fn data_length(&self) -> usize {
         self.data.len()
-    }
-
-    pub fn abbreviation_count(&self) -> usize {
-        match self.version() {
-            1 => 0,
-            2 => 32,
-            _ => 96,
-        }
     }
 
     /// Return the length of each objects's attribute flags (in bytes).
@@ -210,6 +212,7 @@ impl Memory {
         }
     }
 
+    /// Decompress a packed address.
     pub fn unpack_address(&self, address: usize) -> usize {
         match self.version() {
             1..=3 => 2 * address,
@@ -245,10 +248,12 @@ impl Memory {
         )
     }
 
+    /// Retrieve a global variable.
     pub fn get_global(&self, number: u8) -> u16 {
         self.get_word(self.global_variable_table_location() as usize + 2 * number as usize)
     }
 
+    /// Set a global variable.
     pub fn set_global(&mut self, number: u8, value: u16) {
         self.set_word(
             self.global_variable_table_location() as usize + 2 * number as usize,
@@ -256,7 +261,8 @@ impl Memory {
         );
     }
 
-    ///
+    /// Retrieve the alphabet table from memory. Should only be used if the game has declared it
+    /// includes an alternate alphabet table.
     fn alphabet(&self) -> Alphabet {
         Alphabet::new(
             self.alphabet_table(AlphabetTable::A0),
@@ -265,6 +271,7 @@ impl Memory {
         )
     }
 
+    /// Extract an encoded string, strating at the given point in memory.
     pub fn extract_string(
         &self,
         start: usize,
