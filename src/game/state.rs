@@ -121,7 +121,7 @@ impl<'a> GameState<'a> {
                     }
                 }
             };
-            info!("{}", op_code);
+
             let instruction = self.instruction_set.get(&op_code).ok_or_else(|| {
                 GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
             })?;
@@ -163,6 +163,7 @@ impl<'a> GameState<'a> {
                     f(context, string)
                 }
             }?;
+
             match result {
                 InstructionResult::Continue => {}
                 InstructionResult::Quit => return Ok(()),

@@ -19,12 +19,16 @@ impl InstructionSet {
     pub fn new(version: u8) -> InstructionSet {
         let mut instructions: HashMap<OpCode, Instruction> = [
             (TwoOp(0x1), Instruction::Branch(&common::je)),
+            (TwoOp(0x2), Instruction::Branch(&common::jl)),
+            (TwoOp(0x3), Instruction::Branch(&common::jg)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
             (TwoOp(0x15), Instruction::Store(&common::sub)),
             (TwoOp(0x16), Instruction::Store(&common::mul)),
             (TwoOp(0x17), Instruction::Store(&common::div)),
             (TwoOp(0x18), Instruction::Store(&common::z_mod)),
+            (OneOp(0x0), Instruction::Branch(&common::jz)),
+            (OneOp(0xC), Instruction::Normal(&common::jump)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
@@ -87,6 +91,40 @@ mod common {
             }
         }
         Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:2 Jump if a < b (signed).
+    pub fn jl(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let a = ops[0].signed(&mut context)?;
+        let b = ops[1].signed(&mut context)?;
+
+        if (a < b) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
+    }
+
+    /// 2OP:3 Jump if a > b (signed).
+    pub fn jg(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let a = ops[0].signed(&mut context)?;
+        let b = ops[1].signed(&mut context)?;
+
+        if (a > b) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
     }
 
     /// 2OP:13 Set the variable referenced by the operand to value
@@ -182,7 +220,32 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
-    /// 1OP:114 Prints a string stored at a padded address.
+    /// 1OP:128 Jump if the argument equals zero.
+    pub fn jz(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let a = ops[0].unsigned(&mut context)?;
+
+        if (a == 0) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
+    }
+
+    /// 1OP:140 Jump unconditionally
+    pub fn jump(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let offset = ops[0].signed(&mut context)?;
+        Ok(context.frame.branch(offset))
+    }
+
+    /// 1OP:141 Prints a string stored at a padded address.
     pub fn print_paddr(
         mut context: Context,
         ops: Vec<Operand>,
