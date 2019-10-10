@@ -48,7 +48,7 @@ impl StackFrame {
             0..=1 => InstructionResult::Return(offset as u16),
             _ => {
                 if offset < 0 {
-                    self.pc -= (-offset) as usize - 2;
+                    self.pc -= (-offset) as usize + 2;
                 } else {
                     self.pc += offset as usize - 2;
                 }
