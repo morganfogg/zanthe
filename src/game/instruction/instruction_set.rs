@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
@@ -28,6 +29,8 @@ impl InstructionSet {
             (TwoOp(0x17), Instruction::Store(&common::div)),
             (TwoOp(0x18), Instruction::Store(&common::z_mod)),
             (OneOp(0x0), Instruction::Branch(&common::jz)),
+            (OneOp(0x5), Instruction::Normal(&common::inc)),
+            (OneOp(0x6), Instruction::Normal(&common::dec)),
             (OneOp(0xC), Instruction::Normal(&common::jump)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
@@ -102,7 +105,6 @@ mod common {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let a = ops[0].signed(&mut context)?;
         let b = ops[1].signed(&mut context)?;
-
         if (a < b) == condition {
             Ok(context.frame.branch(offset))
         } else {
@@ -217,6 +219,28 @@ mod common {
         let result = first % second;
 
         context.set_variable(store_to, result as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 1OP:133 Increment the provided variable.
+    pub fn inc(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+        let value = context.get_variable(variable_id)? as i16;
+        context.set_variable(variable_id, (value + 1) as u16);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 1OP:134 Decrement the provided variable.
+    pub fn dec(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+        let value = context.get_variable(variable_id)? as i16;
+        context.set_variable(variable_id, (value - 1) as u16);
         Ok(InstructionResult::Continue)
     }
 
