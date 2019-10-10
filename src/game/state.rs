@@ -44,6 +44,7 @@ impl<'a> GameState<'a> {
         ));
         loop {
             let frame = self.call_stack.frame();
+
             let mut code_byte = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
             let form;
@@ -121,7 +122,6 @@ impl<'a> GameState<'a> {
                     }
                 }
             };
-
             let instruction = self.instruction_set.get(&op_code).ok_or_else(|| {
                 GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
             })?;
@@ -130,6 +130,7 @@ impl<'a> GameState<'a> {
 
             let result = match instruction {
                 Instruction::Normal(f) => {
+                    info!("{:?}:{:?}:{:?}", op_code, form, operands);
                     let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, operands)
                 }
@@ -148,17 +149,21 @@ impl<'a> GameState<'a> {
                         }
                     };
                     let context = Context::new(frame, &mut self.memory, self.interface);
+                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, offset);
                     f(context, operands, condition, offset)
                 }
                 Instruction::Store(f) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);
                     let context = Context::new(frame, &mut self.memory, self.interface);
+                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, store_to);
                     f(context, operands, store_to)
                 }
                 Instruction::StringLiteral(f) => {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                     })?;
+                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, string);
+
                     let context = Context::new(frame, &mut self.memory, self.interface);
                     f(context, string)
                 }
