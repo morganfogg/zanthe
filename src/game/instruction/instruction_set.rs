@@ -36,6 +36,7 @@ impl InstructionSet {
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
             (ZeroOp(0x2), Instruction::StringLiteral(&common::print)),
+            (ZeroOp(0x3), Instruction::StringLiteral(&common::print_ret)),
             (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
@@ -57,10 +58,13 @@ impl InstructionSet {
 
         if version >= 5 {
             instructions.extend(
-                [(OneOp(0xF), Instruction::Normal(&version_gte5::call_1n))]
-                    .iter()
-                    .cloned()
-                    .collect::<HashMap<OpCode, Instruction>>(),
+                [
+                    (OneOp(0xF), Instruction::Normal(&version_gte5::call_1n)),
+                    (VarOp(0x19), Instruction::Normal(&version_gte5::call_vn)),
+                ]
+                .iter()
+                .cloned()
+                .collect::<HashMap<OpCode, Instruction>>(),
             );
         }
 
@@ -298,6 +302,16 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
+    /// 0OP:179 Prints a literal string, prints a newline then returns from the current routine.
+    pub fn print_ret(
+        context: Context,
+        string: String,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        context.interface.print(&string)?;
+        context.interface.print(&"\n");
+        Ok(InstructionResult::Return(1))
+    }
+
     /// 0OP:184 Returns the top of the stack.
     pub fn ret_popped(
         context: Context,
@@ -380,6 +394,28 @@ mod version_gte5 {
         return Ok(InstructionResult::Invoke {
             address,
             arguments: None,
+            store_to: None,
+        });
+    }
+
+    /// VAR:249 Call a routine with up to 7 arguments and throw away the result.
+    pub fn call_vn(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = ops[0].unsigned(&mut context)?;
+        let address = context.memory.unpack_address(address as usize);
+        let arguments: Vec<u16> = ops[1..]
+            .iter()
+            .map(|op| op.try_unsigned(&mut context))
+            .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+            .into_iter()
+            .while_some()
+            .collect();
+
+        return Ok(InstructionResult::Invoke {
+            address,
+            arguments: Some(arguments),
             store_to: None,
         });
     }
