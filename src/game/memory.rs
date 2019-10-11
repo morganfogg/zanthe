@@ -222,8 +222,8 @@ impl Memory {
         }
     }
 
-    /// Extract an encoded ZSCII character sequence from the memory.
-    pub fn zscii_sequence(&self, mut cursor: usize) -> Vec<u8> {
+    /// Extract an encoded Z-Character character sequence from the memory.
+    pub fn character_sequence(&self, mut cursor: usize) -> Vec<u8> {
         let mut z_chars = Vec::new();
 
         loop {
@@ -271,13 +271,13 @@ impl Memory {
         )
     }
 
-    /// Extract an encoded string, strating at the given point in memory.
+    /// Decode a Z-Character-encoded string, strating at the given point in memory.
     pub fn extract_string(
         &self,
         start: usize,
         abbreviations: bool,
     ) -> Result<(String, usize), Box<dyn Error>> {
-        let sequence = self.zscii_sequence(start);
+        let sequence = self.character_sequence(start);
         let byte_length = sequence.len() / 3 * 2;
         let mut sequence = sequence.iter();
         let mut result = Vec::new();
@@ -333,7 +333,23 @@ impl Memory {
                     }
                 }
                 _ => {
-                    result.push(alphabet.value(table, *c));
+                    if table == AlphabetTable::A2 && *c == 6 {
+                        // Character 6 in Alphabet 2 indicates a 10-bit ZSCII character follows.
+                        let b1 = *sequence.next().ok_or_else(|| {
+                            GameError::InvalidOperation("String ended unexpectedly".into())
+                        })?;
+                        let b2 = *sequence.next().ok_or_else(|| {
+                            GameError::InvalidOperation("String ended unexpectedly".into())
+                        })?;
+
+                        let zscii_code = ((b1 as u16) << 5) | (b2 as u16);
+                        if let Some(character) = alphabet.decode_zscii(zscii_code)? {
+                            result.push(character);
+                        }
+                    } else {
+                        // Otherwise, the character is found in the alphabet table.
+                        result.push(alphabet.value(table, *c));
+                    }
                     if shift {
                         table = AlphabetTable::default();
                         shift = false;
