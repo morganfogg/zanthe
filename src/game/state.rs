@@ -35,6 +35,15 @@ impl<'a> GameState<'a> {
         })
     }
 
+    pub fn context(&mut self) -> Context {
+        Context::new(
+            self.call_stack.frame(),
+            &mut self.memory,
+            self.interface,
+            &mut self.rng,
+        )
+    }
+
     /// Start the game
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         self.call_stack.push(StackFrame::new(
@@ -131,7 +140,7 @@ impl<'a> GameState<'a> {
             let result = match instruction {
                 Instruction::Normal(f) => {
                     info!("{:?}:{:?}:{:?}", op_code, form, operands);
-                    let context = Context::new(frame, &mut self.memory, self.interface);
+                    let context = self.context();
                     f(context, operands)
                 }
                 Instruction::Branch(f) => {
@@ -148,14 +157,16 @@ impl<'a> GameState<'a> {
                             (base & 0x1fff) as i16
                         }
                     };
-                    let context = Context::new(frame, &mut self.memory, self.interface);
                     info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, offset);
+
+                    let context = self.context();
                     f(context, operands, condition, offset)
                 }
                 Instruction::Store(f) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);
-                    let context = Context::new(frame, &mut self.memory, self.interface);
                     info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, store_to);
+
+                    let context = self.context();
                     f(context, operands, store_to)
                 }
                 Instruction::StringLiteral(f) => {
@@ -164,7 +175,7 @@ impl<'a> GameState<'a> {
                     })?;
                     info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, string);
 
-                    let context = Context::new(frame, &mut self.memory, self.interface);
+                    let context = self.context();
                     f(context, string)
                 }
             }?;
@@ -175,8 +186,7 @@ impl<'a> GameState<'a> {
                 InstructionResult::Return(result) => {
                     let old_frame = self.call_stack.pop()?;
                     if let Some(store_to) = old_frame.store_to {
-                        let mut context =
-                            Context::new(self.call_stack.frame(), &mut self.memory, self.interface);
+                        let mut context = self.context();
                         context.set_variable(store_to, result);
                     }
                 }

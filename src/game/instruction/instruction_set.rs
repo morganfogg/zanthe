@@ -73,8 +73,8 @@ impl InstructionSet {
         InstructionSet { instructions }
     }
 
-    pub fn get(&self, opcode: &OpCode) -> Option<&Instruction> {
-        self.instructions.get(opcode)
+    pub fn get(&self, opcode: &OpCode) -> Option<Instruction> {
+        self.instructions.get(opcode).cloned()
     }
 }
 
