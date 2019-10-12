@@ -23,6 +23,8 @@ impl InstructionSet {
             (TwoOp(0x2), Instruction::Branch(&common::jl)),
             (TwoOp(0x3), Instruction::Branch(&common::jg)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
+            (TwoOp(0xF), Instruction::Store(&common::loadw)),
+            (TwoOp(0x10), Instruction::Store(&common::loadb)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
             (TwoOp(0x15), Instruction::Store(&common::sub)),
             (TwoOp(0x16), Instruction::Store(&common::mul)),
@@ -142,6 +144,36 @@ mod common {
         let value = ops[1].unsigned(&mut context)?;
 
         context.set_variable(variable, value);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:15 Store a word found at the given array and word index.
+    pub fn loadw(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let array = ops[0].unsigned(&mut context)?;
+        let word_index = ops[1].unsigned(&mut context)?;
+
+        let word = context.memory.get_word(usize::from(array + 2 * word_index));
+
+        context.set_variable(store_to, word);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:15 Store a byte found at the given array and byte index.
+    pub fn loadb(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let array = ops[0].unsigned(&mut context)?;
+        let byte_index = ops[1].unsigned(&mut context)?;
+
+        let word = context.memory.get_word(usize::from(array + byte_index));
+
+        context.set_variable(store_to, word);
         Ok(InstructionResult::Continue)
     }
 
@@ -308,7 +340,7 @@ mod common {
         string: String,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         context.interface.print(&string)?;
-        context.interface.print(&"\n");
+        context.interface.print(&"\n")?;
         Ok(InstructionResult::Return(1))
     }
 
