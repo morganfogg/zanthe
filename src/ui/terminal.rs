@@ -33,6 +33,7 @@ impl TerminalInterface {
         })
     }
 
+    /// Convert LF newlines to CRLF newlines, as required in Crossterm's alternate screen mode.
     fn convert_newlines(&self, input: String) -> String {
         input.replace("\n", "\n\r")
     }
