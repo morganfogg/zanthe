@@ -2,6 +2,7 @@ use std::error::Error;
 use std::vec::Vec;
 
 use log::info;
+use rand::{rngs::StdRng, SeedableRng};
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
@@ -19,6 +20,7 @@ pub struct GameState<'a> {
     instruction_set: InstructionSet,
     call_stack: CallStack,
     interface: &'a mut dyn Interface,
+    rng: StdRng,
 }
 
 impl<'a> GameState<'a> {
@@ -32,6 +34,7 @@ impl<'a> GameState<'a> {
             call_stack: CallStack::new(),
             memory,
             interface,
+            rng: StdRng::from_entropy(),
         })
     }
 

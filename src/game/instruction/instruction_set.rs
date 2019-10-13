@@ -1,14 +1,16 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use crate::game::error::GameError;
+use crate::game::instruction::OpCode::{OneOp, TwoOp, VarOp, ZeroOp};
 use crate::game::instruction::{
-    Context, Instruction,
-    OpCode::{self, OneOp, TwoOp, VarOp, ZeroOp},
-    Operand, Result as InstructionResult,
+    Context, Instruction, OpCode, Operand, Result as InstructionResult,
 };
 
 /// Represents all the instructions available to the Z-Machine version specified in the game file.
@@ -42,6 +44,7 @@ impl InstructionSet {
             (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
+            (VarOp(0x7), Instruction::Store(&common::random)),
         ]
         .iter()
         .cloned()
@@ -364,6 +367,30 @@ mod common {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let num = ops[0].signed(&mut context)?;
         context.interface.print(&format!("{}", num))?;
+        Ok(InstructionResult::Continue)
+    }
+
+    /// VAR:231 Return a random number between 1 and the given argument.
+    pub fn random(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let range = ops[0].signed(&mut context)?;
+        match range.cmp(&0) {
+            Ordering::Less => {
+                *context.rng = StdRng::seed_from_u64(-range as u64);
+                context.set_variable(store_to, 0);
+            }
+            Ordering::Equal => {
+                *context.rng = StdRng::from_entropy();
+                context.set_variable(store_to, 0);
+            }
+            Ordering::Greater => {
+                let result = context.rng.gen_range(1, range + 1);
+                context.set_variable(store_to, result as u16);
+            }
+        };
         Ok(InstructionResult::Continue)
     }
 }

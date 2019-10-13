@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 log = "0.4.6"
 simplelog = "0.5.3"
-rand = "0.6.5"
+rand = "0.7.2"
 clap = "2.33.0"
 itertools = "0.8.0"
 crossterm = "0.11"

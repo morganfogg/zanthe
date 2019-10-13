@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use rand::rngs::StdRng;
+
 use crate::game::memory::Memory;
 use crate::game::stack::StackFrame;
 use crate::ui::Interface;
@@ -9,6 +11,7 @@ pub struct Context<'a> {
     pub frame: &'a mut StackFrame,
     pub memory: &'a mut Memory,
     pub interface: &'a mut dyn Interface,
+    pub rng: &'a mut StdRng,
 }
 
 impl<'a> Context<'a> {
@@ -16,11 +19,13 @@ impl<'a> Context<'a> {
         frame: &'a mut StackFrame,
         memory: &'a mut Memory,
         interface: &'a mut dyn Interface,
+        rng: &'a mut StdRng,
     ) -> Context<'a> {
         Context {
             frame,
             memory,
             interface,
+            rng,
         }
     }
 
