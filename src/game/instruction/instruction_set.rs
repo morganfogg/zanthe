@@ -370,7 +370,8 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
-    /// VAR:231 Return a random number between 1 and the given argument.
+    /// VAR:231 If the argument is >0, store a random number between 1 and the argument. If it is
+    /// less than 0, re-seed the RNG using the argument. If it is zero, re-seed the RNG randomly.
     pub fn random(
         mut context: Context,
         ops: Vec<Operand>,
