@@ -6,7 +6,7 @@ use crossterm::{
     cursor::MoveTo,
     event::read,
     execute, queue,
-    style::Print,
+    style::{Attribute, Print, SetAttribute},
     terminal::{
         disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
     },
@@ -51,7 +51,16 @@ impl Interface for TerminalInterface {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
         let (width, _) = size()?;
         let wrapped = self.convert_newlines(fill(string, width as usize));
-        queue!(self.stdout, Print(wrapped))?;
+        if self.text_style.bold {
+            queue!(self.stdout, SetAttribute(Attribute::Bold))?;
+        }
+        if self.text_style.emphasis {
+            queue!(self.stdout, SetAttribute(Attribute::Underlined))?;
+        }
+        if self.text_style.reverse_video {
+            queue!(self.stdout, SetAttribute(Attribute::Reverse))?;
+        }
+        queue!(self.stdout, Print(wrapped), SetAttribute(Attribute::Reset))?;
         self.stdout.flush()?;
         Ok(())
     }
