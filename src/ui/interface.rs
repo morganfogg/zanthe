@@ -8,6 +8,21 @@ pub trait Interface {
     /// The game exited successfully, show a message then quit
     fn done(&mut self) -> Result<(), Box<dyn Error>>;
 
+    /// Set the text style to bold
+    fn text_style_bold(&mut self);
+
+    /// Set the text style to emphais (italics)
+    fn text_style_emphasis(&mut self);
+
+    /// Set the text style to reverse video.
+    fn text_style_reverse(&mut self);
+
+    /// Set the text style to fixed-width
+    fn text_style_fixed(&mut self);
+
+    /// Remove all text styles
+    fn text_style_clear(&mut self);
+
     /// Close the UI immediately.
     fn quit(&mut self);
 }

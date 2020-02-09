@@ -23,6 +23,26 @@ impl Interface for NullInterface {
         Ok(())
     }
 
+    fn text_style_bold(&mut self) {
+        println!("Text style set to BOLD");
+    }
+
+    fn text_style_emphasis(&mut self) {
+        println!("Text style set to EMPHASIS");
+    }
+
+    fn text_style_reverse(&mut self) {
+        println!("Text style set to REVERSE VIDEO");
+    }
+
+    fn text_style_fixed(&mut self) {
+        println!("Text style set to FIXED WIDTH");
+    }
+
+    fn text_style_clear(&mut self) {
+        println!("Text style CLEARED");
+    }
+
     /// Close the UI immediately.
     fn quit(&mut self) {
         println!("Quit");

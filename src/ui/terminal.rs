@@ -7,7 +7,7 @@ use crossterm::{
 use log::info;
 use textwrap::fill;
 
-use crate::ui::Interface;
+use crate::ui::{Interface, TextStyle};
 
 /// A traditional terminal-based user interface.
 pub struct TerminalInterface {
@@ -16,6 +16,7 @@ pub struct TerminalInterface {
     input: TerminalInput,
     stdout: Stdout,
     cursor: TerminalCursor,
+    text_style: TextStyle,
 }
 
 impl TerminalInterface {
@@ -28,6 +29,7 @@ impl TerminalInterface {
             _alt_screen,
             input,
             stdout,
+            text_style: TextStyle::new(),
             terminal: crossterm::terminal(),
             cursor: crossterm::cursor(),
         })
@@ -42,7 +44,6 @@ impl TerminalInterface {
 impl Interface for TerminalInterface {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
         let (width, _) = self.terminal.size()?;
-        info!("{}", width);
         let wrapped = self.convert_newlines(fill(string, width as usize));
         queue!(self.stdout, Output(wrapped))?;
         self.stdout.flush()?;
@@ -54,6 +55,29 @@ impl Interface for TerminalInterface {
         self.stdout.flush()?;
         self.input.read_char()?;
         Ok(())
+    }
+
+    fn text_style_bold(&mut self) {
+        self.text_style.bold = true;
+    }
+
+    fn text_style_emphasis(&mut self) {
+        self.text_style.emphasis = true;
+    }
+
+    fn text_style_reverse(&mut self) {
+        self.text_style.reverse_video = true;
+    }
+
+    fn text_style_fixed(&mut self) {
+        self.text_style.fixed_width = true;
+    }
+
+    fn text_style_clear(&mut self) {
+        self.text_style.bold = false;
+        self.text_style.emphasis = false;
+        self.text_style.reverse_video = false;
+        self.text_style.fixed_width = false;
     }
 
     fn quit(&mut self) {}
