@@ -72,6 +72,7 @@ impl InstructionSet {
                 [
                     (OneOp(0xF), Instruction::Normal(&version_gte5::call_1n)),
                     (VarOp(0x19), Instruction::Normal(&version_gte5::call_vn)),
+                    (VarOp(0x1A), Instruction::Normal(&version_gte5::call_vn2)),
                 ]
                 .iter()
                 .cloned()
@@ -518,8 +519,30 @@ mod version_gte5 {
         })
     }
 
-    /// VAR:249 Call a routine with up to 7 arguments and throw away the result.
+    /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
     pub fn call_vn(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = ops[0].unsigned(&mut context)?;
+        let address = context.memory.unpack_address(address as usize);
+        let arguments: Vec<u16> = ops[1..]
+            .iter()
+            .map(|op| op.try_unsigned(&mut context))
+            .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+            .into_iter()
+            .while_some()
+            .collect();
+
+        Ok(InstructionResult::Invoke {
+            address,
+            arguments: Some(arguments),
+            store_to: None,
+        })
+    }
+
+    /// VAR:250 Call a routine with up to 7 arguments and throw away the result.
+    pub fn call_vn2(
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {

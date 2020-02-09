@@ -82,7 +82,7 @@ impl<'a> GameState<'a> {
                 }
                 Form::Variable if self.version >= 5 && (code_byte == 236 || code_byte == 250) => {
                     let op_types = self.memory.read_word(&mut frame.pc);
-                    operands = (0..=12)
+                    operands = (0..=14)
                         .rev()
                         .step_by(2)
                         .map(|x| {
