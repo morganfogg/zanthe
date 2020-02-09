@@ -2,7 +2,12 @@ use std::error::Error;
 use std::io::{self, Stdout, Write};
 
 use crossterm::{
-    self, execute, queue, AlternateScreen, Goto, Output, TerminalCursor, TerminalInput,
+    self,
+    cursor::MoveTo,
+    event::read,
+    execute, queue,
+    style::Print,
+    terminal::{size, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use log::info;
 use textwrap::fill;
@@ -11,27 +16,17 @@ use crate::ui::{Interface, TextStyle};
 
 /// A traditional terminal-based user interface.
 pub struct TerminalInterface {
-    _alt_screen: AlternateScreen,
-    terminal: crossterm::Terminal,
-    input: TerminalInput,
     stdout: Stdout,
-    cursor: TerminalCursor,
     text_style: TextStyle,
 }
 
 impl TerminalInterface {
     pub fn new() -> Result<TerminalInterface, Box<dyn Error>> {
         let mut stdout = io::stdout();
-        let input = crossterm::input();
-        let _alt_screen = AlternateScreen::to_alternate(true)?;
-        execute!(stdout, Goto(0, 0))?;
+        execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
         Ok(TerminalInterface {
-            _alt_screen,
-            input,
             stdout,
             text_style: TextStyle::new(),
-            terminal: crossterm::terminal(),
-            cursor: crossterm::cursor(),
         })
     }
 
@@ -43,17 +38,17 @@ impl TerminalInterface {
 
 impl Interface for TerminalInterface {
     fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
-        let (width, _) = self.terminal.size()?;
+        let (width, _) = size()?;
         let wrapped = self.convert_newlines(fill(string, width as usize));
-        queue!(self.stdout, Output(wrapped))?;
+        queue!(self.stdout, Print(wrapped))?;
         self.stdout.flush()?;
         Ok(())
     }
 
     fn done(&mut self) -> Result<(), Box<dyn Error>> {
-        queue!(self.stdout, Output("\n\r[Hit any key to exit...]".into()))?;
+        queue!(self.stdout, Print("\n\r[Hit any key to exit...]"))?;
         self.stdout.flush()?;
-        self.input.read_char()?;
+        read()?;
         Ok(())
     }
 
