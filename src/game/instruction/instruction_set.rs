@@ -54,6 +54,10 @@ impl InstructionSet {
                 [
                     (TwoOp(0x19), Instruction::Store(&version_gte4::call_2s)),
                     (VarOp(0x0), Instruction::Store(&version_gte4::call_vs)),
+                    (
+                        VarOp(0x11),
+                        Instruction::Normal(&version_gte4::set_text_style),
+                    ),
                 ]
                 .iter()
                 .cloned()
@@ -408,11 +412,11 @@ mod version_gte4 {
         let address = ops[0].unsigned(&mut context)?;
         let address = context.memory.unpack_address(address as usize);
         let arguments = vec![ops[1].unsigned(&mut context)?];
-        return Ok(InstructionResult::Invoke {
+        Ok(InstructionResult::Invoke {
             address,
             arguments: Some(arguments),
             store_to: Some(store_to),
-        });
+        })
     }
 
     /// VAR:224 Calls a routine with up to 3 arguments and stores the result.
@@ -431,11 +435,33 @@ mod version_gte4 {
             .while_some()
             .collect();
 
-        return Ok(InstructionResult::Invoke {
+        Ok(InstructionResult::Invoke {
             address,
             arguments: Some(arguments),
             store_to: Some(store_to),
-        });
+        })
+    }
+
+    pub fn set_text_style(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let format = ops[0].unsigned(&mut context)?;
+
+        match format {
+            0 => context.interface.text_style_clear(),
+            1 => context.interface.text_style_reverse(),
+            2 => context.interface.text_style_bold(),
+            4 => context.interface.text_style_emphasis(),
+            8 => context.interface.text_style_fixed(),
+            _ => {
+                return Err(
+                    GameError::InvalidOperation("Tried to set invalid text style".into()).into(),
+                )
+            }
+        }
+
+        Ok(InstructionResult::Continue)
     }
 }
 
@@ -451,11 +477,11 @@ mod version_gte5 {
 
         let address = context.memory.unpack_address(address as usize);
 
-        return Ok(InstructionResult::Invoke {
+        Ok(InstructionResult::Invoke {
             address,
             arguments: None,
             store_to: None,
-        });
+        })
     }
 
     /// VAR:249 Call a routine with up to 7 arguments and throw away the result.
@@ -473,10 +499,10 @@ mod version_gte5 {
             .while_some()
             .collect();
 
-        return Ok(InstructionResult::Invoke {
+        Ok(InstructionResult::Invoke {
             address,
             arguments: Some(arguments),
             store_to: None,
-        });
+        })
     }
 }
