@@ -11,7 +11,6 @@ use crossterm::{
         disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use log::info;
 use textwrap::fill;
 
 use crate::ui::{Interface, TextStyle};
@@ -43,7 +42,7 @@ impl Drop for TerminalInterface {
     /// Restore the terminal to its previous state when exiting.
     fn drop(&mut self) {
         execute!(self.stdout, LeaveAlternateScreen).unwrap();
-        disable_raw_mode();
+        disable_raw_mode().unwrap();
     }
 }
 
