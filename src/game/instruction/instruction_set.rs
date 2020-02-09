@@ -73,8 +73,10 @@ impl InstructionSet {
             instructions.extend(
                 [
                     (OneOp(0xF), Instruction::Normal(&version_gte5::call_1n)),
+                    (TwoOp(0x1A), Instruction::Normal(&version_gte5::call_2n)),
                     (VarOp(0x19), Instruction::Normal(&version_gte5::call_vn)),
                     (VarOp(0x1A), Instruction::Normal(&version_gte5::call_vn2)),
+                    
                 ]
                 .iter()
                 .cloned()
@@ -526,13 +528,30 @@ mod version_gte4 {
 mod version_gte5 {
     use super::*;
 
+    /// 2OP:26 Execute a routine with 1 argument and throw away the result.
+    pub fn call_2n(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = ops[0].unsigned(&mut context)?;
+        let address = context.memory.unpack_address(address as usize);
+
+        let argument = ops[1].unsigned(&mut context)?;
+        
+        Ok(InstructionResult::Invoke {
+            address,
+            arguments: Some(vec![argument]),
+            store_to: None,
+        })
+
+    }
+    
     /// 1OP:143 Calls a routine with no arguments and throws away the result.
     pub fn call_1n(
         mut context: Context,
         ops: Vec<Operand>,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let address = ops[0].unsigned(&mut context)?;
-
         let address = context.memory.unpack_address(address as usize);
 
         Ok(InstructionResult::Invoke {
