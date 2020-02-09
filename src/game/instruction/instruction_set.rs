@@ -24,6 +24,8 @@ impl InstructionSet {
             (TwoOp(0x1), Instruction::Branch(&common::je)),
             (TwoOp(0x2), Instruction::Branch(&common::jl)),
             (TwoOp(0x3), Instruction::Branch(&common::jg)),
+            (TwoOp(0x8), Instruction::Store(&common::or)),
+            (TwoOp(0x9), Instruction::Store(&common::and)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0xF), Instruction::Store(&common::loadw)),
             (TwoOp(0x10), Instruction::Store(&common::loadb)),
@@ -140,6 +142,38 @@ mod common {
         } else {
             Ok(InstructionResult::Continue)
         }
+    }
+
+    // 2OP:8 Bitwise OR
+    pub fn or(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let x = ops[0].unsigned(&mut context)?;
+        let y = ops[1].unsigned(&mut context)?;
+
+        let result = x | y;
+
+        context.set_variable(store_to, result);
+
+        Ok(InstructionResult::Continue)
+    }
+
+    // 2OP:9 Bitwise AND
+    pub fn and(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let x = ops[0].unsigned(&mut context)?;
+        let y = ops[1].unsigned(&mut context)?;
+
+        let result = x & y;
+
+        context.set_variable(store_to, result);
+
+        Ok(InstructionResult::Continue)
     }
 
     /// 2OP:13 Set the variable referenced by the operand to value
