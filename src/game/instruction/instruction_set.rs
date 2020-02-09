@@ -47,6 +47,8 @@ impl InstructionSet {
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
             (VarOp(0x7), Instruction::Store(&common::random)),
+            (VarOp(0x8), Instruction::Normal(&common::push)),
+            (VarOp(0x9), Instruction::Normal(&common::pull)),
         ]
         .iter()
         .cloned()
@@ -431,6 +433,27 @@ mod common {
                 context.set_variable(store_to, result as u16);
             }
         };
+        Ok(InstructionResult::Continue)
+    }
+
+    /// VAR:232 Pushes a value to the stack.
+    pub fn push(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let value = ops[0].unsigned(&mut context)?;
+        context.frame.push_stack(value);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// VAR:233 Pulls a value off the stack and stores it.
+    pub fn pull(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let store_to = ops[0].unsigned(&mut context)? as u8;
+        let value = context.frame.pop_stack()?;
+        context.set_variable(store_to, value);
         Ok(InstructionResult::Continue)
     }
 }

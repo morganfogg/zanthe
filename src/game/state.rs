@@ -56,7 +56,7 @@ impl<'a> GameState<'a> {
         ));
         loop {
             let frame = self.call_stack.frame();
-
+            info!("PC AT {:x}", frame.pc);
             let mut code_byte = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
             let form;
@@ -167,7 +167,7 @@ impl<'a> GameState<'a> {
                 }
                 Instruction::Store(f) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);
-                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, store_to);
+                    info!("{:?}:{:?}:{:?}:{:x}", op_code, form, operands, store_to);
 
                     let context = self.context();
                     f(context, operands, store_to)
