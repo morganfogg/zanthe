@@ -7,7 +7,9 @@ use crossterm::{
     event::read,
     execute, queue,
     style::Print,
-    terminal::{size, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
+    },
 };
 use log::info;
 use textwrap::fill;
@@ -24,6 +26,7 @@ impl TerminalInterface {
     pub fn new() -> Result<TerminalInterface, Box<dyn Error>> {
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
+        enable_raw_mode()?;
         Ok(TerminalInterface {
             stdout,
             text_style: TextStyle::new(),
@@ -33,6 +36,14 @@ impl TerminalInterface {
     /// Convert LF newlines to CRLF newlines, as required in Crossterm's alternate screen mode.
     fn convert_newlines(&self, input: String) -> String {
         input.replace("\n", "\n\r")
+    }
+}
+
+impl Drop for TerminalInterface {
+    /// Restore the terminal to its previous state when exiting.
+    fn drop(&mut self) {
+        execute!(self.stdout, LeaveAlternateScreen).unwrap();
+        disable_raw_mode();
     }
 }
 
