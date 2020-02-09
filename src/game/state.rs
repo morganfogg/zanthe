@@ -206,6 +206,9 @@ impl<'a> GameState<'a> {
                         .into());
                     }
                     let mut locals = vec![0; local_count];
+
+                    // In z4 and earlier, locals can have default values. In z5 and later,
+                    // locals always default to zero.
                     if self.version < 5 {
                         for i in 0..local_count {
                             locals[i] = self.memory.read_word(&mut address);
