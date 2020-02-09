@@ -37,6 +37,7 @@ impl InstructionSet {
             (OneOp(0x0), Instruction::Branch(&common::jz)),
             (OneOp(0x5), Instruction::Normal(&common::inc)),
             (OneOp(0x6), Instruction::Normal(&common::dec)),
+            (OneOp(0xB), Instruction::Normal(&common::ret)),
             (OneOp(0xC), Instruction::Normal(&common::jump)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue)),
@@ -76,7 +77,6 @@ impl InstructionSet {
                     (TwoOp(0x1A), Instruction::Normal(&version_gte5::call_2n)),
                     (VarOp(0x19), Instruction::Normal(&version_gte5::call_vn)),
                     (VarOp(0x1A), Instruction::Normal(&version_gte5::call_vn2)),
-                    
                 ]
                 .iter()
                 .cloned()
@@ -342,6 +342,14 @@ mod common {
         }
     }
 
+    /// 1OP:139 Returns from the current routine with the given value
+    pub fn ret(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Return(ops[0].unsigned(&mut context)?))
+    }
+
     /// 1OP:140 Jump unconditionally
     pub fn jump(
         mut context: Context,
@@ -537,15 +545,14 @@ mod version_gte5 {
         let address = context.memory.unpack_address(address as usize);
 
         let argument = ops[1].unsigned(&mut context)?;
-        
+
         Ok(InstructionResult::Invoke {
             address,
             arguments: Some(vec![argument]),
             store_to: None,
         })
-
     }
-    
+
     /// 1OP:143 Calls a routine with no arguments and throws away the result.
     pub fn call_1n(
         mut context: Context,
