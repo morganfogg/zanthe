@@ -419,6 +419,28 @@ mod version_gte4 {
         })
     }
 
+    /// VAR:241 Sets the active text style (bold, emphasis etc.)
+    pub fn set_text_style(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let format = ops[0].unsigned(&mut context)?;
+
+        match format {
+            0 => context.interface.text_style_clear(),
+            1 => context.interface.text_style_reverse(),
+            2 => context.interface.text_style_bold(),
+            4 => context.interface.text_style_emphasis(),
+            8 => context.interface.text_style_fixed(),
+            _ => {
+                return Err(
+                    GameError::InvalidOperation("Tried to set invalid text style".into()).into(),
+                )
+            }
+        }
+        Ok(InstructionResult::Continue)
+    }
+
     /// VAR:224 Calls a routine with up to 3 arguments and stores the result.
     pub fn call_vs(
         mut context: Context,
@@ -440,28 +462,6 @@ mod version_gte4 {
             arguments: Some(arguments),
             store_to: Some(store_to),
         })
-    }
-
-    pub fn set_text_style(
-        mut context: Context,
-        ops: Vec<Operand>,
-    ) -> Result<InstructionResult, Box<dyn Error>> {
-        let format = ops[0].unsigned(&mut context)?;
-
-        match format {
-            0 => context.interface.text_style_clear(),
-            1 => context.interface.text_style_reverse(),
-            2 => context.interface.text_style_bold(),
-            4 => context.interface.text_style_emphasis(),
-            8 => context.interface.text_style_fixed(),
-            _ => {
-                return Err(
-                    GameError::InvalidOperation("Tried to set invalid text style".into()).into(),
-                )
-            }
-        }
-
-        Ok(InstructionResult::Continue)
     }
 }
 
