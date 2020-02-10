@@ -44,6 +44,7 @@ impl InstructionSet {
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse)),
             (ZeroOp(0x2), Instruction::StringLiteral(&common::print)),
             (ZeroOp(0x3), Instruction::StringLiteral(&common::print_ret)),
+            (ZeroOp(0x4), Instruction::Normal(&common::nop)),
             (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
@@ -396,6 +397,14 @@ mod common {
         context.interface.print(&string)?;
         context.interface.print(&"\n")?;
         Ok(InstructionResult::Return(1))
+    }
+    
+    /// 0OP:180 Does nothing.
+    pub fn nop (
+        _context: Context,
+        _ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        Ok(InstructionResult::Continue)
     }
 
     /// 0OP:184 Returns the top of the stack.
