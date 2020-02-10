@@ -484,6 +484,26 @@ mod common {
     }
 }
 
+mod version_gte3 {
+    use super::*;
+
+    /// 0OP:189 Verify the file's checksum
+    pub fn verify(
+        context: Context,
+        _ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        if (context.checksum_valid) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
+    }
+}
+
+mod version_lte4 {}
+
 mod version_gte4 {
     use super::*;
 

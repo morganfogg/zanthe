@@ -12,6 +12,7 @@ pub struct Context<'a> {
     pub memory: &'a mut Memory,
     pub interface: &'a mut dyn Interface,
     pub rng: &'a mut StdRng,
+    pub checksum_valid: bool,
 }
 
 impl<'a> Context<'a> {
@@ -20,12 +21,14 @@ impl<'a> Context<'a> {
         memory: &'a mut Memory,
         interface: &'a mut dyn Interface,
         rng: &'a mut StdRng,
+        checksum_valid: bool,
     ) -> Context<'a> {
         Context {
             frame,
             memory,
             interface,
             rng,
+            checksum_valid,
         }
     }
 

@@ -44,6 +44,7 @@ impl<'a> GameState<'a> {
             &mut self.memory,
             self.interface,
             &mut self.rng,
+            self.checksum_valid,
         )
     }
 
