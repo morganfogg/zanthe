@@ -26,7 +26,7 @@ pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
     let game_file = fs::read(args.value_of("INPUT").unwrap())
         .map_err(|e| format!("Couldn't open story file: {}", e))?;
 
-    let interface_name = args.value_of("interface").unwrap_or("terminal");
+    let interface_name = args.value_of("interface").unwrap();
     let mut interface: Box<dyn Interface> = match interface_name {
         "terminal" => {
             Box::new(TerminalInterface::new().map_err(|e| format!("Couldn't start UI: {}", e))?)

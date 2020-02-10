@@ -20,6 +20,7 @@ fn main() {
                 .short("i")
                 .help("The interface to use")
                 .takes_value(true)
+                .default_value("terminal")
                 .possible_values(&["terminal", "null"]),
         )
         .get_matches();
