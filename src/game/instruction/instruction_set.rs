@@ -47,6 +47,7 @@ impl InstructionSet {
             (ZeroOp(0x4), Instruction::Normal(&common::nop)),
             (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
+            (ZeroOp(0xB), Instruction::Normal(&common::new_line)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
             (VarOp(0x7), Instruction::Store(&common::random)),
             (VarOp(0x8), Instruction::Normal(&common::push)),
@@ -398,12 +399,9 @@ mod common {
         context.interface.print(&"\n")?;
         Ok(InstructionResult::Return(1))
     }
-    
+
     /// 0OP:180 Does nothing.
-    pub fn nop (
-        _context: Context,
-        _ops: Vec<Operand>,
-    ) -> Result<InstructionResult, Box<dyn Error>> {
+    pub fn nop(_context: Context, _ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
         Ok(InstructionResult::Continue)
     }
 
@@ -418,6 +416,15 @@ mod common {
     /// 0OP:186 Exits the game.
     pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
         Ok(InstructionResult::Quit)
+    }
+
+    /// 0OP:187 Prints a newline
+    pub fn new_line(
+        context: Context,
+        _ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        context.interface.print(&"\n")?;
+        Ok(InstructionResult::Continue)
     }
 
     /// VAR:230 Print a signed number.
