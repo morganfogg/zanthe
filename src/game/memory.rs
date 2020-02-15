@@ -1,3 +1,4 @@
+use std::char;
 use std::error::Error;
 
 use log::{error, info, warn};
@@ -154,6 +155,29 @@ impl Memory {
         self.get_word(address::DICTIONARY_LOCATION)
     }
 
+    /// Returns the location of the header extension table.
+    fn header_extension_table_location(&self) -> u16 {
+        self.get_word(address::HEADER_EXTENSION_TABLE_LOCATION)
+    }
+
+    /// Returns the story's unicode translation table, or None if the default table
+    /// should be used.
+    fn unicode_translation_table(&self) -> Option<Vec<char>> {
+        match self.get_word(
+            self.header_extension_table_location() as usize
+                + (2 * address::UNICODE_TRANSLATION_TABLE_LOCATION),
+        ) {
+            0 => None,
+            addr @ _ => {
+                let mut cursor = addr as usize;
+                let table_length = self.read_byte(&mut cursor) as usize;
+                (0..table_length)
+                    .map(|i| char::from_u32(self.get_word(cursor + (i * 2)) as u32))
+                    .collect()
+            }
+        }
+    }
+
     /// Return the story file's declared length (in bytes). This may be shorter than its actual
     /// length, as some files are zero-padded.
     fn file_length(&self) -> usize {
@@ -268,6 +292,7 @@ impl Memory {
             self.alphabet_table(AlphabetTable::A0),
             self.alphabet_table(AlphabetTable::A1),
             self.alphabet_table(AlphabetTable::A2),
+            self.unicode_translation_table(),
         )
     }
 
@@ -283,7 +308,7 @@ impl Memory {
         let mut result = Vec::new();
         let mut shift = false;
         let alphabet = match self.alphabet_table_location() {
-            0 => Alphabet::default(self.version()),
+            0 => Alphabet::default(self.version(), self.unicode_translation_table()),
             _ => self.alphabet(),
         };
         let mut table = AlphabetTable::default();
