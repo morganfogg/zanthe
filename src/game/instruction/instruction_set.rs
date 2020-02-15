@@ -56,6 +56,16 @@ impl InstructionSet {
         .iter()
         .cloned()
         .collect();
+
+        if version >= 3 {
+            instructions.extend(
+                [(ZeroOp(0xD), Instruction::Branch(&version_gte3::verify))]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<OpCode, Instruction>>(),
+            );
+        }
+
         if version >= 4 {
             instructions.extend(
                 [
