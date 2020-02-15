@@ -4,6 +4,7 @@ use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
+use log::info;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -48,6 +49,7 @@ impl InstructionSet {
             (ZeroOp(0x8), Instruction::Normal(&common::ret_popped)),
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (ZeroOp(0xB), Instruction::Normal(&common::new_line)),
+            (VarOp(0x0), Instruction::Store(&common::call)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
             (VarOp(0x7), Instruction::Store(&common::random)),
             (VarOp(0x8), Instruction::Normal(&common::push)),
@@ -215,7 +217,6 @@ mod common {
         let word_index = ops[1].unsigned(&mut context)?;
 
         let word = context.memory.get_word(usize::from(array + 2 * word_index));
-
         context.set_variable(store_to, word);
         Ok(InstructionResult::Continue)
     }
@@ -435,6 +436,34 @@ mod common {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         context.interface.print(&"\n")?;
         Ok(InstructionResult::Continue)
+    }
+
+    /// VAR:224 Calls a routine with up to 3 operands and stores the result. If the address is
+    /// zero, does nothing and returns false.
+    pub fn call(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let address = ops[0].unsigned(&mut context)?;
+        if address == 0 {
+            context.set_variable(store_to, 0);
+            return Ok(InstructionResult::Continue);
+        }
+        let address = context.memory.unpack_address(address as usize);
+        let arguments: Vec<u16> = ops[1..]
+            .iter()
+            .map(|op| op.try_unsigned(&mut context))
+            .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+            .into_iter()
+            .while_some()
+            .collect();
+
+        Ok(InstructionResult::Invoke {
+            address,
+            arguments: Some(arguments),
+            store_to: Some(store_to),
+        })
     }
 
     /// VAR:230 Print a signed number.
