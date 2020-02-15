@@ -35,4 +35,13 @@ pub const _DEFAULT_BACKGROUND_COLOUR: usize = 0x2C;
 pub const _DEFAULT_FOREGROUND_COLOR: usize = 0x2D;
 pub const _TERMINATING_CHARACTER_TABLE_LOCATION: usize = 0x2E;
 pub const ALPHABET_TABLE_LOCATION: usize = 0x34;
-pub const _HEADER_EXTENSION_TABLE_LOCATION: usize = 0x36;
+pub const HEADER_EXTENSION_TABLE_LOCATION: usize = 0x36;
+
+/// Header extension table value offsets
+pub const _EXTENSION_TABLE_REMAINING_WORDS: usize = 0x0;
+pub const _MOUSE_CLICK_COORDS_X: usize = 0x1;
+pub const _MOUSE_CLICK_COORDS_Y: usize = 0x2;
+pub const UNICODE_TRANSLATION_TABLE_LOCATION: usize = 0x3;
+pub const _FLAGS_3: usize = 0x4;
+pub const _TRUE_DEFAULT_FOREGROUND_COLOR: usize = 0x5;
+pub const _TRUE_DEFAULT_BACKGROUND_COLOR: usize = 0x5;
