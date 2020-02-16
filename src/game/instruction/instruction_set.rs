@@ -219,7 +219,7 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
-    /// 2OP:15 Store a byte found at the given array and byte index.
+    /// 2OP:16 Store a byte found at the given array and byte index.
     pub fn loadb(
         mut context: Context,
         ops: Vec<Operand>,
