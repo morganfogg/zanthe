@@ -25,7 +25,7 @@ impl Operand {
     pub fn try_signed(&self, context: &mut Context) -> Result<Option<i16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v as i16)),
-            Operand::SmallConstant(v) => Ok(Some(i16::from(*v as i8))),
+            Operand::SmallConstant(v) => Ok(Some(*v as i16)), // TODO: Verify small constants cannot be signed.
             Operand::Variable(v) => Ok(Some(context.get_variable(*v)? as i16)),
             Operand::Omitted => Ok(None),
         }

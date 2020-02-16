@@ -4,7 +4,6 @@ use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
-use log::info;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -117,7 +116,6 @@ mod common {
         offset: i16,
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let first = ops[0].unsigned(&mut context)?;
-
         for op in ops[1..].iter() {
             if let Some(value) = op.try_unsigned(&mut context)? {
                 if (value == first) == condition {
@@ -244,7 +242,6 @@ mod common {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let first = ops[0].signed(&mut context)?;
         let second = ops[1].signed(&mut context)?;
-
         let result = first + second;
 
         context.set_variable(store_to, result as u16);
@@ -458,7 +455,6 @@ mod common {
             .into_iter()
             .while_some()
             .collect();
-
         Ok(InstructionResult::Invoke {
             address,
             arguments: Some(arguments),
