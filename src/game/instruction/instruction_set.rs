@@ -49,6 +49,8 @@ impl InstructionSet {
             (ZeroOp(0xA), Instruction::Normal(&common::quit)),
             (ZeroOp(0xB), Instruction::Normal(&common::new_line)),
             (VarOp(0x0), Instruction::Store(&common::call)),
+            (VarOp(0x1), Instruction::Normal(&common::storew)),
+            (VarOp(0x2), Instruction::Normal(&common::storeb)),
             (VarOp(0x6), Instruction::Normal(&common::print_num)),
             (VarOp(0x7), Instruction::Store(&common::random)),
             (VarOp(0x8), Instruction::Normal(&common::push)),
@@ -460,6 +462,36 @@ mod common {
             arguments: Some(arguments),
             store_to: Some(store_to),
         })
+    }
+
+    /// VAR:225 Store a word in the given array and word index.
+    pub fn storew(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let array = ops[0].unsigned(&mut context)?;
+        let word_index = ops[1].unsigned(&mut context)?;
+        let value = ops[2].unsigned(&mut context)?;
+
+        context
+            .memory
+            .set_word(usize::from(array + 2 * word_index), value);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// VAR:226 Store a byte in the given array and word index
+    pub fn storeb(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let array = ops[0].unsigned(&mut context)?;
+        let byte_index = ops[1].unsigned(&mut context)?;
+        let value = ops[2].unsigned(&mut context)?;
+
+        context
+            .memory
+            .set_byte(usize::from(array + byte_index), value as u8);
+        Ok(InstructionResult::Continue)
     }
 
     /// VAR:230 Print a signed number.
