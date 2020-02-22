@@ -220,14 +220,6 @@ impl Memory {
         }
     }
 
-    /// Return the length of an object's flag fields (in bytes)
-    fn object_flag_length(&self) -> u16 {
-        match self.version() {
-            1..=3 => 4,
-            _ => 6,
-        }
-    }
-
     /// Return the total length of each entry in the object table (in bytes)
     fn object_entry_length(&self) -> u16 {
         match self.version() {
@@ -263,21 +255,21 @@ impl Memory {
         z_chars
     }
 
-    fn get_object_relation_length(&self) -> usize {
+    fn object_relation_length(&self) -> usize {
         match self.version() {
             1..=3 => 1,
             _ => 2,
         }
     }
 
-    pub fn get_object_location(&self, object_id: u16) -> u16 {
+    pub fn object_location(&self, object_id: u16) -> u16 {
         self.object_table_location()
             + self.property_defaults_length()
             + (object_id * self.object_entry_length())
     }
 
-    pub fn get_object_parent(&self, object: u16) -> u16 {
-        let location = self.get_object_location(object) + self.object_attribute_length();
+    pub fn object_parent(&self, object: u16) -> u16 {
+        let location = self.object_location(object) + self.object_attribute_length();
         match self.version() {
             1..=3 => self.get_byte(location as usize) as u16,
             _ => self.get_word(location as usize),

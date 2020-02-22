@@ -177,7 +177,7 @@ mod common {
     ) -> Result<InstructionResult, Box<dyn Error>> {
         let object_a = ops[0].unsigned(&mut context)?;
         let object_b = ops[0].unsigned(&mut context)?;
-        let parent = context.memory.get_object_parent(object_a);
+        let parent = context.memory.object_parent(object_a);
 
         if (object_b == parent) == condition {
             Ok(context.frame.branch(offset))
