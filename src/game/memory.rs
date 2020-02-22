@@ -212,11 +212,11 @@ impl Memory {
         }
     }
 
-    /// Return the total length of the object property defaults table (in words).
+    /// Return the total length of the object property defaults table (in bytes).
     fn property_defaults_length(&self) -> u16 {
         match self.version() {
-            1..=3 => 31,
-            _ => 63,
+            1..=3 => 62,
+            _ => 126,
         }
     }
 
@@ -255,7 +255,7 @@ impl Memory {
         z_chars
     }
 
-    fn object_relation_length(&self) -> usize {
+    fn object_relation_length(&self) -> u16 {
         match self.version() {
             1..=3 => 1,
             _ => 2,
@@ -265,7 +265,7 @@ impl Memory {
     pub fn object_location(&self, object_id: u16) -> u16 {
         self.object_table_location()
             + self.property_defaults_length()
-            + (object_id * self.object_entry_length())
+            + ((object_id - 1) * self.object_entry_length())
     }
 
     pub fn object_parent(&self, object: u16) -> u16 {
@@ -274,6 +274,22 @@ impl Memory {
             1..=3 => self.get_byte(location as usize) as u16,
             _ => self.get_word(location as usize),
         }
+    }
+
+    pub fn object_properties_table_location(&self, object: u16) -> u16 {
+        let address = self.object_location(object)
+            + self.object_attribute_length()
+            + (3 * self.object_relation_length());
+        self.get_word(address as usize)
+    }
+
+    pub fn object_short_name(&self, object: u16) -> Result<String, Box<dyn Error>> {
+        Ok(self
+            .extract_string(
+                self.object_properties_table_location(object) as usize + 1,
+                true,
+            )?
+            .0)
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)

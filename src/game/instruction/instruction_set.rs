@@ -38,6 +38,7 @@ impl InstructionSet {
             (OneOp(0x0), Instruction::Branch(&common::jz)),
             (OneOp(0x5), Instruction::Normal(&common::inc)),
             (OneOp(0x6), Instruction::Normal(&common::dec)),
+            (OneOp(0xA), Instruction::Normal(&common::print_obj)),
             (OneOp(0xB), Instruction::Normal(&common::ret)),
             (OneOp(0xC), Instruction::Normal(&common::jump)),
             (OneOp(0xD), Instruction::Normal(&common::print_paddr)),
@@ -375,6 +376,18 @@ mod common {
         } else {
             Ok(InstructionResult::Continue)
         }
+    }
+
+    /// 1OP:138 Print the short name of the given object.
+    pub fn print_obj(
+        mut context: Context,
+        ops: Vec<Operand>,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let object = ops[0].unsigned(&mut context)?;
+        context
+            .interface
+            .print(&context.memory.object_short_name(object)?)?;
+        Ok(InstructionResult::Continue)
     }
 
     /// 1OP:139 Returns from the current routine with the given value
