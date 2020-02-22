@@ -19,7 +19,7 @@ pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
         .open("main.log")
         .map_err(|e| format!("Couldn't prepare log file: {}", e))?;
 
-    if let Err(e) = WriteLogger::init(LevelFilter::Trace, Config::default(), log_file) {
+    if let Err(e) = WriteLogger::init(LevelFilter::Info, Config::default(), log_file) {
         return Err(format!("Couldn't start logger: {}", e).into()).into();
     };
 

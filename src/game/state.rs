@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::vec::Vec;
 
-use log::info;
+use log::debug;
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::game::error::GameError;
@@ -57,7 +57,7 @@ impl<'a> GameState<'a> {
         ));
         loop {
             let frame = self.call_stack.frame();
-            info!("PC AT {:x}", frame.pc);
+            debug!("PC AT {:x}", frame.pc);
             let mut code_byte = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
             let form;
@@ -143,7 +143,7 @@ impl<'a> GameState<'a> {
 
             let result = match instruction {
                 Instruction::Normal(f) => {
-                    info!("{:?}:{:?}:{:?}", op_code, form, operands);
+                    debug!("{:?}:{:?}:{:?}", op_code, form, operands);
                     let context = self.context();
                     f(context, operands)
                 }
@@ -161,14 +161,14 @@ impl<'a> GameState<'a> {
                             (base & 0x1fff) as i16
                         }
                     };
-                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, offset);
+                    debug!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, offset);
 
                     let context = self.context();
                     f(context, operands, condition, offset)
                 }
                 Instruction::Store(f) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);
-                    info!("{:?}:{:?}:{:?}:{:x}", op_code, form, operands, store_to);
+                    debug!("{:?}:{:?}:{:?}:{:x}", op_code, form, operands, store_to);
 
                     let context = self.context();
                     f(context, operands, store_to)
@@ -177,7 +177,7 @@ impl<'a> GameState<'a> {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                     })?;
-                    info!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, string);
+                    debug!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, string);
 
                     let context = self.context();
                     f(context, string)
