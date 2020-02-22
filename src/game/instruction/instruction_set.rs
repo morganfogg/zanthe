@@ -24,6 +24,7 @@ impl InstructionSet {
             (TwoOp(0x1), Instruction::Branch(&common::je)),
             (TwoOp(0x2), Instruction::Branch(&common::jl)),
             (TwoOp(0x3), Instruction::Branch(&common::jg)),
+            (TwoOp(0x6), Instruction::Branch(&common::jin)),
             (TwoOp(0x8), Instruction::Store(&common::or)),
             (TwoOp(0x9), Instruction::Store(&common::and)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
@@ -167,7 +168,25 @@ mod common {
         }
     }
 
-    // 2OP:8 Bitwise OR
+    /// 2OP:6 Jump if object a's parent is object b
+    pub fn jin(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let object_a = ops[0].unsigned(&mut context)?;
+        let object_b = ops[0].unsigned(&mut context)?;
+        let parent = context.memory.get_object_parent(object_a);
+
+        if (object_b == parent) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
+    }
+
+    /// 2OP:8 Bitwise OR
     pub fn or(
         mut context: Context,
         ops: Vec<Operand>,

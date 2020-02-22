@@ -195,7 +195,7 @@ impl Memory {
     }
 
     /// Return the length of each objects's attribute flags (in bytes).
-    fn object_attribute_length(&self) -> usize {
+    fn object_attribute_length(&self) -> u16 {
         match self.version() {
             1..=3 => 4,
             _ => 6,
@@ -213,7 +213,7 @@ impl Memory {
     }
 
     /// Return the total length of the object property defaults table (in words).
-    fn property_defaults_length(&self) -> usize {
+    fn property_defaults_length(&self) -> u16 {
         match self.version() {
             1..=3 => 31,
             _ => 63,
@@ -221,7 +221,7 @@ impl Memory {
     }
 
     /// Return the length of an object's flag fields (in bytes)
-    fn object_flag_length(&self) -> usize {
+    fn object_flag_length(&self) -> u16 {
         match self.version() {
             1..=3 => 4,
             _ => 6,
@@ -229,7 +229,7 @@ impl Memory {
     }
 
     /// Return the total length of each entry in the object table (in bytes)
-    fn object_entry_length(&self) -> usize {
+    fn object_entry_length(&self) -> u16 {
         match self.version() {
             1..=3 => 9,
             _ => 14,
@@ -261,6 +261,27 @@ impl Memory {
             }
         }
         z_chars
+    }
+
+    fn get_object_relation_length(&self) -> usize {
+        match self.version() {
+            1..=3 => 1,
+            _ => 2,
+        }
+    }
+
+    pub fn get_object_location(&self, object_id: u16) -> u16 {
+        self.object_table_location()
+            + self.property_defaults_length()
+            + (object_id * self.object_entry_length())
+    }
+
+    pub fn get_object_parent(&self, object: u16) -> u16 {
+        let location = self.get_object_location(object) + self.object_attribute_length();
+        match self.version() {
+            1..=3 => self.get_byte(location as usize) as u16,
+            _ => self.get_word(location as usize),
+        }
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
