@@ -92,6 +92,10 @@ impl InstructionSet {
                     (TwoOp(0x1A), Instruction::Normal(&version_gte5::call_2n)),
                     (VarOp(0x19), Instruction::Normal(&version_gte5::call_vn)),
                     (VarOp(0x1A), Instruction::Normal(&version_gte5::call_vn2)),
+                    (
+                        VarOp(0x1F),
+                        Instruction::Branch(&version_gte5::check_arg_count),
+                    ),
                 ]
                 .iter()
                 .cloned()
@@ -713,5 +717,20 @@ mod version_gte5 {
             arguments: Some(arguments),
             store_to: None,
         })
+    }
+
+    /// VAR:255 Branches if the argument number (1-indexed) has been provided.
+    pub fn check_arg_count(
+        mut context: Context,
+        ops: Vec<Operand>,
+        condition: bool,
+        offset: i16,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let index = ops[0].unsigned(&mut context)? as usize;
+        if (index <= context.frame.arg_count) == condition {
+            Ok(context.frame.branch(offset))
+        } else {
+            Ok(InstructionResult::Continue)
+        }
     }
 }

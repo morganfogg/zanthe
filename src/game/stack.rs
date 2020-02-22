@@ -14,12 +14,14 @@ pub struct StackFrame {
     pub stack: Vec<u16>,
     pub locals: Vec<u16>,
     pub store_to: Option<u8>,
+    pub arg_count: usize,
 }
 
 impl StackFrame {
     pub fn new(pc: usize, locals: Vec<u16>, store_to: Option<u8>) -> StackFrame {
         StackFrame {
             stack: Vec::new(),
+            arg_count: locals.len(),
             locals,
             pc,
             store_to,
