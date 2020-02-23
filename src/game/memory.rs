@@ -7,6 +7,7 @@ use crate::game::address;
 use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::error::GameError;
 use crate::game::instruction::Operand;
+use crate::game::property::Property;
 
 /// Represents the game's internal memory.
 pub struct Memory {
@@ -292,56 +293,58 @@ impl Memory {
             .0)
     }
 
-    pub fn object_property_address(&self, object: u16, property: u16) -> Option<usize> {
+    pub fn property(&self, object: u16, property: u16) -> Option<Property> {
         let mut cursor = self.object_properties_table_location(object) as usize;
         let short_name_length = self.read_byte(&mut cursor) * 2;
         cursor += short_name_length as usize;
         match self.version() {
             1..=3 => loop {
+                let address = cursor as u16;
                 let size_byte = self.read_byte(&mut cursor);
                 if size_byte == 0 {
                     return None;
                 }
+                let data_address = cursor as u16;
                 let data_length = (size_byte + 1) / 32;
                 let property_number = (size_byte + 1) % 32;
                 if property_number as u16 == property {
-                    return Some(cursor - 1);
+                    return Some(Property {
+                        address,
+                        data_address,
+                        data: self.get_bytes(data_address as usize, data_length as usize),
+                    });
                 }
                 cursor += data_length as usize;
             },
             _ => loop {
+                let address = cursor as u16;
                 let size_byte = self.read_byte(&mut cursor);
+                let mut data_address = cursor as u16;
                 let property_number = size_byte & 0b111111;
                 if property_number == 0 {
                     return None;
                 }
-                if property_number as u16 == property {
-                    return Some(cursor - 1);
-                }
                 let has_second_size_byte = size_byte >> 7 != 0;
-                let mut size;
+                let mut data_length;
                 if has_second_size_byte {
-                    size = self.get_byte(cursor) & 0b111111;
-                    if size == 0 {
-                        size = 64;
+                    data_address += 1;
+                    data_length = self.get_byte(cursor) & 0b111111;
+                    if data_length == 0 {
+                        data_length = 64;
                     }
                 } else {
-                    size = (size_byte >> 6) + 1;
+                    data_length = (size_byte >> 6) + 1;
                 }
-                cursor += size as usize;
+                if property_number as u16 == property {
+                    return Some(Property {
+                        address,
+                        data_address,
+                        data: self.get_bytes(data_address as usize, data_length as usize),
+                    });
+                }
+                cursor += data_length as usize;
             },
         }
-    }
-
-    pub fn object_property_data_address(&self, object: u16, property: u16) -> Option<usize> {
-        self.object_property_address(object, property)
-            .map(|address| {
-                if self.version() > 3 && self.get_byte(address) >> 7 == 1 {
-                    address + 2
-                } else {
-                    address + 1
-                }
-            })
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)

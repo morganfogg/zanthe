@@ -27,10 +27,11 @@ impl InstructionSet {
             (TwoOp(0x6), Instruction::Branch(&common::jin)),
             (TwoOp(0x8), Instruction::Store(&common::or)),
             (TwoOp(0x9), Instruction::Store(&common::and)),
-            (TwoOp(0x12), Instruction::Store(&common::get_prop_addr)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0xF), Instruction::Store(&common::loadw)),
             (TwoOp(0x10), Instruction::Store(&common::loadb)),
+            (TwoOp(0x11), Instruction::Store(&common::get_prop)),
+            (TwoOp(0x12), Instruction::Store(&common::get_prop_addr)),
             (TwoOp(0x14), Instruction::Store(&common::add)),
             (TwoOp(0x15), Instruction::Store(&common::sub)),
             (TwoOp(0x16), Instruction::Store(&common::mul)),
@@ -261,6 +262,25 @@ mod common {
         Ok(InstructionResult::Continue)
     }
 
+    /// 2OP:17 Return the data of the specified property
+    pub fn get_prop(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let object = ops[0].unsigned(&mut context)?;
+        let property = ops[1].unsigned(&mut context)?;
+
+        let data = context
+            .memory
+            .property(object, property)
+            .map(|prop| prop.data_to_u16())
+            .unwrap()?; // TODO IMPLMENT DEFAULTS.
+        println!("{:x}", data);
+        context.set_variable(store_to, data);
+        Ok(InstructionResult::Continue)
+    }
+
     /// 2OP:18 Return the byte address of the specified property data
     pub fn get_prop_addr(
         mut context: Context,
@@ -272,8 +292,9 @@ mod common {
 
         let address = context
             .memory
-            .object_property_data_address(object, property)
-            .unwrap_or(0) as u16;
+            .property(object, property)
+            .map(|prop| prop.data_address)
+            .unwrap_or(0);
         context.set_variable(store_to, address);
         Ok(InstructionResult::Continue)
     }
