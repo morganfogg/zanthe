@@ -23,6 +23,11 @@ fn main() {
                 .default_value("terminal")
                 .possible_values(&["terminal", "null"]),
         )
+        .arg(
+            Arg::with_name("debug")
+                .short("d")
+                .help("Enable debug logging"),
+        )
         .get_matches();
 
     if let Err(e) = run(args) {
