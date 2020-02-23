@@ -27,6 +27,7 @@ impl InstructionSet {
             (TwoOp(0x6), Instruction::Branch(&common::jin)),
             (TwoOp(0x8), Instruction::Store(&common::or)),
             (TwoOp(0x9), Instruction::Store(&common::and)),
+            (TwoOp(0x12), Instruction::Store(&common::get_prop_addr)),
             (TwoOp(0xD), Instruction::Normal(&common::store)),
             (TwoOp(0xF), Instruction::Store(&common::loadw)),
             (TwoOp(0x10), Instruction::Store(&common::loadb)),
@@ -257,6 +258,23 @@ mod common {
         let word = context.memory.get_word(usize::from(array + byte_index));
 
         context.set_variable(store_to, word);
+        Ok(InstructionResult::Continue)
+    }
+
+    /// 2OP:18 Return the byte address of the specified property data
+    pub fn get_prop_addr(
+        mut context: Context,
+        ops: Vec<Operand>,
+        store_to: u8,
+    ) -> Result<InstructionResult, Box<dyn Error>> {
+        let object = ops[0].unsigned(&mut context)?;
+        let property = ops[1].unsigned(&mut context)?;
+
+        let address = context
+            .memory
+            .object_property_data_address(object, property)
+            .unwrap_or(0) as u16;
+        context.set_variable(store_to, address);
         Ok(InstructionResult::Continue)
     }
 
