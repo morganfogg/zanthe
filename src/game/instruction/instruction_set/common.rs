@@ -46,8 +46,6 @@ pub fn jl(
     let a = ops[0].signed(&mut context)?;
     let b = ops[1].signed(&mut context)?;
 
-    //debug!("2OP:2 JL [{} = {:x}, {} = {:x}]", ops[0], a, ops[1], b);
-
     if (a < b) == condition {
         debug!("Branching");
         Ok(context.frame.branch(offset))
@@ -86,8 +84,7 @@ pub fn jin(
     let object_a = ops[0].unsigned(&mut context)?;
     let object_b = ops[0].unsigned(&mut context)?;
     let parent = context.memory.object_parent(object_a);
-    //         // return Ok(context.frame.branch(offset));
-    //         return Ok(InstructionResult::Continue);
+
     if (object_b == parent) == condition {
         debug!("Branching");
         Ok(context.frame.branch(offset))
@@ -149,6 +146,7 @@ pub fn loadw(
     let word = context
         .memory
         .get_word(usize::from(array + (2 * word_index)));
+
     context.set_variable(store_to, word);
     Ok(InstructionResult::Continue)
 }
@@ -180,6 +178,7 @@ pub fn get_prop(
         .property(object, property)
         .map(|prop| prop.data_to_u16())
         .unwrap()?; // TODO IMPLMENT DEFAULTS.
+
     context.set_variable(store_to, data);
     Ok(InstructionResult::Continue)
 }
@@ -198,6 +197,7 @@ pub fn get_prop_addr(
         .property(object, property)
         .map(|prop| prop.data_address)
         .unwrap_or(0);
+
     context.set_variable(store_to, address);
     Ok(InstructionResult::Continue)
 }
@@ -225,6 +225,7 @@ pub fn sub(
     let first = ops[0].signed(&mut context)?;
     let second = ops[1].signed(&mut context)?;
     let result = first - second;
+
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
 }
@@ -307,8 +308,6 @@ pub fn jz(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let a = ops[0].unsigned(&mut context)?;
 
-    //debug!("1OP:129 JZ [{} = {:x}]", ops[0], a);
-
     if (a == 0) == condition {
         debug!("Branching");
         Ok(context.frame.branch(offset))
@@ -327,6 +326,7 @@ pub fn print_obj(
     context
         .interface
         .print(&context.memory.object_short_name(object)?)?;
+
     Ok(InstructionResult::Continue)
 }
 
@@ -338,6 +338,7 @@ pub fn ret(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
 /// 1OP:140 Jump unconditionally
 pub fn jump(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     let offset = ops[0].signed(&mut context)?;
+
     Ok(context.frame.branch(offset))
 }
 
@@ -351,6 +352,7 @@ pub fn print_paddr(
     context
         .interface
         .print(&context.memory.extract_string(address, true)?.0)?;
+
     Ok(InstructionResult::Continue)
 }
 
@@ -374,6 +376,7 @@ pub fn print(context: Context, string: String) -> Result<InstructionResult, Box<
 pub fn print_ret(context: Context, string: String) -> Result<InstructionResult, Box<dyn Error>> {
     context.interface.print(&string)?;
     context.interface.print(&"\n")?;
+
     Ok(InstructionResult::Return(1))
 }
 
@@ -395,6 +398,7 @@ pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Er
 /// 0OP:187 Prints a newline
 pub fn new_line(context: Context, _ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     context.interface.print(&"\n")?;
+
     Ok(InstructionResult::Continue)
 }
 
@@ -410,6 +414,7 @@ pub fn call(
         context.set_variable(store_to, 0);
         return Ok(InstructionResult::Continue);
     }
+
     let address = context.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops[1..]
         .iter()
@@ -462,6 +467,7 @@ pub fn print_num(
     ops: Vec<Operand>,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let num = ops[0].signed(&mut context)?;
+
     context.interface.print(&format!("{}", num))?;
     Ok(InstructionResult::Continue)
 }
@@ -488,6 +494,7 @@ pub fn random(
             context.set_variable(store_to, result as u16);
         }
     };
+
     Ok(InstructionResult::Continue)
 }
 
@@ -495,6 +502,7 @@ pub fn random(
 pub fn push(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     let value = ops[0].unsigned(&mut context)?;
     context.frame.push_stack(value);
+
     Ok(InstructionResult::Continue)
 }
 
@@ -503,5 +511,6 @@ pub fn pull(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult
     let store_to = ops[0].unsigned(&mut context)? as u8;
     let value = context.frame.pop_stack()?;
     context.set_variable(store_to, value);
+
     Ok(InstructionResult::Continue)
 }

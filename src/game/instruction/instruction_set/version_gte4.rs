@@ -14,6 +14,7 @@ pub fn call_2s(
     let address = ops[0].unsigned(&mut context)?;
     let address = context.memory.unpack_address(address as usize);
     let arguments = vec![ops[1].unsigned(&mut context)?];
+
     Ok(InstructionResult::Invoke {
         address,
         arguments: Some(arguments),
@@ -40,6 +41,7 @@ pub fn set_text_style(
             )
         }
     }
+
     Ok(InstructionResult::Continue)
 }
 
