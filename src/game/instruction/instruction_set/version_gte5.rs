@@ -89,9 +89,7 @@ pub fn check_arg_count(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let index = ops[0].unsigned(&mut context)? as usize;
 
-    if (index <= context.frame.arg_count) == condition {
-        Ok(context.frame.branch(offset))
-    } else {
-        Ok(InstructionResult::Continue)
-    }
+    let result = index <= context.frame.arg_count;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }

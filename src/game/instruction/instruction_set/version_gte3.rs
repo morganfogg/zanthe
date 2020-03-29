@@ -8,9 +8,7 @@ pub fn verify(
     condition: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    if (context.checksum_valid) == condition {
-        Ok(context.frame.branch(offset))
-    } else {
-        Ok(InstructionResult::Continue)
-    }
+    let result = context.checksum_valid;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }

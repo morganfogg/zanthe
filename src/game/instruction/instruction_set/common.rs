@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use std::error::Error;
 
 use itertools::Itertools;
-use log::debug;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -30,11 +29,7 @@ pub fn je(
         }
     }
 
-    if result == condition {
-        Ok(context.frame.branch(offset))
-    } else {
-        Ok(InstructionResult::Continue)
-    }
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
 /// 2OP:2 Jump if a < b (signed).
@@ -47,13 +42,9 @@ pub fn jl(
     let a = ops[0].signed(&mut context)?;
     let b = ops[1].signed(&mut context)?;
 
-    if (a < b) == condition {
-        debug!("Branching");
-        Ok(context.frame.branch(offset))
-    } else {
-        debug!("Continuing");
-        Ok(InstructionResult::Continue)
-    }
+    let result = a < b;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
 /// 2OP:3 Jump if a > b (signed).
@@ -66,13 +57,9 @@ pub fn jg(
     let a = ops[0].signed(&mut context)?;
     let b = ops[1].signed(&mut context)?;
 
-    if (a > b) == condition {
-        debug!("Branching");
-        Ok(context.frame.branch(offset))
-    } else {
-        debug!("Branching");
-        Ok(InstructionResult::Continue)
-    }
+    let result = a > b;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
 /// 2OP:6 Jump if object a's parent is object b
@@ -86,13 +73,9 @@ pub fn jin(
     let object_b = ops[0].unsigned(&mut context)?;
     let parent = context.memory.object_parent(object_a);
 
-    if (object_b == parent) == condition {
-        debug!("Branching");
-        Ok(context.frame.branch(offset))
-    } else {
-        debug!("Continuing");
-        Ok(InstructionResult::Continue)
-    }
+    let result = object_b == parent;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
 /// 2OP:8 Bitwise OR
@@ -309,13 +292,9 @@ pub fn jz(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let a = ops[0].unsigned(&mut context)?;
 
-    if (a == 0) == condition {
-        debug!("Branching");
-        Ok(context.frame.branch(offset))
-    } else {
-        debug!("Continuing");
-        Ok(InstructionResult::Continue)
-    }
+    let result = a == 0;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
 /// 1OP:138 Print the short name of the given object.

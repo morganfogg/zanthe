@@ -59,6 +59,19 @@ impl StackFrame {
             }
         }
     }
+
+    pub fn conditional_branch(
+        &mut self,
+        offset: i16,
+        result: bool,
+        condition: bool,
+    ) -> InstructionResult {
+        if result == condition {
+            self.branch(offset)
+        } else {
+            InstructionResult::Continue
+        }
+    }
 }
 
 impl CallStack {
