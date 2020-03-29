@@ -51,9 +51,13 @@ impl Display for Operand {
             f,
             "{}",
             match &self {
-                Operand::LargeConstant(v) => format!("LargeConstant({:x})", v),
-                Operand::SmallConstant(v) => format!("SmallConstant({:x})", v),
-                Operand::Variable(v) => format!("Variable({:x})", v),
+                Operand::LargeConstant(v) => format!("LargeConstant({0} [0x{0:x}])", v),
+                Operand::SmallConstant(v) => format!("SmallConstant({0} [0x{0:x})", v),
+                Operand::Variable(v) => match v {
+                    0x0 => format!("Variable(SP)"),
+                    0x1..=0xf => format!("Variable(L{:x})", v - 0x1),
+                    0x10..=0xff => format!("Variable(G{:x})", v - 0x10),
+                },
                 Operand::Omitted => "Omitted".to_string(),
             }
         )

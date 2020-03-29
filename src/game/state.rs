@@ -57,6 +57,7 @@ impl<'a> GameState<'a> {
         ));
         loop {
             let frame = self.call_stack.frame();
+            debug!("--------------------------------------");
             debug!("PC AT {:x}", frame.pc);
             let mut code_byte = self.memory.read_byte(&mut frame.pc);
             let mut operands: Vec<Operand> = vec![];
@@ -142,12 +143,12 @@ impl<'a> GameState<'a> {
             let frame = self.call_stack.frame();
 
             let result = match instruction {
-                Instruction::Normal(f) => {
-                    debug!("{:?}:{:?}:{:?}", op_code, form, operands);
+                Instruction::Normal(f, name) => {
                     let context = self.context();
+                    debug!("{} {} {:?}", op_code, name, operands);
                     f(context, operands)
                 }
-                Instruction::Branch(f) => {
+                Instruction::Branch(f, name) => {
                     let condition = self.memory.get_byte(frame.pc) >> 7 == 1;
                     let offset = if self.memory.get_byte(frame.pc) >> 6 & 1 == 1 {
                         // The offset is an unsigned 6-bit number.
@@ -161,23 +162,26 @@ impl<'a> GameState<'a> {
                             (base & 0x1fff) as i16
                         }
                     };
-                    debug!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, offset);
+                    debug!(
+                        "{} {} {:?} IF {} OFFSET {}",
+                        op_code, name, operands, condition, offset
+                    );
 
                     let context = self.context();
                     f(context, operands, condition, offset)
                 }
-                Instruction::Store(f) => {
+                Instruction::Store(f, name) => {
                     let store_to = self.memory.read_byte(&mut frame.pc);
-                    debug!("{:?}:{:?}:{:?}:{:x}", op_code, form, operands, store_to);
+                    debug!("{} {} {:?} STORE {:x}", op_code, name, operands, store_to);
 
                     let context = self.context();
                     f(context, operands, store_to)
                 }
-                Instruction::StringLiteral(f) => {
+                Instruction::StringLiteral(f, name) => {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                     })?;
-                    debug!("{:?}:{:?}:{:?}:{:?}", op_code, form, operands, string);
+                    debug!("{} {} {:?}", op_code, name, string);
 
                     let context = self.context();
                     f(context, string)

@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use log::debug;
 use rand::rngs::StdRng;
 
 use crate::game::memory::Memory;
@@ -34,21 +35,45 @@ impl<'a> Context<'a> {
 
     pub fn set_variable(&mut self, variable: u8, value: u16) {
         match variable {
-            0x0 => self.frame.push_stack(value),
+            0x0 => {
+                debug!("SET SP = {0} [{0:x}]", value);
+                self.frame.push_stack(value)
+            }
             0x1..=0xf => {
+                debug!("SET L{:x} = {1} [{1:x}]", variable - 0x1, value);
                 self.frame.set_local(variable as usize - 1, value);
             }
             _ => {
+                debug!("SET G{:x} = {1} [{1:x}]", variable - 0x10, value);
                 self.memory.set_global(variable - 16, value);
             }
         }
     }
 
     pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+        let result;
         match variable {
-            0x0 => self.frame.pop_stack(),
-            0x1..=0xf => Ok(self.frame.get_local(variable as usize - 1)),
-            _ => Ok(self.memory.get_global(variable - 16)),
-        }
+            0x0 => {
+                result = self.frame.pop_stack();
+                debug!(
+                    "GET SP = {}",
+                    match result {
+                        Ok(v) => format!("{0}, [{0:x}]", v),
+                        Err(_) => "ERROR".to_string(),
+                    }
+                );
+            }
+            0x1..=0xf => {
+                let local = self.frame.get_local(variable as usize - 0x1);
+                debug!("GET L{:x} = {1} [{1:x}]", variable - 0x1, local);
+                result = Ok(local);
+            }
+            _ => {
+                let global = self.memory.get_global(variable - 0x10);
+                debug!("GET G{:x} = {1} [{1:x}]", variable - 0x10, global);
+                result = Ok(global);
+            }
+        };
+        result
     }
 }
