@@ -19,6 +19,8 @@ impl InstructionSet {
             (TwoOp(0x1), Instruction::Branch(&common::je, "JE")),
             (TwoOp(0x2), Instruction::Branch(&common::jl, "JL")),
             (TwoOp(0x3), Instruction::Branch(&common::jg, "JG")),
+            (TwoOp(0x4), Instruction::Branch(&common::dec_chk, "DEC_CHK")),
+            (TwoOp(0x5), Instruction::Branch(&common::inc_chk, "INC_CHK")),
             (TwoOp(0x6), Instruction::Branch(&common::jin, "JIN")),
             (TwoOp(0x8), Instruction::Store(&common::or, "OR")),
             (TwoOp(0x9), Instruction::Store(&common::and, "AND")),

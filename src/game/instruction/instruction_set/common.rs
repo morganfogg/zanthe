@@ -62,6 +62,42 @@ pub fn jg(
     Ok(context.frame.conditional_branch(offset, result, condition))
 }
 
+/// 2OP:4 Decrement the variable and branch if it is now less than the given value
+pub fn dec_chk(
+    mut context: Context,
+    ops: Vec<Operand>,
+    condition: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+    let comparand = ops[1].signed(&mut context)?;
+    let value = (context.get_variable(variable_id)? as i16).wrapping_sub(1);
+
+    context.set_variable(variable_id, value as u16);
+
+    let result = value < comparand;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
+}
+
+/// 2OP:4 Increment the variable and branch if it is now greater than the given value
+pub fn inc_chk(
+    mut context: Context,
+    ops: Vec<Operand>,
+    condition: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+    let comparand = ops[1].signed(&mut context)?;
+    let value = (context.get_variable(variable_id)? as i16).wrapping_add(1);
+
+    context.set_variable(variable_id, value as u16);
+
+    let result = value > comparand;
+
+    Ok(context.frame.conditional_branch(offset, result, condition))
+}
+
 /// 2OP:6 Jump if object a's parent is object b
 pub fn jin(
     mut context: Context,
@@ -144,6 +180,7 @@ pub fn loadb(
     let array = ops[0].unsigned(&mut context)?;
     let byte_index = ops[1].unsigned(&mut context)?;
     let byte = context.memory.get_byte(usize::from(array + byte_index));
+
     context.set_variable(store_to, byte as u16);
     Ok(InstructionResult::Continue)
 }
@@ -272,7 +309,9 @@ pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
 
-    context.set_variable(variable_id, (value.wrapping_add(1)) as u16);
+    let result = value.wrapping_add(1) as u16;
+
+    context.set_variable(variable_id, result);
     Ok(InstructionResult::Continue)
 }
 
@@ -281,7 +320,9 @@ pub fn dec(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
 
-    context.set_variable(variable_id, (value.wrapping_sub(1)) as u16);
+    let result = value.wrapping_sub(1) as u16;
+
+    context.set_variable(variable_id, result);
     Ok(InstructionResult::Continue)
 }
 
