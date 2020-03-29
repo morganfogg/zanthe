@@ -112,10 +112,10 @@ pub fn and(
 
 /// 2OP:13 Set the variable referenced by the operand to value
 pub fn store(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable = ops[0].variable_id(&mut context)?;
+    let variable = ops[0].unsigned(&mut context)?;
     let value = ops[1].unsigned(&mut context)?;
 
-    context.set_variable(variable, value);
+    context.set_variable(variable.try_into()?, value);
     Ok(InstructionResult::Continue)
 }
 
@@ -271,7 +271,8 @@ pub fn z_mod(
 pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
-    context.set_variable(variable_id, (value + 1) as u16);
+
+    context.set_variable(variable_id, (value.wrapping_add(1)) as u16);
     Ok(InstructionResult::Continue)
 }
 
@@ -279,7 +280,8 @@ pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
 pub fn dec(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
-    context.set_variable(variable_id, (value - 1) as u16);
+
+    context.set_variable(variable_id, (value.wrapping_sub(1)) as u16);
     Ok(InstructionResult::Continue)
 }
 
@@ -333,6 +335,19 @@ pub fn print_paddr(
         .interface
         .print(&context.memory.extract_string(address, true)?.0)?;
 
+    Ok(InstructionResult::Continue)
+}
+
+/// 1OP:142 Load the variable referred to by the operand into the result
+pub fn load(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable_id = ops[0].unsigned(&mut context)?;
+    let value = context.get_variable(variable_id.try_into()?)?;
+
+    context.set_variable(store_to, value);
     Ok(InstructionResult::Continue)
 }
 

@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -22,6 +21,7 @@ impl Operand {
             Operand::Omitted => Ok(None),
         }
     }
+
     pub fn try_signed(&self, context: &mut Context) -> Result<Option<i16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v as i16)),
@@ -30,15 +30,12 @@ impl Operand {
             Operand::Omitted => Ok(None),
         }
     }
-    pub fn variable_id(&self, context: &mut Context) -> Result<u8, Box<dyn Error>> {
-        self.unsigned(context)?
-            .try_into()
-            .map_err(|_| GameError::InvalidOperation("Missing required operand".into()).into())
-    }
+
     pub fn unsigned(&self, context: &mut Context) -> Result<u16, Box<dyn Error>> {
         self.try_unsigned(context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
     }
+
     pub fn signed(&self, context: &mut Context) -> Result<i16, Box<dyn Error>> {
         self.try_signed(context)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())

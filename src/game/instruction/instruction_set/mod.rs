@@ -51,6 +51,7 @@ impl InstructionSet {
                 OneOp(0xD),
                 Instruction::Normal(&common::print_paddr, "PRINT_PADDR"),
             ),
+            (OneOp(0xE), Instruction::Store(&common::load, "LOAD")),
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue, "RTRUE")),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse, "RFALSE")),
             (
