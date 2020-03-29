@@ -304,6 +304,20 @@ pub fn z_mod(
     Ok(InstructionResult::Continue)
 }
 
+/// 1OP:131 Stores the object's parent
+pub fn get_parent(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+    
+    let result = context.memory.object_parent(object_id);
+    
+    context.set_variable(store_to, result);
+    Ok(InstructionResult::Continue)
+}
+
 /// 1OP:133 Increment the provided variable.
 pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
