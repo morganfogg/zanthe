@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 log = "0.4"
-simplelog = "0.5"
+simplelog = "0.7"
 rand = "0.7"
 clap = "2.33"
 itertools = "0.8"

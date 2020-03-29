@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::OpenOptions;
 
 use clap::ArgMatches;
+use simplelog::ConfigBuilder;
 use simplelog::*;
 
 use game::state::GameState;
@@ -26,7 +27,12 @@ pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
         log_level = LevelFilter::Info;
     }
 
-    if let Err(e) = WriteLogger::init(log_level, Config::default(), log_file) {
+    let config = ConfigBuilder::new()
+        .set_target_level(LevelFilter::Trace)
+        .set_thread_level(LevelFilter::Trace)
+        .build();
+
+    if let Err(e) = WriteLogger::init(log_level, config, log_file) {
         return Err(format!("Couldn't start logger: {}", e).into()).into();
     };
 
