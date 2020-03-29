@@ -110,8 +110,16 @@ impl InstructionSet {
                         Instruction::Store(&version_gte4::call_2s, "CALL_2S"),
                     ),
                     (
+                        OneOp(0x8),
+                        Instruction::Store(&version_gte4::call_1s, "CALL_1S"),
+                    ),
+                    (
                         VarOp(0x0),
                         Instruction::Store(&version_gte4::call_vs, "CALL_VS"),
+                    ),
+                    (
+                        VarOp(0xC),
+                        Instruction::Store(&version_gte4::call_vs2, "CALL_VS2"),
                     ),
                     (
                         VarOp(0x11),

@@ -22,6 +22,45 @@ pub fn call_2s(
     })
 }
 
+/// 1OP:136 Call the routine with no arguments and store the result.
+pub fn call_1s(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let address = ops[0].unsigned(&mut context)?;
+    let address = context.memory.unpack_address(address as usize);
+
+    Ok(InstructionResult::Invoke {
+        address,
+        arguments: None,
+        store_to: Some(store_to),
+    })
+}
+
+/// VAR:236 Call a routine with up to 7 arguments and store the result.
+pub fn call_vs2(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let address = ops[0].unsigned(&mut context)?;
+    let address = context.memory.unpack_address(address as usize);
+    let arguments: Vec<u16> = ops[1..]
+        .iter()
+        .map(|op| op.try_unsigned(&mut context))
+        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .into_iter()
+        .while_some()
+        .collect();
+
+    Ok(InstructionResult::Invoke {
+        address,
+        arguments: Some(arguments),
+        store_to: Some(store_to),
+    })
+}
+
 /// VAR:241 Sets the active text style (bold, emphasis etc.)
 pub fn set_text_style(
     mut context: Context,

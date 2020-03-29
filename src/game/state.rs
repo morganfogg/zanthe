@@ -53,6 +53,7 @@ impl<'a> GameState<'a> {
         self.call_stack.push(StackFrame::new(
             self.memory.program_counter_starts().into(),
             Vec::new(),
+            0,
             None,
         ));
         loop {
@@ -219,11 +220,15 @@ impl<'a> GameState<'a> {
                             locals[i] = self.memory.read_word(&mut address);
                         }
                     }
+
+                    let mut arg_count = 0;
+
                     if let Some(arguments) = arguments {
                         locals.splice(..arguments.len(), arguments.iter().cloned());
+                        arg_count = arguments.len();
                     }
                     self.call_stack
-                        .push(StackFrame::new(address, locals, store_to));
+                        .push(StackFrame::new(address, locals, arg_count, store_to));
                 }
             }
         }

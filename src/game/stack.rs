@@ -18,10 +18,10 @@ pub struct StackFrame {
 }
 
 impl StackFrame {
-    pub fn new(pc: usize, locals: Vec<u16>, store_to: Option<u8>) -> StackFrame {
+    pub fn new(pc: usize, locals: Vec<u16>, arg_count: usize, store_to: Option<u8>) -> StackFrame {
         StackFrame {
             stack: Vec::new(),
-            arg_count: locals.len(),
+            arg_count,
             locals,
             pc,
             store_to,
