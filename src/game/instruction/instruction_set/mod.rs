@@ -5,7 +5,7 @@ mod version_gte5;
 
 use std::collections::HashMap;
 
-use crate::game::instruction::OpCode::{OneOp, TwoOp, VarOp, ZeroOp};
+use crate::game::instruction::OpCode::{Extended, OneOp, TwoOp, VarOp, ZeroOp};
 use crate::game::instruction::{Instruction, OpCode};
 
 /// Represents all the instructions available to the Z-Machine version specified in the game file.
@@ -54,6 +54,7 @@ impl InstructionSet {
                 Instruction::Normal(&common::print_paddr, "PRINT_PADDR"),
             ),
             (OneOp(0xE), Instruction::Store(&common::load, "LOAD")),
+            (OneOp(0xF), Instruction::Store(&common::not, "NOT")), // Moved in V5
             (ZeroOp(0x0), Instruction::Normal(&common::rtrue, "RTRUE")),
             (ZeroOp(0x1), Instruction::Normal(&common::rfalse, "RFALSE")),
             (
@@ -134,6 +135,7 @@ impl InstructionSet {
                         TwoOp(0x1A),
                         Instruction::Normal(&version_gte5::call_2n, "CALL_2N"),
                     ),
+                    (VarOp(0x18), Instruction::Store(&common::not, "NOT")), // Moved from 1OP:143
                     (
                         VarOp(0x19),
                         Instruction::Normal(&version_gte5::call_vn, "CALL_VN"),
@@ -145,6 +147,14 @@ impl InstructionSet {
                     (
                         VarOp(0x1F),
                         Instruction::Branch(&version_gte5::check_arg_count, "CHEC_ARG_COUNT"),
+                    ),
+                    (
+                        Extended(0x2),
+                        Instruction::Store(&version_gte5::log_shift, "LOG_SHIFT"),
+                    ),
+                    (
+                        Extended(0x3),
+                        Instruction::Store(&version_gte5::art_shift, "ART_SHIFT"),
                     ),
                 ]
                 .iter()

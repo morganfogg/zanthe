@@ -231,7 +231,7 @@ pub fn add(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let first = ops[0].signed(&mut context)?;
     let second = ops[1].signed(&mut context)?;
-    let result = first + second;
+    let result = first.wrapping_add(second);
 
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
@@ -245,7 +245,7 @@ pub fn sub(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let first = ops[0].signed(&mut context)?;
     let second = ops[1].signed(&mut context)?;
-    let result = first - second;
+    let result = first.wrapping_sub(second);
 
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
@@ -260,7 +260,7 @@ pub fn mul(
     let first = ops[0].signed(&mut context)?;
     let second = ops[1].signed(&mut context)?;
 
-    let result = first * second;
+    let result = first.wrapping_mul(second);
 
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
@@ -279,7 +279,7 @@ pub fn div(
         return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
     }
 
-    let result = first / second;
+    let result = first.wrapping_div(second);
 
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
@@ -298,7 +298,7 @@ pub fn z_mod(
         return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
     }
 
-    let result = first % second;
+    let result = first.wrapping_rem(second);
 
     context.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
@@ -389,6 +389,21 @@ pub fn load(
     let value = context.get_variable(variable_id.try_into()?)?;
 
     context.set_variable(store_to, value);
+    Ok(InstructionResult::Continue)
+}
+
+/// 1OP:143 (v1-4)
+/// VAR:248 (v5+) Bitwise NOT
+pub fn not(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let op = ops[0].unsigned(&mut context)?;
+
+    let result = !op;
+
+    context.set_variable(store_to, result);
     Ok(InstructionResult::Continue)
 }
 

@@ -2,6 +2,7 @@ use std::error::Error;
 
 use itertools::Itertools;
 
+use crate::game::error::GameError;
 use crate::game::instruction::{Context, Operand, Result as InstructionResult};
 
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.
@@ -92,4 +93,48 @@ pub fn check_arg_count(
     let result = index <= context.frame.arg_count;
 
     Ok(context.frame.conditional_branch(offset, result, condition))
+}
+
+/// EXT:2 Logical shift
+pub fn log_shift(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let number = ops[0].unsigned(&mut context)?;
+    let places = ops[1].signed(&mut context)?;
+    if places.abs() > 15 {
+        return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
+    }
+
+    let result = if places < 0 {
+        number.wrapping_shr(places.abs() as u32)
+    } else {
+        number.wrapping_shl(places as u32)
+    };
+
+    context.set_variable(store_to, result);
+    Ok(InstructionResult::Continue)
+}
+
+/// EXT:3 Artihmetic shift
+pub fn art_shift(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let number = ops[0].signed(&mut context)?;
+    let places = ops[1].signed(&mut context)?;
+    if places.abs() > 15 {
+        return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
+    }
+
+    let result = if places < 0 {
+        number.wrapping_shr(places.abs() as u32)
+    } else {
+        number.wrapping_shl(places as u32)
+    };
+
+    context.set_variable(store_to, result as u16);
+    Ok(InstructionResult::Continue)
 }
