@@ -45,6 +45,7 @@ impl StackFrame {
     pub fn push_stack(&mut self, value: u16) {
         self.stack.push(value)
     }
+
     pub fn branch(&mut self, offset: i16) -> InstructionResult {
         match offset {
             0..=1 => InstructionResult::Return(offset as u16),

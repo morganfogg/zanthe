@@ -29,6 +29,7 @@ pub fn je(
             break;
         }
     }
+
     if result == condition {
         Ok(context.frame.branch(offset))
     } else {
