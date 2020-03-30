@@ -85,14 +85,16 @@ pub fn call_vn2(
 pub fn check_arg_count(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let index = ops[0].unsigned(&mut context)? as usize;
 
-    let result = index <= context.frame.arg_count;
+    let condition = index <= context.frame.arg_count;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// EXT:2 Logical shift

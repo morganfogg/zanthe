@@ -5,10 +5,12 @@ use std::error::Error;
 pub fn verify(
     context: Context,
     _ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let result = context.checksum_valid;
+    let condition = context.checksum_valid;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }

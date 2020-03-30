@@ -63,10 +63,10 @@ impl StackFrame {
     pub fn conditional_branch(
         &mut self,
         offset: i16,
-        result: bool,
         condition: bool,
+        expected: bool,
     ) -> InstructionResult {
-        if result == condition {
+        if condition == expected {
             self.branch(offset)
         } else {
             InstructionResult::Continue

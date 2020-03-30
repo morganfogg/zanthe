@@ -13,15 +13,15 @@ use crate::game::instruction::{Context, Operand, Result as InstructionResult};
 pub fn je(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let first = ops[0].signed(&mut context)?;
-    let mut result = false;
+    let mut condition = false;
     for op in ops[1..].iter() {
         if let Some(value) = op.try_signed(&mut context)? {
             if value == first {
-                result = true;
+                condition = true;
                 break;
             }
         } else {
@@ -29,44 +29,50 @@ pub fn je(
         }
     }
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:2 Jump if a < b (signed).
 pub fn jl(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let a = ops[0].signed(&mut context)?;
     let b = ops[1].signed(&mut context)?;
 
-    let result = a < b;
+    let condition = a < b;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:3 Jump if a > b (signed).
 pub fn jg(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let a = ops[0].signed(&mut context)?;
     let b = ops[1].signed(&mut context)?;
 
-    let result = a > b;
+    let condition = a > b;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:4 Decrement the variable and branch if it is now less than the given value
 pub fn dec_chk(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
@@ -75,16 +81,18 @@ pub fn dec_chk(
 
     context.set_variable(variable_id, value as u16);
 
-    let result = value < comparand;
+    let condition = value < comparand;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:4 Increment the variable and branch if it is now greater than the given value
 pub fn inc_chk(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
@@ -93,25 +101,29 @@ pub fn inc_chk(
 
     context.set_variable(variable_id, value as u16);
 
-    let result = value > comparand;
+    let condition = value > comparand;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:6 Jump if object a's parent is object b
 pub fn jin(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_a = ops[0].unsigned(&mut context)?;
-    let object_b = ops[0].unsigned(&mut context)?;
+    let object_b = ops[1].unsigned(&mut context)?;
     let parent = context.memory.object_parent(object_a);
 
-    let result = object_b == parent;
+    let condition = object_b == parent;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 2OP:8 Bitwise OR
@@ -317,10 +329,33 @@ pub fn get_sibling(
     let result = context.memory.object_sibling(object_id);
 
     context.set_variable(store_to, result);
-    
+
     let condition = result != 0;
-    
-    Ok(context.frame.conditional_branch(offset, condition, expected))
+
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
+}
+
+/// 1OP:130 Store the object's child
+pub fn get_child(
+    mut context: Context,
+    ops: Vec<Operand>,
+    expected: bool,
+    offset: i16,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+
+    let result = context.memory.object_sibling(object_id);
+
+    context.set_variable(store_to, result);
+
+    let condition = result != 0;
+
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 1OP:131 Stores the object's parent
@@ -363,14 +398,16 @@ pub fn dec(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
 pub fn jz(
     mut context: Context,
     ops: Vec<Operand>,
-    condition: bool,
+    expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let a = ops[0].unsigned(&mut context)?;
 
-    let result = a == 0;
+    let condition = a == 0;
 
-    Ok(context.frame.conditional_branch(offset, result, condition))
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
 }
 
 /// 1OP:138 Print the short name of the given object.

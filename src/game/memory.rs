@@ -287,6 +287,16 @@ impl Memory {
         }
     }
 
+    pub fn object_child(&self, object: u16) -> u16 {
+        let location = self.object_location(object)
+            + self.object_attribute_length()
+            + (self.object_relation_length() * 2);
+        match self.version() {
+            1..=3 => self.get_byte(location as usize) as u16,
+            _ => self.get_word(location as usize),
+        }
+    }
+
     pub fn object_properties_table_location(&self, object: u16) -> u16 {
         let address = self.object_location(object)
             + self.object_attribute_length()
