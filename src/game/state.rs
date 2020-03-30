@@ -178,6 +178,30 @@ impl<'a> GameState<'a> {
                     let context = self.context();
                     f(context, operands, store_to)
                 }
+                Instruction::BranchStore(f, name) => {
+                    let store_to = self.memory.read_byte(&mut frame.pc);
+                    let condition = self.memory.get_byte(frame.pc) >> 7 == 1;
+
+                    let offset = if self.memory.get_byte(frame.pc) >> 6 & 1 == 1 {
+                        // The offset is an unsigned 6-bit number.
+                        (self.memory.read_byte(&mut frame.pc) & 0x3f) as i16
+                    } else {
+                        // The offset is a signed 14-bit number.
+                        let base = self.memory.read_word(&mut frame.pc);
+                        if base >> 13 == 1 {
+                            -((base & 0x1fff) as i16)
+                        } else {
+                            (base & 0x1fff) as i16
+                        }
+                    };
+                    debug!(
+                        "{} {} {:?} STORE {} IF {} OFFSET {}",
+                        op_code, name, operands, store_to, condition, offset
+                    );
+
+                    let context = self.context();
+                    f(context, operands, condition, offset, store_to)
+                }
                 Instruction::StringLiteral(f, name) => {
                     let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))

@@ -41,6 +41,7 @@ impl InstructionSet {
             (TwoOp(0x17), Instruction::Store(&common::div, "DIV")),
             (TwoOp(0x18), Instruction::Store(&common::z_mod, "MOD")),
             (OneOp(0x0), Instruction::Branch(&common::jz, "JZ")),
+            (OneOp(0x1), Instruction::BranchStore(&common::get_sibling, "GET_SIBLING")),
             (
                 OneOp(0x3),
                 Instruction::Store(&common::get_parent, "GET_PARENT"),

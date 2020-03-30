@@ -18,6 +18,16 @@ pub enum Instruction {
         ) -> Result<InstructionResult, Box<dyn Error>>,
         &'static str,
     ),
+    BranchStore(
+        &'static dyn Fn(
+            Context,
+            Vec<Operand>,
+            bool,
+            i16,
+            u8,
+        ) -> Result<InstructionResult, Box<dyn Error>>,
+        &'static str,
+    ),
     Store(
         &'static dyn Fn(Context, Vec<Operand>, u8) -> Result<InstructionResult, Box<dyn Error>>,
         &'static str,

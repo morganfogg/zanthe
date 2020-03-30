@@ -304,6 +304,25 @@ pub fn z_mod(
     Ok(InstructionResult::Continue)
 }
 
+/// 1OP:129 Store the object's sibling and branch if it exists (is not zero).
+pub fn get_sibling(
+    mut context: Context,
+    ops: Vec<Operand>,
+    expected: bool,
+    offset: i16,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+
+    let result = context.memory.object_sibling(object_id);
+
+    context.set_variable(store_to, result);
+    
+    let condition = result != 0;
+    
+    Ok(context.frame.conditional_branch(offset, condition, expected))
+}
+
 /// 1OP:131 Stores the object's parent
 pub fn get_parent(
     mut context: Context,
