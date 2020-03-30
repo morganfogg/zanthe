@@ -269,6 +269,32 @@ impl Memory {
             + ((object_id - 1) * self.object_entry_length())
     }
 
+    pub fn object_attribute(&self, object_id: u16, attribute: u16) -> bool {
+        let location = self.object_location(object_id) as usize;
+        let offset = attribute as usize / 8;
+        let bit = attribute as usize % 8;
+        let mask = 1 << (7 - bit);
+
+        self.get_byte(location + offset) & mask != 0
+    }
+
+    pub fn update_object_attribute(&mut self, object_id: u16, attribute: u16, set: bool) {
+        let location = self.object_location(object_id) as usize;
+        let offset = attribute as usize / 8;
+        let bit = attribute as usize % 8;
+
+        let mut flags = self.get_byte(location + offset);
+        let mask = 1 << (7 - bit);
+
+        if set {
+            flags |= mask
+        } else {
+            flags &= !mask
+        };
+
+        self.set_byte(location + offset, flags);
+    }
+
     pub fn object_parent(&self, object: u16) -> u16 {
         let location = self.object_location(object) + self.object_attribute_length();
         match self.version() {

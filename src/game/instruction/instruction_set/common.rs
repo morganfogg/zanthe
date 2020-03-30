@@ -88,7 +88,7 @@ pub fn dec_chk(
         .conditional_branch(offset, condition, expected))
 }
 
-/// 2OP:4 Increment the variable and branch if it is now greater than the given value
+/// 2OP:5 Increment the variable and branch if it is now greater than the given value
 pub fn inc_chk(
     mut context: Context,
     ops: Vec<Operand>,
@@ -154,6 +154,51 @@ pub fn and(
     let result = x & y;
 
     context.set_variable(store_to, result);
+
+    Ok(InstructionResult::Continue)
+}
+
+/// 2OP:10 Jump of the object has the given attribute
+pub fn test_attr(
+    mut context: Context,
+    ops: Vec<Operand>,
+    expected: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+    let attribute = ops[1].unsigned(&mut context)?;
+
+    let flag_set = context.memory.object_attribute(object_id, attribute);
+
+    Ok(context.frame.conditional_branch(offset, flag_set, expected))
+}
+
+/// 2OP:11 Set the attribute on the provided object to true
+pub fn set_attr(
+    mut context: Context,
+    ops: Vec<Operand>,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+    let attribute = ops[1].unsigned(&mut context)?;
+
+    context
+        .memory
+        .update_object_attribute(object_id, attribute, true);
+
+    Ok(InstructionResult::Continue)
+}
+
+/// 2OP:12 Set the attribute on the provided object to false
+pub fn clear_attr(
+    mut context: Context,
+    ops: Vec<Operand>,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops[0].unsigned(&mut context)?;
+    let attribute = ops[1].unsigned(&mut context)?;
+
+    context
+        .memory
+        .update_object_attribute(object_id, attribute, false);
 
     Ok(InstructionResult::Continue)
 }

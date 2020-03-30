@@ -24,6 +24,18 @@ impl InstructionSet {
             (TwoOp(0x6), Instruction::Branch(&common::jin, "JIN")),
             (TwoOp(0x8), Instruction::Store(&common::or, "OR")),
             (TwoOp(0x9), Instruction::Store(&common::and, "AND")),
+            (
+                TwoOp(0xA),
+                Instruction::Branch(&common::test_attr, "TEST_ATTR"),
+            ),
+            (
+                TwoOp(0xB),
+                Instruction::Normal(&common::set_attr, "SET_ATTR"),
+            ),
+            (
+                TwoOp(0xC),
+                Instruction::Normal(&common::clear_attr, "CLEAR_ATTR"),
+            ),
             (TwoOp(0xD), Instruction::Normal(&common::store, "STORE")),
             (TwoOp(0xF), Instruction::Store(&common::loadw, "LOADW")),
             (TwoOp(0x10), Instruction::Store(&common::loadb, "LOADB")),
