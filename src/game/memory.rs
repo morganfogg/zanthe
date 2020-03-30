@@ -1,5 +1,6 @@
 use std::char;
 use std::error::Error;
+use std::iter::successors;
 
 use log::{error, info, warn};
 
@@ -339,37 +340,35 @@ impl Memory {
             .0)
     }
 
-    pub fn property(&self, object: u16, property: u16) -> Option<Property> {
-        let mut cursor = self.object_properties_table_location(object) as usize;
-        let short_name_length = self.read_byte(&mut cursor) * 2;
-        cursor += short_name_length as usize;
+    fn property_at_address(&self, address: usize) -> Option<Property> {
         match self.version() {
-            1..=3 => loop {
-                let address = cursor as u16;
+            1..=3 => {
+                let mut cursor = address as usize;
                 let size_byte = self.read_byte(&mut cursor);
                 if size_byte == 0 {
                     return None;
                 }
+
                 let data_address = cursor as u16;
                 let data_length = (size_byte + 1) / 32;
                 let property_number = (size_byte + 1) % 32;
-                if property_number as u16 == property {
-                    return Some(Property {
-                        address,
-                        data_address,
-                        data: self.get_bytes(data_address as usize, data_length as usize),
-                    });
-                }
-                cursor += data_length as usize;
-            },
-            _ => loop {
-                let address = cursor as u16;
+
+                return Some(Property {
+                    number: property_number as u16,
+                    address: address as u16,
+                    data_address,
+                    data: self.get_bytes(data_address as usize, data_length as usize),
+                });
+            }
+            _ => {
+                let mut cursor = address as usize;
                 let size_byte = self.read_byte(&mut cursor);
                 let mut data_address = cursor as u16;
                 let property_number = size_byte & 0b111111;
                 if property_number == 0 {
                     return None;
                 }
+
                 let has_second_size_byte = size_byte >> 7 != 0;
                 let mut data_length;
                 if has_second_size_byte {
@@ -381,16 +380,29 @@ impl Memory {
                 } else {
                     data_length = (size_byte >> 6) + 1;
                 }
-                if property_number as u16 == property {
-                    return Some(Property {
-                        address,
-                        data_address,
-                        data: self.get_bytes(data_address as usize, data_length as usize),
-                    });
-                }
-                cursor += data_length as usize;
-            },
+
+                return Some(Property {
+                    number: property_number as u16,
+                    address: address as u16,
+                    data_address,
+                    data: self.get_bytes(data_address as usize, data_length as usize),
+                });
+            }
         }
+    }
+
+    fn property_iter<'a>(&'a self, object: u16) -> impl Iterator<Item = Property> + 'a {
+        let mut cursor = self.object_properties_table_location(object) as usize;
+        let short_name_length = self.read_byte(&mut cursor) * 2;
+        cursor += short_name_length as usize;
+
+        successors(self.property_at_address(cursor), move |p| {
+            self.property_at_address(p.data_address as usize + p.data.len())
+        })
+    }
+
+    pub fn property(&self, object: u16, number: u16) -> Option<Property> {
+        self.property_iter(object).find(|p| p.number == number)
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)

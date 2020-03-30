@@ -2,6 +2,7 @@ use crate::game::error::GameError;
 use std::error::Error;
 
 pub struct Property {
+    pub number: u16,
     pub address: u16,
     pub data_address: u16,
     pub data: Vec<u8>,
