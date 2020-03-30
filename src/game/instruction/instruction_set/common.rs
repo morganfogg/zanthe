@@ -311,9 +311,9 @@ pub fn get_parent(
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops[0].unsigned(&mut context)?;
-    
+
     let result = context.memory.object_parent(object_id);
-    
+
     context.set_variable(store_to, result);
     Ok(InstructionResult::Continue)
 }

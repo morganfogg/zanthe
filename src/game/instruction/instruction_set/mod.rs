@@ -41,7 +41,10 @@ impl InstructionSet {
             (TwoOp(0x17), Instruction::Store(&common::div, "DIV")),
             (TwoOp(0x18), Instruction::Store(&common::z_mod, "Z_MOD")),
             (OneOp(0x0), Instruction::Branch(&common::jz, "JZ")),
-            (OneOp(0x3), Instruction::Store(&common::get_parent, "GET_PARENT")),
+            (
+                OneOp(0x3),
+                Instruction::Store(&common::get_parent, "GET_PARENT"),
+            ),
             (OneOp(0x5), Instruction::Normal(&common::inc, "INC")),
             (OneOp(0x6), Instruction::Normal(&common::dec, "DEC")),
             (
@@ -124,7 +127,7 @@ impl InstructionSet {
                     ),
                     (
                         VarOp(0x11),
-                        Instruction::Normal(&version_gte4::set_text_style, "SRT_TEXT_STYLE"),
+                        Instruction::Normal(&version_gte4::set_text_style, "SET_TEXT_STYLE"),
                     ),
                 ]
                 .iter()
