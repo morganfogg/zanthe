@@ -39,7 +39,7 @@ impl InstructionSet {
             (TwoOp(0x15), Instruction::Store(&common::sub, "SUB")),
             (TwoOp(0x16), Instruction::Store(&common::mul, "MUL")),
             (TwoOp(0x17), Instruction::Store(&common::div, "DIV")),
-            (TwoOp(0x18), Instruction::Store(&common::z_mod, "Z_MOD")),
+            (TwoOp(0x18), Instruction::Store(&common::z_mod, "MOD")),
             (OneOp(0x0), Instruction::Branch(&common::jz, "JZ")),
             (
                 OneOp(0x3),
