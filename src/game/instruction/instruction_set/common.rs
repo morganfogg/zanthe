@@ -347,7 +347,7 @@ pub fn get_child(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops[0].unsigned(&mut context)?;
 
-    let result = context.memory.object_sibling(object_id);
+    let result = context.memory.object_child(object_id);
 
     context.set_variable(store_to, result);
 
