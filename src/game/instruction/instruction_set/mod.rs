@@ -69,6 +69,10 @@ impl InstructionSet {
                 OneOp(0x3),
                 Instruction::Store(&common::get_parent, "GET_PARENT"),
             ),
+            (
+                OneOp(0x4),
+                Instruction::Store(&common::get_prop_len, "GET_PROP_LEN"),
+            ),
             (OneOp(0x5), Instruction::Normal(&common::inc, "INC")),
             (OneOp(0x6), Instruction::Normal(&common::dec, "DEC")),
             (

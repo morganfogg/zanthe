@@ -340,7 +340,7 @@ impl Memory {
             .0)
     }
 
-    fn property_at_address(&self, address: usize) -> Option<Property> {
+    pub fn property_at_address(&self, address: usize) -> Option<Property> {
         match self.version() {
             1..=3 => {
                 let mut cursor = address as usize;

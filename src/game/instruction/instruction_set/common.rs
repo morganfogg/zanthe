@@ -273,7 +273,7 @@ pub fn get_prop_addr(
     let address = context
         .memory
         .property(object, property)
-        .map(|prop| prop.data_address)
+        .map(|prop| prop.address)
         .unwrap_or(0);
 
     context.set_variable(store_to, address);
@@ -435,6 +435,31 @@ pub fn get_parent(
     let result = context.memory.object_parent(object_id);
 
     context.set_variable(store_to, result);
+    Ok(InstructionResult::Continue)
+}
+
+/// 1OP:132 Get the length of propery at the provided address
+pub fn get_prop_len(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let address = ops[0].unsigned(&mut context)?;
+
+    let result = if address == 0 {
+        0
+    } else {
+        context
+            .memory
+            .property_at_address(address as usize)
+            .map(|p| p.data.len())
+            .ok_or_else(|| {
+                GameError::InvalidOperation(
+                    "Cannot get length of property that does not exist".into(),
+                )
+            })?
+    };
+    context.set_variable(store_to, result.try_into()?);
     Ok(InstructionResult::Continue)
 }
 
