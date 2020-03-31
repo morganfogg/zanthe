@@ -13,7 +13,9 @@ impl Property {
         match self.data.len() {
             1 => Ok(self.data[0] as u16),
             2 => Ok(((self.data[0] as u16) << 8) + self.data[1] as u16),
-            _ => Err(GameError::InvalidOperation("No!".into()).into()),
+            _ => {
+                Err(GameError::InvalidOperation("Property data too long to convert".into()).into())
+            }
         }
     }
 }

@@ -340,6 +340,11 @@ impl Memory {
             .0)
     }
 
+    pub fn default_property(&self, property: u16) -> u16 {
+        let offset = (property as usize - 1) * 2;
+        self.get_word(self.object_table_location() as usize + offset)
+    }
+
     pub fn property_at_address(&self, address: usize) -> Option<Property> {
         match self.version() {
             1..=3 => {

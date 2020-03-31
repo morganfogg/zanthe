@@ -255,7 +255,8 @@ pub fn get_prop(
         .memory
         .property(object, property)
         .map(|prop| prop.data_to_u16())
-        .unwrap()?; // TODO IMPLMENT DEFAULTS.
+        .transpose()?
+        .unwrap_or_else(|| context.memory.default_property(property));
 
     context.set_variable(store_to, data);
     Ok(InstructionResult::Continue)
