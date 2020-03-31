@@ -47,6 +47,10 @@ impl InstructionSet {
                 TwoOp(0x12),
                 Instruction::Store(&common::get_prop_addr, "GET_PROP_ADDR"),
             ),
+            (
+                TwoOp(0x13),
+                Instruction::Store(&common::get_next_prop, "GET_NEXT_PROP"),
+            ),
             (TwoOp(0x14), Instruction::Store(&common::add, "ADD")),
             (TwoOp(0x15), Instruction::Store(&common::sub, "SUB")),
             (TwoOp(0x16), Instruction::Store(&common::mul, "MUL")),

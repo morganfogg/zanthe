@@ -280,6 +280,27 @@ pub fn get_prop_addr(
     Ok(InstructionResult::Continue)
 }
 
+/// 2OP:19 Get the number of the next property after the proided one
+pub fn get_next_prop(
+    mut context: Context,
+    ops: Vec<Operand>,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object = ops[0].unsigned(&mut context)?;
+    let property = ops[1].unsigned(&mut context)?;
+
+    let next_prop = if property == 0 {
+        context.memory.property_iter(object).next()
+    } else {
+        context.memory.following_property(object, property)
+    };
+
+    let next_prop_number = next_prop.map(|p| p.number).unwrap_or(0);
+
+    context.set_variable(store_to, next_prop_number);
+    Ok(InstructionResult::Continue)
+}
+
 /// 2OP:20 Signed 16-bit addition
 pub fn add(
     mut context: Context,

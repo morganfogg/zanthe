@@ -391,7 +391,7 @@ impl Memory {
         }
     }
 
-    fn property_iter<'a>(&'a self, object: u16) -> impl Iterator<Item = Property> + 'a {
+    pub fn property_iter<'a>(&'a self, object: u16) -> impl Iterator<Item = Property> + 'a {
         let mut cursor = self.object_properties_table_location(object) as usize;
         let short_name_length = self.read_byte(&mut cursor) * 2;
         cursor += short_name_length as usize;
@@ -403,6 +403,12 @@ impl Memory {
 
     pub fn property(&self, object: u16, number: u16) -> Option<Property> {
         self.property_iter(object).find(|p| p.number == number)
+    }
+
+    pub fn following_property(&self, object: u16, number: u16) -> Option<Property> {
+        self.property_iter(object)
+            .skip_while(|p| p.number != number)
+            .nth(1)
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
