@@ -296,12 +296,32 @@ impl Memory {
         self.set_byte(location + offset, flags);
     }
 
-    pub fn object_parent(&self, object: u16) -> u16 {
-        let location = self.object_location(object) + self.object_attribute_length();
+    fn object_relation(&self, location: usize) -> u16 {
         match self.version() {
-            1..=3 => self.get_byte(location as usize) as u16,
-            _ => self.get_word(location as usize),
+            1..=3 => self.get_byte(location) as u16,
+            _ => self.get_word(location),
         }
+    }
+
+    fn set_object_relation(&mut self, location: usize, value: u16) {
+        match self.version() {
+            1..=3 => self.set_byte(location, value as u8),
+            _ => self.set_word(location, value),
+        };
+    }
+
+    fn object_parent_id_location(&self, object: u16) -> u16 {
+        self.object_location(object) + self.object_attribute_length()
+    }
+
+    pub fn object_parent(&self, object: u16) -> u16 {
+        let location = self.object_parent_id_location(object);
+        self.object_relation(location as usize)
+    }
+
+    pub fn set_object_parent(&mut self, object: u16, parent: u16) {
+        let location = self.object_parent_id_location(object);
+        self.set_object_relation(location as usize, parent);
     }
 
     pub fn object_sibling(&self, object: u16) -> u16 {

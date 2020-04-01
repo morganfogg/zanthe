@@ -505,6 +505,17 @@ pub fn jz(
         .conditional_branch(offset, condition, expected))
 }
 
+/// 1OP:137
+pub fn remove_obj(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object = ops.pull()?.unsigned(&mut context)?;
+
+    context.memory.set_object_parent(object, 0);
+
+    Ok(InstructionResult::Continue)
+}
 /// 1OP:138 Print the short name of the given object.
 pub fn print_obj(
     mut context: Context,
