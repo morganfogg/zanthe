@@ -681,6 +681,37 @@ pub fn storeb(
     Ok(InstructionResult::Continue)
 }
 
+/// VAR:227 Update the property data of the goven object
+pub fn put_prop(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object_id = ops.pull()?.unsigned(&mut context)?;
+    let property_id = ops.pull()?.unsigned(&mut context)?;
+    let value = ops.pull()?.unsigned(&mut context)?;
+
+    let property = context
+        .memory
+        .property(object_id, property_id)
+        .ok_or_else(|| GameError::InvalidOperation("Property data doesn't exist".into()))?;
+
+    match property.data.len() {
+        1 => context
+            .memory
+            .set_byte(property.data_address as usize, value as u8),
+        2 => context
+            .memory
+            .set_word(property.data_address as usize, value),
+        _ => {
+            return Err(GameError::InvalidOperation(
+                "Cannot assign property with length greater than 2".into(),
+            )
+            .into())
+        }
+    }
+    Ok(InstructionResult::Continue)
+}
+
 /// VAR:230 Print a signed number.
 pub fn print_num(
     mut context: Context,

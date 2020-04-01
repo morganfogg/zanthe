@@ -111,6 +111,10 @@ impl InstructionSet {
             (VarOp(0x1), Instruction::Normal(&common::storew, "STOREW")),
             (VarOp(0x2), Instruction::Normal(&common::storeb, "STOREB")),
             (
+                VarOp(0x3),
+                Instruction::Normal(&common::put_prop, "PUT_PROP"),
+            ),
+            (
                 VarOp(0x6),
                 Instruction::Normal(&common::print_num, "PRINT_NUM"),
             ),
