@@ -6,7 +6,8 @@ use rand::{rngs::StdRng, SeedableRng};
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
-    Context, Form, Instruction, InstructionSet, OpCode, Operand, Result as InstructionResult,
+    Context, Form, Instruction, InstructionSet, OpCode, Operand, OperandSet,
+    Result as InstructionResult,
 };
 use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
@@ -61,7 +62,7 @@ impl<'a> GameState<'a> {
             debug!("--------------------------------------");
             debug!("PC AT {:x}", frame.pc);
             let mut code_byte = self.memory.read_byte(&mut frame.pc);
-            let mut operands: Vec<Operand> = vec![];
+            let mut operands: Vec<Operand> = Vec::new();
             let form;
             if code_byte == 190 {
                 form = Form::Extended;
@@ -118,6 +119,8 @@ impl<'a> GameState<'a> {
                     }
                 }
             }
+
+            let operands = OperandSet::new(operands);
 
             let op_code = match form {
                 Form::Long => OpCode::TwoOp(code_byte & 31),

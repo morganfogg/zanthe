@@ -3,17 +3,17 @@ use std::error::Error;
 use itertools::Itertools;
 
 use crate::game::error::GameError;
-use crate::game::instruction::{Context, Operand, Result as InstructionResult};
+use crate::game::instruction::{Context, OperandSet, Result as InstructionResult};
 
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.
 pub fn call_2n(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     let address = context.memory.unpack_address(address as usize);
 
-    let argument = ops[1].unsigned(&mut context)?;
+    let argument = ops.pull()?.unsigned(&mut context)?;
 
     Ok(InstructionResult::Invoke {
         address,
@@ -25,9 +25,9 @@ pub fn call_2n(
 /// 1OP:143 Calls a routine with no arguments and throws away the result.
 pub fn call_1n(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     let address = context.memory.unpack_address(address as usize);
 
     Ok(InstructionResult::Invoke {
@@ -40,12 +40,11 @@ pub fn call_1n(
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
 pub fn call_vn(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     let address = context.memory.unpack_address(address as usize);
-    let arguments: Vec<u16> = ops[1..]
-        .iter()
+    let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(&mut context))
         .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
         .into_iter()
@@ -62,12 +61,11 @@ pub fn call_vn(
 /// VAR:250 Call a routine with up to 7 arguments and throw away the result.
 pub fn call_vn2(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     let address = context.memory.unpack_address(address as usize);
-    let arguments: Vec<u16> = ops[1..]
-        .iter()
+    let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(&mut context))
         .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
         .into_iter()
@@ -84,11 +82,11 @@ pub fn call_vn2(
 /// VAR:255 Branches if the argument number (1-indexed) has been provided.
 pub fn check_arg_count(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let index = ops[0].unsigned(&mut context)? as usize;
+    let index = ops.pull()?.unsigned(&mut context)? as usize;
 
     let condition = index <= context.frame.arg_count;
 
@@ -100,11 +98,11 @@ pub fn check_arg_count(
 /// EXT:2 Logical shift
 pub fn log_shift(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let number = ops[0].unsigned(&mut context)?;
-    let places = ops[1].signed(&mut context)?;
+    let number = ops.pull()?.unsigned(&mut context)?;
+    let places = ops.pull()?.signed(&mut context)?;
     if places.abs() > 15 {
         return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
     }
@@ -122,11 +120,11 @@ pub fn log_shift(
 /// EXT:3 Artihmetic shift
 pub fn art_shift(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let number = ops[0].signed(&mut context)?;
-    let places = ops[1].signed(&mut context)?;
+    let number = ops.pull()?.signed(&mut context)?;
+    let places = ops.pull()?.signed(&mut context)?;
     if places.abs() > 15 {
         return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
     }

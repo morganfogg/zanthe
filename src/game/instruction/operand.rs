@@ -5,6 +5,7 @@ use crate::game::error::GameError;
 use crate::game::instruction::Context;
 
 /// The operands passed to instructions, not including branch, store or string literal operands.
+#[derive(Clone, Copy)]
 pub enum Operand {
     LargeConstant(u16),
     SmallConstant(u8),
@@ -25,7 +26,7 @@ impl Operand {
     pub fn try_signed(&self, context: &mut Context) -> Result<Option<i16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v as i16)),
-            Operand::SmallConstant(v) => Ok(Some(*v as i16)), // TODO: Verify small constants cannot be signed.
+            Operand::SmallConstant(v) => Ok(Some(*v as i16)),
             Operand::Variable(v) => Ok(Some(context.get_variable(*v)? as i16)),
             Operand::Omitted => Ok(None),
         }

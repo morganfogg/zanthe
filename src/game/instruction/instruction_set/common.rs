@@ -7,18 +7,18 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::game::error::GameError;
-use crate::game::instruction::{Context, Operand, Result as InstructionResult};
+use crate::game::instruction::{Context, OperandSet, Result as InstructionResult};
 
 ///20P:1 Branch if the first operand is equal to any subsequent operands
 pub fn je(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
     let mut condition = false;
-    for op in ops[1..].iter() {
+    for op in ops {
         if let Some(value) = op.try_signed(&mut context)? {
             if value == first {
                 condition = true;
@@ -37,12 +37,12 @@ pub fn je(
 /// 2OP:2 Jump if a < b (signed).
 pub fn jl(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let a = ops[0].signed(&mut context)?;
-    let b = ops[1].signed(&mut context)?;
+    let a = ops.pull()?.signed(&mut context)?;
+    let b = ops.pull()?.signed(&mut context)?;
 
     let condition = a < b;
 
@@ -54,12 +54,12 @@ pub fn jl(
 /// 2OP:3 Jump if a > b (signed).
 pub fn jg(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let a = ops[0].signed(&mut context)?;
-    let b = ops[1].signed(&mut context)?;
+    let a = ops.pull()?.signed(&mut context)?;
+    let b = ops.pull()?.signed(&mut context)?;
 
     let condition = a > b;
 
@@ -71,12 +71,12 @@ pub fn jg(
 /// 2OP:4 Decrement the variable and branch if it is now less than the given value
 pub fn dec_chk(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
-    let comparand = ops[1].signed(&mut context)?;
+    let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
+    let comparand = ops.pull()?.signed(&mut context)?;
     let value = (context.get_variable(variable_id)? as i16).wrapping_sub(1);
 
     context.set_variable(variable_id, value as u16);
@@ -91,12 +91,12 @@ pub fn dec_chk(
 /// 2OP:5 Increment the variable and branch if it is now greater than the given value
 pub fn inc_chk(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
-    let comparand = ops[1].signed(&mut context)?;
+    let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
+    let comparand = ops.pull()?.signed(&mut context)?;
     let value = (context.get_variable(variable_id)? as i16).wrapping_add(1);
 
     context.set_variable(variable_id, value as u16);
@@ -111,12 +111,12 @@ pub fn inc_chk(
 /// 2OP:6 Jump if object a's parent is object b
 pub fn jin(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_a = ops[0].unsigned(&mut context)?;
-    let object_b = ops[1].unsigned(&mut context)?;
+    let object_a = ops.pull()?.unsigned(&mut context)?;
+    let object_b = ops.pull()?.unsigned(&mut context)?;
     let parent = context.memory.object_parent(object_a);
 
     let condition = object_b == parent;
@@ -129,11 +129,11 @@ pub fn jin(
 /// 2OP:8 Bitwise OR
 pub fn or(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let x = ops[0].unsigned(&mut context)?;
-    let y = ops[1].unsigned(&mut context)?;
+    let x = ops.pull()?.unsigned(&mut context)?;
+    let y = ops.pull()?.unsigned(&mut context)?;
 
     let result = x | y;
 
@@ -145,11 +145,11 @@ pub fn or(
 // 2OP:9 Bitwise AND
 pub fn and(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let x = ops[0].unsigned(&mut context)?;
-    let y = ops[1].unsigned(&mut context)?;
+    let x = ops.pull()?.unsigned(&mut context)?;
+    let y = ops.pull()?.unsigned(&mut context)?;
 
     let result = x & y;
 
@@ -161,12 +161,12 @@ pub fn and(
 /// 2OP:10 Jump of the object has the given attribute
 pub fn test_attr(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
-    let attribute = ops[1].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
+    let attribute = ops.pull()?.unsigned(&mut context)?;
 
     let flag_set = context.memory.object_attribute(object_id, attribute);
 
@@ -176,10 +176,10 @@ pub fn test_attr(
 /// 2OP:11 Set the attribute on the provided object to true
 pub fn set_attr(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
-    let attribute = ops[1].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
+    let attribute = ops.pull()?.unsigned(&mut context)?;
 
     context
         .memory
@@ -191,10 +191,10 @@ pub fn set_attr(
 /// 2OP:12 Set the attribute on the provided object to false
 pub fn clear_attr(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
-    let attribute = ops[1].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
+    let attribute = ops.pull()?.unsigned(&mut context)?;
 
     context
         .memory
@@ -204,9 +204,12 @@ pub fn clear_attr(
 }
 
 /// 2OP:13 Set the variable referenced by the operand to value
-pub fn store(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable = ops[0].unsigned(&mut context)?;
-    let value = ops[1].unsigned(&mut context)?;
+pub fn store(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable = ops.pull()?.unsigned(&mut context)?;
+    let value = ops.pull()?.unsigned(&mut context)?;
 
     context.set_variable(variable.try_into()?, value);
     Ok(InstructionResult::Continue)
@@ -215,11 +218,11 @@ pub fn store(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResul
 /// 2OP:15 Store a word found at the given array and word index.
 pub fn loadw(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops[0].unsigned(&mut context)?;
-    let word_index = ops[1].unsigned(&mut context)?;
+    let array = ops.pull()?.unsigned(&mut context)?;
+    let word_index = ops.pull()?.unsigned(&mut context)?;
     let word = context
         .memory
         .get_word(usize::from(array + (2 * word_index)));
@@ -231,11 +234,11 @@ pub fn loadw(
 /// 2OP:16 Store a byte found at the given array and byte index.
 pub fn loadb(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops[0].unsigned(&mut context)?;
-    let byte_index = ops[1].unsigned(&mut context)?;
+    let array = ops.pull()?.unsigned(&mut context)?;
+    let byte_index = ops.pull()?.unsigned(&mut context)?;
     let byte = context.memory.get_byte(usize::from(array + byte_index));
 
     context.set_variable(store_to, byte as u16);
@@ -245,11 +248,11 @@ pub fn loadb(
 /// 2OP:17 Return the data of the specified property
 pub fn get_prop(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object = ops[0].unsigned(&mut context)?;
-    let property = ops[1].unsigned(&mut context)?;
+    let object = ops.pull()?.unsigned(&mut context)?;
+    let property = ops.pull()?.unsigned(&mut context)?;
 
     let data = context
         .memory
@@ -265,11 +268,11 @@ pub fn get_prop(
 /// 2OP:18 Return the byte address of the specified property data
 pub fn get_prop_addr(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object = ops[0].unsigned(&mut context)?;
-    let property = ops[1].unsigned(&mut context)?;
+    let object = ops.pull()?.unsigned(&mut context)?;
+    let property = ops.pull()?.unsigned(&mut context)?;
 
     let address = context
         .memory
@@ -284,11 +287,11 @@ pub fn get_prop_addr(
 /// 2OP:19 Get the number of the next property after the proided one
 pub fn get_next_prop(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object = ops[0].unsigned(&mut context)?;
-    let property = ops[1].unsigned(&mut context)?;
+    let object = ops.pull()?.unsigned(&mut context)?;
+    let property = ops.pull()?.unsigned(&mut context)?;
 
     let next_prop = if property == 0 {
         context.memory.property_iter(object).next()
@@ -305,11 +308,11 @@ pub fn get_next_prop(
 /// 2OP:20 Signed 16-bit addition
 pub fn add(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
-    let second = ops[1].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
+    let second = ops.pull()?.signed(&mut context)?;
     let result = first.wrapping_add(second);
 
     context.set_variable(store_to, result as u16);
@@ -319,11 +322,11 @@ pub fn add(
 // 2OP:21 Signed 16-bit subtraction
 pub fn sub(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
-    let second = ops[1].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
+    let second = ops.pull()?.signed(&mut context)?;
     let result = first.wrapping_sub(second);
 
     context.set_variable(store_to, result as u16);
@@ -333,11 +336,11 @@ pub fn sub(
 /// 2OP:22 Signed 16-bit multiplication.
 pub fn mul(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
-    let second = ops[1].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
+    let second = ops.pull()?.signed(&mut context)?;
 
     let result = first.wrapping_mul(second);
 
@@ -348,11 +351,11 @@ pub fn mul(
 /// 2OP:23 Signed 16-bit division.
 pub fn div(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
-    let second = ops[1].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
+    let second = ops.pull()?.signed(&mut context)?;
 
     if second == 0 {
         return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
@@ -367,11 +370,11 @@ pub fn div(
 /// 2OP:24 Signed 16-bit modulo.
 pub fn z_mod(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let first = ops[0].signed(&mut context)?;
-    let second = ops[1].signed(&mut context)?;
+    let first = ops.pull()?.signed(&mut context)?;
+    let second = ops.pull()?.signed(&mut context)?;
 
     if second == 0 {
         return Err(GameError::InvalidOperation("Tried to divide by zero".into()).into());
@@ -386,12 +389,12 @@ pub fn z_mod(
 /// 1OP:129 Store the object's sibling and branch if it exists (is not zero).
 pub fn get_sibling(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
 
     let result = context.memory.object_sibling(object_id);
 
@@ -407,12 +410,12 @@ pub fn get_sibling(
 /// 1OP:130 Store the object's child
 pub fn get_child(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
 
     let result = context.memory.object_child(object_id);
 
@@ -428,10 +431,10 @@ pub fn get_child(
 /// 1OP:131 Stores the object's parent
 pub fn get_parent(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object_id = ops[0].unsigned(&mut context)?;
+    let object_id = ops.pull()?.unsigned(&mut context)?;
 
     let result = context.memory.object_parent(object_id);
 
@@ -442,10 +445,10 @@ pub fn get_parent(
 /// 1OP:132 Get the length of propery at the provided address
 pub fn get_prop_len(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
 
     let result = if address == 0 {
         0
@@ -465,8 +468,8 @@ pub fn get_prop_len(
 }
 
 /// 1OP:133 Increment the provided variable.
-pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+pub fn inc(mut context: Context, mut ops: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
 
     let result = value.wrapping_add(1) as u16;
@@ -476,8 +479,8 @@ pub fn inc(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
 }
 
 /// 1OP:134 Decrement the provided variable.
-pub fn dec(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable_id: u8 = ops[0].unsigned(&mut context)?.try_into()?;
+pub fn dec(mut context: Context, mut ops: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+    let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
     let value = context.get_variable(variable_id)? as i16;
 
     let result = value.wrapping_sub(1) as u16;
@@ -489,11 +492,11 @@ pub fn dec(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult,
 /// 1OP:128 Jump if the argument equals zero.
 pub fn jz(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let a = ops[0].unsigned(&mut context)?;
+    let a = ops.pull()?.unsigned(&mut context)?;
 
     let condition = a == 0;
 
@@ -505,9 +508,9 @@ pub fn jz(
 /// 1OP:138 Print the short name of the given object.
 pub fn print_obj(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let object = ops[0].unsigned(&mut context)?;
+    let object = ops.pull()?.unsigned(&mut context)?;
     context
         .interface
         .print(&context.memory.object_short_name(object)?)?;
@@ -516,13 +519,18 @@ pub fn print_obj(
 }
 
 /// 1OP:139 Returns from the current routine with the given value
-pub fn ret(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Return(ops[0].unsigned(&mut context)?))
+pub fn ret(mut context: Context, mut ops: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+    Ok(InstructionResult::Return(
+        ops.pull()?.unsigned(&mut context)?,
+    ))
 }
 
 /// 1OP:140 Jump unconditionally
-pub fn jump(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let offset = ops[0].signed(&mut context)?;
+pub fn jump(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let offset = ops.pull()?.signed(&mut context)?;
 
     Ok(context.frame.branch(offset))
 }
@@ -530,9 +538,9 @@ pub fn jump(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult
 /// 1OP:141 Prints a string stored at a padded address.
 pub fn print_paddr(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     let address = context.memory.unpack_address(address.into());
     context
         .interface
@@ -544,10 +552,10 @@ pub fn print_paddr(
 /// 1OP:142 Load the variable referred to by the operand into the result
 pub fn load(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let variable_id = ops[0].unsigned(&mut context)?;
+    let variable_id = ops.pull()?.unsigned(&mut context)?;
     let value = context.get_variable(variable_id.try_into()?)?;
 
     context.set_variable(store_to, value);
@@ -558,10 +566,10 @@ pub fn load(
 /// VAR:248 (v5+) Bitwise NOT
 pub fn not(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let op = ops[0].unsigned(&mut context)?;
+    let op = ops.pull()?.unsigned(&mut context)?;
 
     let result = !op;
 
@@ -570,12 +578,12 @@ pub fn not(
 }
 
 /// 0OP:176 Returns true (1).
-pub fn rtrue(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn rtrue(_: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     Ok(InstructionResult::Return(1))
 }
 
 /// 0OP:177 Returns false (0).
-pub fn rfalse(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn rfalse(_: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     Ok(InstructionResult::Return(0))
 }
 
@@ -594,22 +602,22 @@ pub fn print_ret(context: Context, string: String) -> Result<InstructionResult, 
 }
 
 /// 0OP:180 Does nothing.
-pub fn nop(_context: Context, _ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn nop(_context: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     Ok(InstructionResult::Continue)
 }
 
 /// 0OP:184 Returns the top of the stack.
-pub fn ret_popped(context: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn ret_popped(context: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     Ok(InstructionResult::Return(context.frame.pop_stack()?))
 }
 
 /// 0OP:186 Exits the game.
-pub fn quit(_: Context, _: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn quit(_: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     Ok(InstructionResult::Quit)
 }
 
 /// 0OP:187 Prints a newline
-pub fn new_line(context: Context, _ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn new_line(context: Context, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     context.interface.print(&"\n")?;
 
     Ok(InstructionResult::Continue)
@@ -619,18 +627,17 @@ pub fn new_line(context: Context, _ops: Vec<Operand>) -> Result<InstructionResul
 /// zero, does nothing and returns false.
 pub fn call(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops[0].unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)?;
     if address == 0 {
         context.set_variable(store_to, 0);
         return Ok(InstructionResult::Continue);
     }
 
     let address = context.memory.unpack_address(address as usize);
-    let arguments: Vec<u16> = ops[1..]
-        .iter()
+    let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(&mut context))
         .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
         .into_iter()
@@ -647,11 +654,11 @@ pub fn call(
 /// VAR:225 Store a word in the given array and word index.
 pub fn storew(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops[0].unsigned(&mut context)?;
-    let word_index = ops[1].unsigned(&mut context)?;
-    let value = ops[2].unsigned(&mut context)?;
+    let array = ops.pull()?.unsigned(&mut context)?;
+    let word_index = ops.pull()?.unsigned(&mut context)?;
+    let value = ops.pull()?.unsigned(&mut context)?;
 
     context
         .memory
@@ -662,11 +669,11 @@ pub fn storew(
 /// VAR:226 Store a byte in the given array and word index
 pub fn storeb(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops[0].unsigned(&mut context)?;
-    let byte_index = ops[1].unsigned(&mut context)?;
-    let value = ops[2].unsigned(&mut context)?;
+    let array = ops.pull()?.unsigned(&mut context)?;
+    let byte_index = ops.pull()?.unsigned(&mut context)?;
+    let value = ops.pull()?.unsigned(&mut context)?;
 
     context
         .memory
@@ -677,9 +684,9 @@ pub fn storeb(
 /// VAR:230 Print a signed number.
 pub fn print_num(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let num = ops[0].signed(&mut context)?;
+    let num = ops.pull()?.signed(&mut context)?;
 
     context.interface.print(&format!("{}", num))?;
     Ok(InstructionResult::Continue)
@@ -689,10 +696,10 @@ pub fn print_num(
 /// less than 0, re-seed the RNG using the argument. If it is zero, re-seed the RNG randomly.
 pub fn random(
     mut context: Context,
-    ops: Vec<Operand>,
+    mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let range = ops[0].signed(&mut context)?;
+    let range = ops.pull()?.signed(&mut context)?;
     match range.cmp(&0) {
         Ordering::Less => {
             *context.rng = StdRng::seed_from_u64(-range as u64);
@@ -712,16 +719,22 @@ pub fn random(
 }
 
 /// VAR:232 Pushes a value to the stack.
-pub fn push(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let value = ops[0].unsigned(&mut context)?;
+pub fn push(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let value = ops.pull()?.unsigned(&mut context)?;
     context.frame.push_stack(value);
 
     Ok(InstructionResult::Continue)
 }
 
 /// VAR:233 Pulls a value off the stack and stores it.
-pub fn pull(mut context: Context, ops: Vec<Operand>) -> Result<InstructionResult, Box<dyn Error>> {
-    let store_to = ops[0].unsigned(&mut context)? as u8;
+pub fn pull(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let store_to = ops.pull()?.unsigned(&mut context)? as u8;
     let value = context.frame.pop_stack()?;
     context.set_variable(store_to, value);
 
