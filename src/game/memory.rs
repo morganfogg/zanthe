@@ -264,6 +264,33 @@ impl Memory {
         }
     }
 
+    /// Remove the given object's parent and reflow its siblings
+    pub fn detach_object(&mut self, object_id: u16) {
+        let parent = self.object_parent(object_id);
+        let next_sibling = self.object_sibling(object_id);
+
+        if parent == 0 {
+            return;
+        }
+
+        self.set_object_parent(object_id, 0);
+        self.set_object_sibling(object_id, 0);
+
+        let first_child = self.object_child(parent);
+        if first_child == object_id {
+            self.set_object_child(parent, next_sibling);
+        } else {
+            let mut previous_sibling = first_child;
+            loop {
+                if object_id == self.object_sibling(previous_sibling) {
+                    break;
+                }
+                previous_sibling = self.object_sibling(previous_sibling);
+            }
+            self.set_object_sibling(previous_sibling, next_sibling);
+        }
+    }
+
     pub fn object_location(&self, object_id: u16) -> u16 {
         self.object_table_location()
             + self.property_defaults_length()
@@ -324,24 +351,36 @@ impl Memory {
         self.set_object_relation(location as usize, parent);
     }
 
-    pub fn object_sibling(&self, object: u16) -> u16 {
-        let location = self.object_location(object)
+    fn object_sibling_id_location(&self, object: u16) -> u16 {
+        self.object_location(object)
             + self.object_attribute_length()
-            + self.object_relation_length();
-        match self.version() {
-            1..=3 => self.get_byte(location as usize) as u16,
-            _ => self.get_word(location as usize),
-        }
+            + self.object_relation_length()
+    }
+
+    pub fn object_sibling(&self, object: u16) -> u16 {
+        let location = self.object_sibling_id_location(object);
+        self.object_relation(location as usize)
+    }
+
+    pub fn set_object_sibling(&mut self, object: u16, sibling: u16) {
+        let location = self.object_sibling_id_location(object);
+        self.set_object_relation(location as usize, sibling);
+    }
+
+    fn object_child_id_location(&self, object: u16) -> u16 {
+        self.object_location(object)
+            + self.object_attribute_length()
+            + (self.object_relation_length() * 2)
     }
 
     pub fn object_child(&self, object: u16) -> u16 {
-        let location = self.object_location(object)
-            + self.object_attribute_length()
-            + (self.object_relation_length() * 2);
-        match self.version() {
-            1..=3 => self.get_byte(location as usize) as u16,
-            _ => self.get_word(location as usize),
-        }
+        let location = self.object_child_id_location(object);
+        self.object_relation(location as usize)
+    }
+
+    pub fn set_object_child(&mut self, object: u16, child: u16) {
+        let location = self.object_child_id_location(object);
+        self.set_object_relation(location as usize, child);
     }
 
     pub fn object_properties_table_location(&self, object: u16) -> u16 {
@@ -418,8 +457,8 @@ impl Memory {
 
     pub fn property_iter<'a>(&'a self, object: u16) -> impl Iterator<Item = Property> + 'a {
         let mut cursor = self.object_properties_table_location(object) as usize;
-        let short_name_length = self.read_byte(&mut cursor) * 2;
-        cursor += short_name_length as usize;
+        let short_name_length = self.read_byte(&mut cursor) as usize * 2;
+        cursor += short_name_length;
 
         successors(self.property_at_address(cursor), move |p| {
             self.property_at_address(p.data_address as usize + p.data.len())

@@ -37,6 +37,10 @@ impl InstructionSet {
                 Instruction::Normal(&common::clear_attr, "CLEAR_ATTR"),
             ),
             (TwoOp(0xD), Instruction::Normal(&common::store, "STORE")),
+            (
+                TwoOp(0xE),
+                Instruction::Normal(&common::insert_obj, "INSERT_OBJ"),
+            ),
             (TwoOp(0xF), Instruction::Store(&common::loadw, "LOADW")),
             (TwoOp(0x10), Instruction::Store(&common::loadb, "LOADB")),
             (

@@ -215,6 +215,24 @@ pub fn store(
     Ok(InstructionResult::Continue)
 }
 
+/// 2OP:14 Move object to be the first child of the destination object
+pub fn insert_obj(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let object = ops.pull()?.unsigned(&mut context)?;
+    let destination = ops.pull()?.unsigned(&mut context)?;
+    let old_child = context.memory.object_child(destination);
+
+    context.memory.detach_object(object);
+
+    context.memory.set_object_parent(object, destination);
+    context.memory.set_object_child(destination, object);
+    context.memory.set_object_sibling(object, old_child);
+
+    Ok(InstructionResult::Continue)
+}
+
 /// 2OP:15 Store a word found at the given array and word index.
 pub fn loadw(
     mut context: Context,
@@ -512,7 +530,7 @@ pub fn remove_obj(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object = ops.pull()?.unsigned(&mut context)?;
 
-    context.memory.set_object_parent(object, 0);
+    context.memory.detach_object(object);
 
     Ok(InstructionResult::Continue)
 }
