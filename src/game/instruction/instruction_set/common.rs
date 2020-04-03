@@ -126,6 +126,23 @@ pub fn jin(
         .conditional_branch(offset, condition, expected))
 }
 
+/// 2OP:7 Jump if `bitmap & flags == flags`
+pub fn test(
+    mut context: Context,
+    mut ops: OperandSet,
+    expected: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let bitmap = ops.pull()?.unsigned(&mut context)?;
+    let flags = ops.pull()?.unsigned(&mut context)?;
+
+    let condition = bitmap & flags == flags;
+
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
+}
+
 /// 2OP:8 Bitwise OR
 pub fn or(
     mut context: Context,
