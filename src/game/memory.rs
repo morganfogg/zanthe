@@ -497,15 +497,17 @@ impl Memory {
         );
     }
 
-    /// Retrieve the alphabet table from memory. Should only be used if the game has declared it
-    /// includes an alternate alphabet table.
-    fn alphabet(&self) -> Alphabet {
-        Alphabet::new(
-            self.alphabet_table(AlphabetTable::A0),
-            self.alphabet_table(AlphabetTable::A1),
-            self.alphabet_table(AlphabetTable::A2),
-            self.unicode_translation_table(),
-        )
+    /// Retrieve the alphabet table from memory.
+    pub fn alphabet(&self) -> Alphabet {
+        match self.alphabet_table_location() {
+            0 => Alphabet::default(self.version(), self.unicode_translation_table()),
+            _ => Alphabet::new(
+                self.alphabet_table(AlphabetTable::A0),
+                self.alphabet_table(AlphabetTable::A1),
+                self.alphabet_table(AlphabetTable::A2),
+                self.unicode_translation_table(),
+            ),
+        }
     }
 
     /// Decode a Z-Character-encoded string, strating at the given point in memory.
@@ -519,10 +521,7 @@ impl Memory {
         let mut sequence = sequence.iter();
         let mut result = Vec::new();
         let mut shift = false;
-        let alphabet = match self.alphabet_table_location() {
-            0 => Alphabet::default(self.version(), self.unicode_translation_table()),
-            _ => self.alphabet(),
-        };
+        let alphabet = self.alphabet();
         let mut table = AlphabetTable::default();
         while let Some(c) = sequence.next() {
             match c {

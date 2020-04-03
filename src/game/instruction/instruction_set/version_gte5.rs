@@ -39,8 +39,8 @@ pub fn call_1n(
 
 /// 0OP:191 Branch if game is genuine
 pub fn piracy(
-    mut context: Context,
-    mut ops: OperandSet,
+    context: Context,
+    _: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {

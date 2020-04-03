@@ -551,6 +551,7 @@ pub fn remove_obj(
 
     Ok(InstructionResult::Continue)
 }
+
 /// 1OP:138 Print the short name of the given object.
 pub fn print_obj(
     mut context: Context,
@@ -755,6 +756,21 @@ pub fn put_prop(
             .into())
         }
     }
+    Ok(InstructionResult::Continue)
+}
+
+/// VAR:229 Print a ZSCII character
+pub fn print_char(
+    mut context: Context,
+    mut ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let char_id = ops.pull()?.unsigned(&mut context)?;
+
+    let char = context.memory.alphabet().decode_zscii(char_id)?;
+    if let Some(char) = char {
+        context.interface.print_char(char)?;
+    }
+
     Ok(InstructionResult::Continue)
 }
 

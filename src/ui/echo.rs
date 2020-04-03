@@ -25,15 +25,7 @@ impl EchoInterface {
         }
     }
 
-    /// Convert LF newlines to CRLF newlines, as required in Crossterm's alternate screen mode.
-    fn convert_newlines(&self, input: String) -> String {
-        input.replace("\n", "\n\r")
-    }
-}
-
-impl Interface for EchoInterface {
-    fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
-        let text = self.convert_newlines(string.to_string());
+    fn write(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
         if self.text_style.bold {
             queue!(self.stdout, SetAttribute(Attribute::Bold))?;
         }
@@ -46,6 +38,16 @@ impl Interface for EchoInterface {
         queue!(self.stdout, Print(text), SetAttribute(Attribute::Reset))?;
         self.stdout.flush()?;
         Ok(())
+    }
+}
+
+impl Interface for EchoInterface {
+    fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+        self.write(text)
+    }
+
+    fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
+        self.write(&text.to_string())
     }
 
     fn done(&mut self) -> Result<(), Box<dyn Error>> {

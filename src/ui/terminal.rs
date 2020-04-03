@@ -7,11 +7,8 @@ use crossterm::{
     event::read,
     execute, queue,
     style::{Attribute, Print, SetAttribute},
-    terminal::{
-        disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
-    },
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use textwrap::fill;
 
 use crate::ui::{Interface, TextStyle};
 
@@ -32,9 +29,23 @@ impl TerminalInterface {
         })
     }
 
-    /// Convert LF newlines to CRLF newlines, as required in Crossterm's alternate screen mode.
-    fn convert_newlines(&self, input: String) -> String {
-        input.replace("\n", "\n\r")
+    fn write(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+        if self.text_style.bold {
+            queue!(self.stdout, SetAttribute(Attribute::Bold))?;
+        }
+        if self.text_style.emphasis {
+            queue!(self.stdout, SetAttribute(Attribute::Underlined))?;
+        }
+        if self.text_style.reverse_video {
+            queue!(self.stdout, SetAttribute(Attribute::Reverse))?;
+        }
+        queue!(
+            self.stdout,
+            Print(text.replace("\n", "\n\r")),
+            SetAttribute(Attribute::Reset)
+        )?;
+        self.stdout.flush()?;
+        Ok(())
     }
 }
 
@@ -47,21 +58,12 @@ impl Drop for TerminalInterface {
 }
 
 impl Interface for TerminalInterface {
-    fn print(&mut self, string: &str) -> Result<(), Box<dyn Error>> {
-        let (width, _) = size()?;
-        let wrapped = self.convert_newlines(fill(string, width as usize));
-        if self.text_style.bold {
-            queue!(self.stdout, SetAttribute(Attribute::Bold))?;
-        }
-        if self.text_style.emphasis {
-            queue!(self.stdout, SetAttribute(Attribute::Underlined))?;
-        }
-        if self.text_style.reverse_video {
-            queue!(self.stdout, SetAttribute(Attribute::Reverse))?;
-        }
-        queue!(self.stdout, Print(wrapped), SetAttribute(Attribute::Reset))?;
-        self.stdout.flush()?;
-        Ok(())
+    fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+        self.write(text)
+    }
+
+    fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
+        self.print(&text.to_string())
     }
 
     fn done(&mut self) -> Result<(), Box<dyn Error>> {

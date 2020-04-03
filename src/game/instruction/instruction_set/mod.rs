@@ -124,6 +124,10 @@ impl InstructionSet {
                 Instruction::Normal(&common::put_prop, "PUT_PROP"),
             ),
             (
+                VarOp(0x5),
+                Instruction::Normal(&common::print_char, "PRINT_CHAR"),
+            ),
+            (
                 VarOp(0x6),
                 Instruction::Normal(&common::print_num, "PRINT_NUM"),
             ),
