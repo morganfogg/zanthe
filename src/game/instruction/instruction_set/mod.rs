@@ -81,6 +81,10 @@ impl InstructionSet {
             (OneOp(0x5), Instruction::Normal(&common::inc, "INC")),
             (OneOp(0x6), Instruction::Normal(&common::dec, "DEC")),
             (
+                OneOp(0x7),
+                Instruction::Normal(&common::print_addr, "PRINT_ADDR"),
+            ),
+            (
                 OneOp(0x9),
                 Instruction::Normal(&common::remove_obj, "REMOVE_OBJ"),
             ),

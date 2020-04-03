@@ -421,6 +421,22 @@ pub fn z_mod(
     Ok(InstructionResult::Continue)
 }
 
+/// 1OP:128 Jump if the argument equals zero.
+pub fn jz(
+    mut context: Context,
+    mut ops: OperandSet,
+    expected: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let a = ops.pull()?.unsigned(&mut context)?;
+
+    let condition = a == 0;
+
+    Ok(context
+        .frame
+        .conditional_branch(offset, condition, expected))
+}
+
 /// 1OP:129 Store the object's sibling and branch if it exists (is not zero).
 pub fn get_sibling(
     mut context: Context,
@@ -524,23 +540,21 @@ pub fn dec(mut context: Context, mut ops: OperandSet) -> Result<InstructionResul
     Ok(InstructionResult::Continue)
 }
 
-/// 1OP:128 Jump if the argument equals zero.
-pub fn jz(
+/// 1OP:135 Prints a string stored at a padded address.
+pub fn print_addr(
     mut context: Context,
     mut ops: OperandSet,
-    expected: bool,
-    offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let a = ops.pull()?.unsigned(&mut context)?;
+    let address = ops.pull()?.unsigned(&mut context)? as usize;
 
-    let condition = a == 0;
+    context
+        .interface
+        .print(&context.memory.extract_string(address, true)?.0)?;
 
-    Ok(context
-        .frame
-        .conditional_branch(offset, condition, expected))
+    Ok(InstructionResult::Continue)
 }
 
-/// 1OP:137
+/// 1OP:137 Detach an object from its parents and siblings
 pub fn remove_obj(
     mut context: Context,
     mut ops: OperandSet,
