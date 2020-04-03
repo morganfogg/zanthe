@@ -181,12 +181,16 @@ impl InstructionSet {
             instructions.extend(
                 [
                     (
+                        TwoOp(0x1A),
+                        Instruction::Normal(&version_gte5::call_2n, "CALL_2N"),
+                    ),
+                    (
                         OneOp(0xF),
                         Instruction::Normal(&version_gte5::call_1n, "CALL_1N"),
                     ),
                     (
-                        TwoOp(0x1A),
-                        Instruction::Normal(&version_gte5::call_2n, "CALL_2N"),
+                        ZeroOp(0xf),
+                        Instruction::Branch(&version_gte5::piracy, "PIRACY"),
                     ),
                     (VarOp(0x18), Instruction::Store(&common::not, "NOT")), // Moved from 1OP:143
                     (

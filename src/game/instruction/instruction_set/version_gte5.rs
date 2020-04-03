@@ -37,6 +37,19 @@ pub fn call_1n(
     })
 }
 
+/// 0OP:191 Branch if game is genuine
+pub fn piracy(
+    mut context: Context,
+    mut ops: OperandSet,
+    expected: bool,
+    offset: i16,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let is_genuine = true; // TODO: Add a way to toggle this
+    Ok(context
+        .frame
+        .conditional_branch(offset, is_genuine, expected))
+}
+
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
 pub fn call_vn(
     mut context: Context,
