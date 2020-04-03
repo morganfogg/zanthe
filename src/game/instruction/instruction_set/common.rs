@@ -77,9 +77,9 @@ pub fn dec_chk(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
     let comparand = ops.pull()?.signed(&mut context)?;
-    let value = (context.get_variable(variable_id)? as i16).wrapping_sub(1);
+    let value = (context.peek_variable(variable_id)? as i16).wrapping_sub(1);
 
-    context.set_variable(variable_id, value as u16);
+    context.poke_variable(variable_id, value as u16)?;
 
     let condition = value < comparand;
 
@@ -97,9 +97,9 @@ pub fn inc_chk(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
     let comparand = ops.pull()?.signed(&mut context)?;
-    let value = (context.get_variable(variable_id)? as i16).wrapping_add(1);
+    let value = (context.peek_variable(variable_id)? as i16).wrapping_add(1);
 
-    context.set_variable(variable_id, value as u16);
+    context.poke_variable(variable_id, value as u16)?;
 
     let condition = value > comparand;
 
@@ -211,7 +211,7 @@ pub fn store(
     let variable = ops.pull()?.unsigned(&mut context)?;
     let value = ops.pull()?.unsigned(&mut context)?;
 
-    context.set_variable(variable.try_into()?, value);
+    context.poke_variable(variable.try_into()?, value)?;
     Ok(InstructionResult::Continue)
 }
 
@@ -488,22 +488,22 @@ pub fn get_prop_len(
 /// 1OP:133 Increment the provided variable.
 pub fn inc(mut context: Context, mut ops: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
-    let value = context.get_variable(variable_id)? as i16;
+    let value = context.peek_variable(variable_id)? as i16;
 
     let result = value.wrapping_add(1) as u16;
 
-    context.set_variable(variable_id, result);
+    context.poke_variable(variable_id, result)?;
     Ok(InstructionResult::Continue)
 }
 
 /// 1OP:134 Decrement the provided variable.
 pub fn dec(mut context: Context, mut ops: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id: u8 = ops.pull()?.unsigned(&mut context)?.try_into()?;
-    let value = context.get_variable(variable_id)? as i16;
+    let value = context.peek_variable(variable_id)? as i16;
 
     let result = value.wrapping_sub(1) as u16;
 
-    context.set_variable(variable_id, result);
+    context.poke_variable(variable_id, result)?;
     Ok(InstructionResult::Continue)
 }
 
@@ -585,7 +585,7 @@ pub fn load(
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let variable_id = ops.pull()?.unsigned(&mut context)?;
-    let value = context.get_variable(variable_id.try_into()?)?;
+    let value = context.peek_variable(variable_id.try_into()?)?;
 
     context.set_variable(store_to, value);
     Ok(InstructionResult::Continue)
@@ -796,7 +796,7 @@ pub fn pull(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let store_to = ops.pull()?.unsigned(&mut context)? as u8;
     let value = context.frame.pop_stack()?;
-    context.set_variable(store_to, value);
+    context.poke_variable(store_to, value)?;
 
     Ok(InstructionResult::Continue)
 }

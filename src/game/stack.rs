@@ -43,7 +43,7 @@ impl StackFrame {
     }
 
     pub fn push_stack(&mut self, value: u16) {
-        self.stack.push(value)
+        self.stack.push(value);
     }
 
     pub fn branch(&mut self, offset: i16) -> InstructionResult {

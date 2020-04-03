@@ -3,6 +3,7 @@ use std::error::Error;
 use log::debug;
 use rand::rngs::StdRng;
 
+use crate::game::error::GameError;
 use crate::game::memory::Memory;
 use crate::game::stack::StackFrame;
 use crate::ui::Interface;
@@ -48,6 +49,36 @@ impl<'a> Context<'a> {
                 self.memory.set_global(variable - 16, value);
             }
         }
+    }
+
+    /// Used by the "indirect variable reference" opcodes. Reads a variable without potentially
+    /// modifying the stack.
+    pub fn peek_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+        if variable == 0 {
+            Ok(*self
+                .frame
+                .stack
+                .last()
+                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))?)
+        } else {
+            self.get_variable(variable)
+        }
+    }
+
+    /// Used by the "indirect variable reference" opcodes. When writing the stack, replace the the
+    /// topmost item in the stack instead of pushing on top of it.
+    pub fn poke_variable(&mut self, variable: u8, value: u16) -> Result<(), Box<dyn Error>> {
+        if variable == 0 {
+            *self
+                .frame
+                .stack
+                .last_mut()
+                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))? =
+                value;
+        } else {
+            self.set_variable(variable, value);
+        }
+        Ok(())
     }
 
     pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
