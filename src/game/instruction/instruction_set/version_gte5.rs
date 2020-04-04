@@ -3,17 +3,18 @@ use std::error::Error;
 use itertools::Itertools;
 
 use crate::game::error::GameError;
-use crate::game::instruction::{Context, OperandSet, Result as InstructionResult};
+use crate::game::instruction::{OperandSet, Result as InstructionResult};
+use crate::game::state::GameState;
 
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.
 pub fn call_2n(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops.pull()?.unsigned(&mut context)?;
-    let address = context.memory.unpack_address(address as usize);
+    let address = ops.pull()?.unsigned(state)?;
+    let address = state.memory.unpack_address(address as usize);
 
-    let argument = ops.pull()?.unsigned(&mut context)?;
+    let argument = ops.pull()?.unsigned(state)?;
 
     Ok(InstructionResult::Invoke {
         address,
@@ -24,11 +25,11 @@ pub fn call_2n(
 
 /// 1OP:143 Calls a routine with no arguments and throws away the result.
 pub fn call_1n(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops.pull()?.unsigned(&mut context)?;
-    let address = context.memory.unpack_address(address as usize);
+    let address = ops.pull()?.unsigned(state)?;
+    let address = state.memory.unpack_address(address as usize);
 
     Ok(InstructionResult::Invoke {
         address,
@@ -39,26 +40,26 @@ pub fn call_1n(
 
 /// 0OP:191 Branch if game is genuine
 pub fn piracy(
-    context: Context,
+    state: &mut GameState,
     _: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let is_genuine = true; // TODO: Add a way to toggle this
-    Ok(context
-        .frame
+    Ok(state
+        .frame()
         .conditional_branch(offset, is_genuine, expected))
 }
 
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
 pub fn call_vn(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops.pull()?.unsigned(&mut context)?;
-    let address = context.memory.unpack_address(address as usize);
+    let address = ops.pull()?.unsigned(state)?;
+    let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
-        .map(|op| op.try_unsigned(&mut context))
+        .map(|op| op.try_unsigned(state))
         .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
         .into_iter()
         .while_some()
@@ -73,13 +74,13 @@ pub fn call_vn(
 
 /// VAR:250 Call a routine with up to 7 arguments and throw away the result.
 pub fn call_vn2(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops.pull()?.unsigned(&mut context)?;
-    let address = context.memory.unpack_address(address as usize);
+    let address = ops.pull()?.unsigned(state)?;
+    let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
-        .map(|op| op.try_unsigned(&mut context))
+        .map(|op| op.try_unsigned(state))
         .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
         .into_iter()
         .while_some()
@@ -94,28 +95,28 @@ pub fn call_vn2(
 
 /// VAR:255 Branches if the argument number (1-indexed) has been provided.
 pub fn check_arg_count(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let index = ops.pull()?.unsigned(&mut context)? as usize;
+    let index = ops.pull()?.unsigned(state)? as usize;
 
-    let condition = index <= context.frame.arg_count;
+    let condition = index <= state.frame().arg_count;
 
-    Ok(context
-        .frame
+    Ok(state
+        .frame()
         .conditional_branch(offset, condition, expected))
 }
 
 /// EXT:2 Logical shift
 pub fn log_shift(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let number = ops.pull()?.unsigned(&mut context)?;
-    let places = ops.pull()?.signed(&mut context)?;
+    let number = ops.pull()?.unsigned(state)?;
+    let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
         return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
     }
@@ -126,18 +127,18 @@ pub fn log_shift(
         number.wrapping_shl(places as u32)
     };
 
-    context.set_variable(store_to, result);
+    state.set_variable(store_to, result);
     Ok(InstructionResult::Continue)
 }
 
 /// EXT:3 Artihmetic shift
 pub fn art_shift(
-    mut context: Context,
+    state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let number = ops.pull()?.signed(&mut context)?;
-    let places = ops.pull()?.signed(&mut context)?;
+    let number = ops.pull()?.signed(state)?;
+    let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
         return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
     }
@@ -148,6 +149,6 @@ pub fn art_shift(
         number.wrapping_shl(places as u32)
     };
 
-    context.set_variable(store_to, result as u16);
+    state.set_variable(store_to, result as u16);
     Ok(InstructionResult::Continue)
 }

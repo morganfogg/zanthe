@@ -1,17 +1,18 @@
 use std::error::Error;
 
-use crate::game::instruction::{Context, OperandSet, Result as InstructionResult};
+use crate::game::instruction::{OperandSet, Result as InstructionResult};
+use crate::game::state::GameState;
 
 /// 0OP:189 Verify the file's checksum
 pub fn verify(
-    context: Context,
+    state: &mut GameState,
     _: OperandSet,
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let condition = context.checksum_valid;
+    let condition = state.checksum_valid;
 
-    Ok(context
-        .frame
+    Ok(state
+        .frame()
         .conditional_branch(offset, condition, expected))
 }

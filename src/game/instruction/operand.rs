@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 
 use crate::game::error::GameError;
-use crate::game::instruction::Context;
+use crate::game::state::GameState;
 
 /// The operands passed to instructions, not including branch, store or string literal operands.
 #[derive(Clone, Copy)]
@@ -14,31 +14,31 @@ pub enum Operand {
 }
 
 impl Operand {
-    pub fn try_unsigned(&self, context: &mut Context) -> Result<Option<u16>, Box<dyn Error>> {
+    pub fn try_unsigned(&self, state: &mut GameState) -> Result<Option<u16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v)),
             Operand::SmallConstant(v) => Ok(Some(u16::from(*v))),
-            Operand::Variable(v) => Ok(Some(context.get_variable(*v)?)),
+            Operand::Variable(v) => Ok(Some(state.get_variable(*v)?)),
             Operand::Omitted => Ok(None),
         }
     }
 
-    pub fn try_signed(&self, context: &mut Context) -> Result<Option<i16>, Box<dyn Error>> {
+    pub fn try_signed(&self, state: &mut GameState) -> Result<Option<i16>, Box<dyn Error>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(*v as i16)),
             Operand::SmallConstant(v) => Ok(Some(*v as i16)),
-            Operand::Variable(v) => Ok(Some(context.get_variable(*v)? as i16)),
+            Operand::Variable(v) => Ok(Some(state.get_variable(*v)? as i16)),
             Operand::Omitted => Ok(None),
         }
     }
 
-    pub fn unsigned(&self, context: &mut Context) -> Result<u16, Box<dyn Error>> {
-        self.try_unsigned(context)?
+    pub fn unsigned(&self, state: &mut GameState) -> Result<u16, Box<dyn Error>> {
+        self.try_unsigned(state)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
     }
 
-    pub fn signed(&self, context: &mut Context) -> Result<i16, Box<dyn Error>> {
-        self.try_signed(context)?
+    pub fn signed(&self, state: &mut GameState) -> Result<i16, Box<dyn Error>> {
+        self.try_signed(state)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
     }
 }

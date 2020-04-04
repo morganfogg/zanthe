@@ -6,8 +6,7 @@ use rand::{rngs::StdRng, SeedableRng};
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
-    Context, Form, Instruction, InstructionSet, OpCode, Operand, OperandSet,
-    Result as InstructionResult,
+    Form, Instruction, InstructionSet, OpCode, Operand, OperandSet, Result as InstructionResult,
 };
 use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
@@ -15,13 +14,13 @@ use crate::ui::Interface;
 
 /// Represents the current state of play.
 pub struct GameState<'a> {
-    memory: Memory,
-    checksum_valid: bool,
-    version: u8,
-    instruction_set: InstructionSet,
+    pub memory: Memory,
+    pub checksum_valid: bool,
+    pub version: u8,
+    pub instruction_set: InstructionSet,
     call_stack: CallStack,
-    interface: &'a mut dyn Interface,
-    rng: StdRng,
+    pub interface: &'a mut dyn Interface,
+    pub rng: StdRng,
 }
 
 impl<'a> GameState<'a> {
@@ -39,14 +38,8 @@ impl<'a> GameState<'a> {
         })
     }
 
-    pub fn context(&mut self) -> Context {
-        Context::new(
-            self.call_stack.frame(),
-            &mut self.memory,
-            self.interface,
-            &mut self.rng,
-            self.checksum_valid,
-        )
+    pub fn frame(&mut self) -> &mut StackFrame {
+        self.call_stack.frame()
     }
 
     /// Start the game
@@ -74,51 +67,46 @@ impl<'a> GameState<'a> {
                     _ => Form::Long,
                 };
             }
-
+            let mut pc = frame.pc;
             match form {
                 Form::Short => {
                     if ((code_byte >> 4) & 0b11) != 3 {
                         operands.push(
                             self.memory
-                                .read_operand_other(&mut frame.pc, (code_byte >> 4) & 0b11),
+                                .read_operand_other(&mut pc, (code_byte >> 4) & 0b11),
                         );
                     }
                 }
                 Form::Variable if self.version >= 5 && (code_byte == 236 || code_byte == 250) => {
-                    let op_types = self.memory.read_word(&mut frame.pc);
+                    let op_types = self.memory.read_word(&mut pc);
                     operands = (0..=14)
                         .rev()
                         .step_by(2)
                         .map(|x| {
-                            self.memory.read_operand_other(
-                                &mut self.call_stack.frame().pc,
-                                ((op_types >> x) & 0b11) as u8,
-                            )
+                            self.memory
+                                .read_operand_other(&mut pc, ((op_types >> x) & 0b11) as u8)
                         })
                         .collect()
                 }
                 Form::Variable | Form::Extended => {
-                    let op_types = self.memory.read_byte(&mut frame.pc);
+                    let op_types = self.memory.read_byte(&mut pc);
                     operands = (0..=6)
                         .rev()
                         .step_by(2)
                         .map(|x| {
-                            self.memory.read_operand_other(
-                                &mut self.call_stack.frame().pc,
-                                (op_types >> x) & 0b11,
-                            )
+                            self.memory
+                                .read_operand_other(&mut pc, (op_types >> x) & 0b11)
                         })
                         .collect();
                 }
                 Form::Long => {
                     for x in (5..=6).rev() {
-                        operands.push(
-                            self.memory
-                                .read_operand_long(&mut frame.pc, (code_byte >> x) & 1),
-                        );
+                        operands.push(self.memory.read_operand_long(&mut pc, (code_byte >> x) & 1));
                     }
                 }
             }
+
+            self.call_stack.frame().pc = pc;
 
             let operands = OperandSet::new(operands);
 
@@ -144,22 +132,22 @@ impl<'a> GameState<'a> {
                 GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
             })?;
 
-            let frame = self.call_stack.frame();
+            let frame = self.frame();
+            let mut pc = frame.pc;
 
             let result = match instruction {
                 Instruction::Normal(f, name) => {
-                    let context = self.context();
                     debug!("{} {} {:?}", op_code, name, operands);
-                    f(context, operands)
+                    f(self, operands)
                 }
                 Instruction::Branch(f, name) => {
-                    let condition = self.memory.get_byte(frame.pc) >> 7 == 1;
-                    let offset = if self.memory.get_byte(frame.pc) >> 6 & 1 == 1 {
+                    let condition = self.memory.get_byte(pc) >> 7 == 1;
+                    let offset = if self.memory.get_byte(pc) >> 6 & 1 == 1 {
                         // The offset is an unsigned 6-bit number.
-                        (self.memory.read_byte(&mut frame.pc) & 0x3f) as i16
+                        (self.memory.read_byte(&mut pc) & 0x3f) as i16
                     } else {
                         // The offset is a signed 14-bit number.
-                        let base = self.memory.read_word(&mut frame.pc);
+                        let base = self.memory.read_word(&mut pc);
                         if base >> 13 == 1 {
                             -((base & 0x1fff) as i16)
                         } else {
@@ -170,27 +158,25 @@ impl<'a> GameState<'a> {
                         "{} {} {:?} IF {} OFFSET {}",
                         op_code, name, operands, condition, offset
                     );
-
-                    let context = self.context();
-                    f(context, operands, condition, offset)
+                    self.frame().pc = pc;
+                    f(self, operands, condition, offset)
                 }
                 Instruction::Store(f, name) => {
-                    let store_to = self.memory.read_byte(&mut frame.pc);
+                    let store_to = self.memory.read_byte(&mut pc);
                     debug!("{} {} {:?} STORE {:x}", op_code, name, operands, store_to);
-
-                    let context = self.context();
-                    f(context, operands, store_to)
+                    self.frame().pc = pc;
+                    f(self, operands, store_to)
                 }
                 Instruction::BranchStore(f, name) => {
-                    let store_to = self.memory.read_byte(&mut frame.pc);
-                    let condition = self.memory.get_byte(frame.pc) >> 7 == 1;
+                    let store_to = self.memory.read_byte(&mut pc);
+                    let condition = self.memory.get_byte(pc) >> 7 == 1;
 
-                    let offset = if self.memory.get_byte(frame.pc) >> 6 & 1 == 1 {
+                    let offset = if self.memory.get_byte(pc) >> 6 & 1 == 1 {
                         // The offset is an unsigned 6-bit number.
-                        (self.memory.read_byte(&mut frame.pc) & 0x3f) as i16
+                        (self.memory.read_byte(&mut pc) & 0x3f) as i16
                     } else {
                         // The offset is a signed 14-bit number.
-                        let base = self.memory.read_word(&mut frame.pc);
+                        let base = self.memory.read_word(&mut pc);
                         if base >> 13 == 1 {
                             -((base & 0x1fff) as i16)
                         } else {
@@ -201,18 +187,16 @@ impl<'a> GameState<'a> {
                         "{} {} {:?} STORE {} IF {} OFFSET {}",
                         op_code, name, operands, store_to, condition, offset
                     );
-
-                    let context = self.context();
-                    f(context, operands, condition, offset, store_to)
+                    self.frame().pc = pc;
+                    f(self, operands, condition, offset, store_to)
                 }
                 Instruction::StringLiteral(f, name) => {
-                    let string = self.memory.read_string(&mut frame.pc).map_err(|e| {
+                    let string = self.memory.read_string(&mut pc).map_err(|e| {
                         GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                     })?;
                     debug!("{} {} {:?}", op_code, name, string);
-
-                    let context = self.context();
-                    f(context, string)
+                    self.frame().pc = pc;
+                    f(self, string)
                 }
             }?;
 
@@ -222,8 +206,7 @@ impl<'a> GameState<'a> {
                 InstructionResult::Return(result) => {
                     let old_frame = self.call_stack.pop()?;
                     if let Some(store_to) = old_frame.store_to {
-                        let mut context = self.context();
-                        context.set_variable(store_to, result);
+                        self.set_variable(store_to, result);
                     }
                 }
                 InstructionResult::Invoke {
@@ -259,5 +242,78 @@ impl<'a> GameState<'a> {
                 }
             }
         }
+    }
+    pub fn set_variable(&mut self, variable: u8, value: u16) {
+        match variable {
+            0x0 => {
+                debug!("SET SP = {0} [{0:x}]", value);
+                self.frame().push_stack(value)
+            }
+            0x1..=0xf => {
+                debug!("SET L{:x} = {1} [{1:x}]", variable - 0x1, value);
+                self.frame().set_local(variable as usize - 1, value);
+            }
+            _ => {
+                debug!("SET G{:x} = {1} [{1:x}]", variable - 0x10, value);
+                self.memory.set_global(variable - 16, value);
+            }
+        }
+    }
+
+    /// Used by the "indirect variable reference" opcodes. Reads a variable without potentially
+    /// modifying the stack.
+    pub fn peek_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+        if variable == 0 {
+            Ok(*self
+                .frame()
+                .stack
+                .last()
+                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))?)
+        } else {
+            self.get_variable(variable)
+        }
+    }
+
+    /// Used by the "indirect variable reference" opcodes. When writing the stack, replace the the
+    /// topmost item in the stack instead of pushing on top of it.
+    pub fn poke_variable(&mut self, variable: u8, value: u16) -> Result<(), Box<dyn Error>> {
+        if variable == 0 {
+            *self
+                .frame()
+                .stack
+                .last_mut()
+                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))? =
+                value;
+        } else {
+            self.set_variable(variable, value);
+        }
+        Ok(())
+    }
+
+    pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+        let result;
+        match variable {
+            0x0 => {
+                result = self.frame().pop_stack();
+                debug!(
+                    "GET SP = {}",
+                    match result {
+                        Ok(v) => format!("{0}, [{0:x}]", v),
+                        Err(_) => "ERROR".to_string(),
+                    }
+                );
+            }
+            0x1..=0xf => {
+                let local = self.frame().get_local(variable as usize - 0x1);
+                debug!("GET L{:x} = {1} [{1:x}]", variable - 0x1, local);
+                result = Ok(local);
+            }
+            _ => {
+                let global = self.memory.get_global(variable - 0x10);
+                debug!("GET G{:x} = {1} [{1:x}]", variable - 0x10, global);
+                result = Ok(global);
+            }
+        };
+        result
     }
 }
