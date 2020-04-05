@@ -1,10 +1,12 @@
 use std::error::Error;
+use std::fmt::Display;
 use std::io::{self, Stdout, Write};
 
 use crossterm::{
     self,
-    cursor::MoveTo,
+    cursor::{MoveLeft, MoveTo},
     event::read,
+    event::{self, Event, KeyCode, KeyEvent},
     execute, queue,
     style::{Attribute, Print, SetAttribute},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -29,7 +31,10 @@ impl TerminalInterface {
         })
     }
 
-    fn write(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+    fn write<T>(&mut self, text: T) -> Result<(), Box<dyn Error>>
+    where
+        T: Display + Clone,
+    {
         if self.text_style.bold {
             queue!(self.stdout, SetAttribute(Attribute::Bold))?;
         }
@@ -41,7 +46,7 @@ impl TerminalInterface {
         }
         queue!(
             self.stdout,
-            Print(text.replace("\n", "\n\r")),
+            Print(format!("{}", text).replace("\n", "\n\r")),
             SetAttribute(Attribute::Reset)
         )?;
         self.stdout.flush()?;
@@ -64,6 +69,40 @@ impl Interface for TerminalInterface {
 
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
         self.print(&text.to_string())
+    }
+
+    fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {
+        let mut line = String::new();
+        loop {
+            match event::read()? {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => {
+                        self.write(&"\n")?;
+                        break;
+                    }
+                    KeyCode::Esc => {
+                        panic!("Yes");
+                    }
+                    KeyCode::Char(c) => {
+                        if line.len() < max_chars {
+                            self.write(c)?;
+                            self.stdout.flush()?;
+                            line.push(c);
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if line.len() > 0 {
+                            queue!(self.stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
+                            self.stdout.flush()?;
+                            line.pop();
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        Ok(line)
     }
 
     fn done(&mut self) -> Result<(), Box<dyn Error>> {

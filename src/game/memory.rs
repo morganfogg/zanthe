@@ -2,6 +2,7 @@ use std::char;
 use std::error::Error;
 use std::iter::successors;
 
+use itertools::Itertools;
 use log::{error, info, warn};
 
 use crate::game::address;
@@ -52,6 +53,13 @@ impl Memory {
     /// Update a byte in memory.
     pub fn set_byte(&mut self, address: usize, content: u8) {
         self.data[address] = content;
+    }
+
+    // Update a series of bytes in memory.
+    pub fn set_bytes(&mut self, address: usize, bytes: &[u8]) {
+        for (dest, src) in self.data[address..].iter_mut().zip(bytes.iter()) {
+            *dest = *src;
+        }
     }
 
     /// Update a word in memory.
@@ -510,7 +518,7 @@ impl Memory {
         }
     }
 
-    /// Decode a Z-Character-encoded string, strating at the given point in memory.
+    /// Decode a Z-Character-encoded string, starting at the given point in memory.
     pub fn extract_string(
         &self,
         start: usize,
@@ -594,6 +602,48 @@ impl Memory {
             }
         }
         Ok((result.iter().collect(), byte_length))
+    }
+
+    pub fn write_string(&mut self, address: u16, text: &str) -> Result<(), Box<dyn Error>> {
+        let alphabet = self.alphabet();
+        if text.len() == 0 {
+            return Ok(());
+        }
+        let mut z_chars = Vec::new();
+        let mut alphabet_table = AlphabetTable::default();
+        for c in text.chars() {
+            if let Some((c, a)) = alphabet.encode_zchar(c) {
+                if a == alphabet_table.next() {
+                    z_chars.push(4);
+                } else if a == alphabet_table.previous() {
+                    z_chars.push(5);
+                }
+                if self.version() < 3 {
+                    alphabet_table = a;
+                }
+
+                z_chars.push(c as u16);
+            } else {
+                z_chars.push(alphabet.encode_zscii(c.to_lowercase().next().unwrap())?)
+            }
+        }
+
+        let mut result = Vec::new();
+        for chunk in &z_chars.iter().chunks(3) {
+            let mut word = 0u16;
+            for (i, ch) in chunk.pad_using(3, |_| &5).enumerate() {
+                word |= ch << (5 * (2 - i));
+            }
+            result.push((word >> 8) as u8);
+            result.push(word as u8);
+        }
+
+        // Add the string terminator
+        let i = result.len() - 2;
+        result[i] |= 1 << 7;
+
+        self.set_bytes(address as usize, &result);
+        Ok(())
     }
 
     /// Calculates and checks the checksum of the file. The interpreter

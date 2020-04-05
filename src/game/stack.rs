@@ -79,6 +79,10 @@ impl CallStack {
         CallStack { frames: Vec::new() }
     }
 
+    pub fn depth(&self) -> usize {
+        self.frames.len()
+    }
+
     pub fn frame(&mut self) -> &mut StackFrame {
         let top = self.frames.len() - 1;
         &mut self.frames[top]

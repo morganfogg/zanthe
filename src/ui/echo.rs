@@ -1,9 +1,12 @@
 use std::error::Error;
+use std::fmt::Display;
 use std::io::{self, Stdout, Write};
 
 use crossterm::{
     self,
+    cursor::MoveLeft,
     event::read,
+    event::{self, Event, KeyCode, KeyEvent},
     queue,
     style::{Attribute, Print, ResetColor, SetAttribute},
 };
@@ -25,7 +28,10 @@ impl EchoInterface {
         }
     }
 
-    fn write(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+    fn write<T>(&mut self, text: T) -> Result<(), Box<dyn Error>>
+    where
+        T: Display + Clone,
+    {
         if self.text_style.bold {
             queue!(self.stdout, SetAttribute(Attribute::Bold))?;
         }
@@ -36,18 +42,21 @@ impl EchoInterface {
             queue!(self.stdout, SetAttribute(Attribute::Reverse))?;
         }
         queue!(self.stdout, Print(text), SetAttribute(Attribute::Reset))?;
-        self.stdout.flush()?;
         Ok(())
     }
 }
 
 impl Interface for EchoInterface {
     fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
-        self.write(text)
+        self.write(&text)?;
+        self.stdout.flush()?;
+        Ok(())
     }
 
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
-        self.write(&text.to_string())
+        self.write(&text.to_string())?;
+        self.stdout.flush()?;
+        Ok(())
     }
 
     fn done(&mut self) -> Result<(), Box<dyn Error>> {
@@ -55,6 +64,35 @@ impl Interface for EchoInterface {
         self.stdout.flush()?;
         read()?;
         Ok(())
+    }
+
+    fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {
+        let mut line = String::new();
+        while let Event::Key(KeyEvent { code, .. }) = event::read()? {
+            match code {
+                KeyCode::Enter => {
+                    self.write(&"\n")?;
+                    self.stdout.flush()?;
+                    break;
+                }
+                KeyCode::Char(c) => {
+                    if line.len() < max_chars {
+                        self.write(&c)?;
+                        self.stdout.flush()?;
+                        line.push(c);
+                    }
+                }
+                KeyCode::Backspace => {
+                    if line.len() > 0 {
+                        queue!(self.stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
+                        self.stdout.flush()?;
+                        line.pop();
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(line)
     }
 
     fn text_style_bold(&mut self) {

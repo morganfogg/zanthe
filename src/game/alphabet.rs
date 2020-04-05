@@ -56,6 +56,13 @@ impl<'a> Alphabet<'a> {
         }
     }
 
+    fn unicode_table(&self) -> &[char] {
+        match &self.unicode_table {
+            None => DEFAULT_UNICODE_TABLE,
+            Some(table) => &table,
+        }
+    }
+
     pub fn value(&self, table: AlphabetTable, char: u8) -> char {
         (match table {
             AlphabetTable::A0 => self.a0,
@@ -65,18 +72,48 @@ impl<'a> Alphabet<'a> {
             .into()
     }
 
+    pub fn encode_zchar(&self, c: char) -> Option<(u8, AlphabetTable)> {
+        match u8::try_from(c as u32) {
+            Err(_) => None,
+            Ok(c) => {
+                if let Some(v) = self.a0.iter().position(|&x| x == c) {
+                    Some((v as u8 + 6, AlphabetTable::A0))
+                } else if let Some(v) = self.a1.iter().position(|&x| x == c) {
+                    Some((v as u8 + 6, AlphabetTable::A1))
+                } else if let Some(v) = self.a2.iter().position(|&x| x == c) {
+                    Some((v as u8 + 6, AlphabetTable::A2))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     /// Transform a ZSCII output code into a char.
     pub fn decode_zscii(&self, value: u16) -> Result<Option<char>, Box<dyn Error>> {
         match value {
             0 => Ok(None),
             13 => Ok(Some('\n')),
             32..=126 => Ok(Some(char::try_from(value as u32)?)),
-            c @ 155..=251 => match &self.unicode_table {
-                None => Ok(Some(DEFAULT_UNICODE_TABLE[c as usize - 155])),
-                Some(table) => Ok(Some(table[c as usize - 155])),
-            },
+            c @ 155..=251 => Ok(Some(self.unicode_table()[c as usize - 155])),
             _ => Err(GameError::InvalidOperation("Invalid ZSCII sequence".into()).into()),
         }
+    }
+
+    /// Transform a character into a ZSCII code
+    pub fn encode_zscii(&self, value: char) -> Result<u16, Box<dyn Error>> {
+        let codepoint = value as u32;
+
+        if codepoint >= 32 && codepoint <= 126 {
+            return Ok(codepoint as u16);
+        }
+        if value == '\n' {
+            return Ok(13);
+        }
+        if let Some(p) = self.unicode_table().iter().position(|&x| x == value) {
+            return Ok(p as u16);
+        }
+        return Err(GameError::InvalidOperation("Invalid input character".into()).into());
     }
 }
 

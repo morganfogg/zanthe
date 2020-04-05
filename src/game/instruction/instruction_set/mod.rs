@@ -200,6 +200,10 @@ impl InstructionSet {
                         ZeroOp(0xf),
                         Instruction::Branch(&version_gte5::piracy, "PIRACY"),
                     ),
+                    (
+                        VarOp(0x4),
+                        Instruction::Store(&version_gte5::aread, "AREAD"),
+                    ),
                     (VarOp(0x18), Instruction::Store(&common::not, "NOT")), // Moved from 1OP:143
                     (
                         VarOp(0x19),

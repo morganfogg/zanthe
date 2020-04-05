@@ -51,6 +51,26 @@ pub fn piracy(
         .conditional_branch(offset, is_genuine, expected))
 }
 
+// /// VAR:228 Read a string from the user
+pub fn aread(
+    state: &mut GameState,
+    mut ops: OperandSet,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let address = ops.pull()?.unsigned(state)?;
+    let max_characters = state.memory.get_byte(address as usize);
+
+    let string = state.interface.read_line(max_characters as usize)?;
+
+    state
+        .memory
+        .set_byte(address as usize + 1, string.len() as u8);
+
+    state.memory.write_string(address + 2, &string)?;
+
+    Ok(InstructionResult::Continue)
+}
+
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
 pub fn call_vn(
     state: &mut GameState,

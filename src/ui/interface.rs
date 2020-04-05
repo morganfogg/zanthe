@@ -26,6 +26,8 @@ pub trait Interface {
     /// Remove all text styles
     fn text_style_clear(&mut self);
 
+    fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>>;
+
     /// Close the UI immediately.
     fn quit(&mut self);
 }
