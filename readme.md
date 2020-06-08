@@ -1,6 +1,6 @@
 # Zanthe (WIP)
 
-![Rust](https://github.com/morganfogg/zanthe/workflows/Rust/badge.svg)
+![Build](https://github.com/morganfogg/zanthe/workflows/Build/badge.svg)
 
 A Z-Machine interpreter. 
 
