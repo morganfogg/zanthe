@@ -1,6 +1,7 @@
 use std::char;
+use std::convert::TryInto;
 use std::error::Error;
-use std::iter::successors;
+use std::iter::{from_fn, successors};
 
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -12,6 +13,7 @@ use crate::game::instruction::Operand;
 use crate::game::property::Property;
 
 /// Represents the game's internal memory.
+
 pub struct Memory {
     data: Vec<u8>,
 }
@@ -33,7 +35,7 @@ impl Memory {
 
     /// Return a series of bytes from the memory.
     pub fn get_bytes(&self, start: usize, length: usize) -> Vec<u8> {
-        self.data[start..start + length].iter().cloned().collect()
+        self.data[start..start + length].to_vec()
     }
 
     /// Read a byte from the memory, placing the cursor at the end of the word.
@@ -161,8 +163,8 @@ impl Memory {
     }
 
     /// Return the location of the dictionary table
-    fn dictionary_location(&self) -> u16 {
-        self.get_word(address::DICTIONARY_LOCATION)
+    fn dictionary_location(&self) -> usize {
+        self.get_word(address::DICTIONARY_LOCATION).into()
     }
 
     /// Returns the location of the header extension table.
@@ -178,7 +180,7 @@ impl Memory {
                 + (2 * address::UNICODE_TRANSLATION_TABLE_LOCATION),
         ) {
             0 => None,
-            addr @ _ => {
+            addr => {
                 let mut cursor = addr as usize;
                 let table_length = self.read_byte(&mut cursor) as usize;
                 (0..table_length)
@@ -425,18 +427,18 @@ impl Memory {
                 let data_length = (size_byte + 1) / 32;
                 let property_number = (size_byte + 1) % 32;
 
-                return Some(Property {
+                Some(Property {
                     number: property_number as u16,
                     address: address as u16,
                     data_address,
                     data: self.get_bytes(data_address as usize, data_length as usize),
-                });
+                })
             }
             _ => {
                 let mut cursor = address as usize;
                 let size_byte = self.read_byte(&mut cursor);
                 let mut data_address = cursor as u16;
-                let property_number = size_byte & 0b111111;
+                let property_number = size_byte & 0b11_1111;
                 if property_number == 0 {
                     return None;
                 }
@@ -445,7 +447,7 @@ impl Memory {
                 let mut data_length;
                 if has_second_size_byte {
                     data_address += 1;
-                    data_length = self.get_byte(cursor) & 0b111111;
+                    data_length = self.get_byte(cursor) & 0b11_1111;
                     if data_length == 0 {
                         data_length = 64;
                     }
@@ -453,13 +455,21 @@ impl Memory {
                     data_length = (size_byte >> 6) + 1;
                 }
 
-                return Some(Property {
+                Some(Property {
                     number: property_number as u16,
                     address: address as u16,
                     data_address,
                     data: self.get_bytes(data_address as usize, data_length as usize),
-                });
+                })
             }
+        }
+    }
+
+    pub fn property_data_length(&self, data_addr: usize) -> u16 {
+        if (self.data[data_addr - 1] >> 7) == 1 {
+            self.get_word(data_addr - 2)
+        } else {
+            self.get_byte(data_addr - 1) as u16
         }
     }
 
@@ -481,6 +491,42 @@ impl Memory {
         self.property_iter(object)
             .skip_while(|p| p.number != number)
             .nth(1)
+    }
+
+    pub fn word_seperators(&self) -> Result<Vec<char>, Box<dyn Error>> {
+        let alphabet = self.alphabet();
+        let mut cursor = self.dictionary_location();
+        let count = self.read_byte(&mut cursor);
+        let mut result = Vec::new();
+        for _ in 0..count {
+            let c = alphabet
+                .decode_zscii(self.read_byte(&mut cursor).into())?
+                .ok_or_else(|| GameError::InvalidOperation("No!".into()))?;
+            result.push(c);
+        }
+        Ok(result)
+    }
+
+    fn dictionary(&self) -> Result<Vec<(usize, String)>, Box<dyn Error>> {
+        let mut cursor = self.dictionary_location();
+        let separator_count = self.read_byte(&mut cursor) as usize;
+        cursor += separator_count;
+
+        let entry_length = self.read_byte(&mut cursor) as usize;
+        let entry_count = self.read_word(&mut cursor) as usize;
+
+        let mut result = Vec::new();
+
+        for i in 0..entry_count {
+            let address = cursor + (i * entry_length);
+            let text = self.extract_string(address, true)?.0;
+            result.push((address, text));
+        }
+        Ok(result)
+    }
+
+    fn dictionary_entry_address(&self, text: &str) -> Result<Option<usize>, Box<dyn Error>> {
+        Ok(self.dictionary()?.iter().find(|x| x.1 == text).map(|x| x.0))
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
@@ -604,45 +650,77 @@ impl Memory {
         Ok((result.iter().collect(), byte_length))
     }
 
-    pub fn write_string(&mut self, address: u16, text: &str) -> Result<(), Box<dyn Error>> {
+    pub fn write_string(&mut self, mut address: usize, text: &str) -> Result<(), Box<dyn Error>> {
         let alphabet = self.alphabet();
-        if text.len() == 0 {
-            return Ok(());
+
+        // Skip the 'expected size' byte
+        address += 1;
+
+        if self.version() >= 5 {
+            self.write_byte(&mut address, text.len().try_into()?);
         }
-        let mut z_chars = Vec::new();
-        let mut alphabet_table = AlphabetTable::default();
+
         for c in text.chars() {
-            if let Some((c, a)) = alphabet.encode_zchar(c) {
-                if a == alphabet_table.next() {
-                    z_chars.push(4);
-                } else if a == alphabet_table.previous() {
-                    z_chars.push(5);
-                }
-                if self.version() < 3 {
-                    alphabet_table = a;
-                }
-
-                z_chars.push(c as u16);
-            } else {
-                z_chars.push(alphabet.encode_zscii(c.to_lowercase().next().unwrap())?)
-            }
+            let zscii = alphabet.encode_zscii(c)?;
+            self.write_byte(&mut address, zscii);
         }
 
-        let mut result = Vec::new();
-        for chunk in &z_chars.iter().chunks(3) {
-            let mut word = 0u16;
-            for (i, ch) in chunk.pad_using(3, |_| &5).enumerate() {
-                word |= ch << (5 * (2 - i));
-            }
-            result.push((word >> 8) as u8);
-            result.push(word as u8);
+        if self.version() < 5 {
+            self.write_byte(&mut address, 0);
         }
 
-        // Add the string terminator
-        let i = result.len() - 2;
-        result[i] |= 1 << 7;
+        Ok(())
+    }
 
-        self.set_bytes(address as usize, &result);
+    pub fn parse_string(
+        &mut self,
+        mut cursor: usize,
+        text: &str,
+        max_words: usize,
+    ) -> Result<(), Box<dyn Error>> {
+        let separators = self.word_seperators()?;
+        let mut new_word = true;
+        let words = text
+            .chars()
+            .enumerate()
+            .fold(Vec::new(), |mut acc, (i, cur)| {
+                if cur == ' ' {
+                    new_word = true;
+                    return acc;
+                }
+                if separators.contains(&cur) {
+                    acc.push((i, cur.to_string()));
+                    new_word = true;
+                } else if new_word {
+                    new_word = false;
+                    acc.push((i, cur.to_string()))
+                } else {
+                    let len = acc.len();
+                    acc[len - 1].1.push(cur);
+                }
+                acc
+            });
+        println!("{:?}", words);
+        let words = words.iter().take(max_words);
+
+        let dictionary = self.dictionary()?;
+        println!("{:?}", dictionary);
+        cursor += 1;
+        self.write_byte(&mut cursor, words.len() as u8);
+        for (i, word) in words {
+            let dictionary_address = dictionary.iter().find(|e| &e.1 == word);
+
+            println!("{:?}", dictionary_address);
+            let dictionary_address = dictionary_address.map(|e| e.0 as u16).unwrap_or(0);
+
+            let chars = word.chars().count();
+            let buffer_offset = i + 1;
+
+            self.write_word(&mut cursor, dictionary_address);
+            self.write_byte(&mut cursor, chars as u8);
+            self.write_byte(&mut cursor, buffer_offset as u8)
+        }
+
         Ok(())
     }
 
@@ -664,7 +742,7 @@ impl Memory {
         }
 
         let expected: usize = self.checksum().into();
-        let result: usize = self.data[0x40..file_length.into()]
+        let result: usize = self.data[0x40..file_length]
             .iter()
             .fold(0usize, |acc, &x| acc + usize::from(x))
             % 0x10000;

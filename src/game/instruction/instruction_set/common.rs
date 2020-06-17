@@ -1,3 +1,4 @@
+use log::warn;
 use std::cmp::Ordering;
 use std::convert::TryInto;
 use std::error::Error;
@@ -7,7 +8,10 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::game::error::GameError;
-use crate::game::instruction::{OperandSet, Result as InstructionResult};
+use crate::game::instruction::{
+    OperandSet,
+    Result::{self as InstructionResult, *},
+};
 use crate::game::state::GameState;
 
 ///20P:1 Branch if the first operand is equal to any subsequent operands
@@ -118,7 +122,12 @@ pub fn jin(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_a = ops.pull()?.unsigned(state)?;
     let object_b = ops.pull()?.unsigned(state)?;
-    let parent = state.memory.object_parent(object_a);
+    let parent = if object_a == 0 || object_b == 0 {
+        warn!("@jin called with object 0");
+        0
+    } else {
+        state.memory.object_parent(object_a)
+    };
 
     let condition = object_b == parent;
 
@@ -157,7 +166,7 @@ pub fn or(
 
     state.set_variable(store_to, result);
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 // 2OP:9 Bitwise AND
@@ -173,7 +182,7 @@ pub fn and(
 
     state.set_variable(store_to, result);
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:10 Jump of the object has the given attribute
@@ -185,8 +194,12 @@ pub fn test_attr(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
-
-    let flag_set = state.memory.object_attribute(object_id, attribute);
+    let flag_set = if object_id == 0 {
+        warn!("test_attr called with object 0");
+        false
+    } else {
+        state.memory.object_attribute(object_id, attribute)
+    };
 
     Ok(state.frame().conditional_branch(offset, flag_set, expected))
 }
@@ -198,12 +211,15 @@ pub fn set_attr(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
+    if object_id == 0 {
+        warn!("set_attr called on object 0");
+    } else {
+        state
+            .memory
+            .update_object_attribute(object_id, attribute, true);
+    }
 
-    state
-        .memory
-        .update_object_attribute(object_id, attribute, true);
-
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:12 Set the attribute on the provided object to false
@@ -213,12 +229,14 @@ pub fn clear_attr(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
-
-    state
-        .memory
-        .update_object_attribute(object_id, attribute, false);
-
-    Ok(InstructionResult::Continue)
+    if object_id == 0 {
+        warn!("@clear_attr called on object 0")
+    } else {
+        state
+            .memory
+            .update_object_attribute(object_id, attribute, false);
+    }
+    Ok(Continue)
 }
 
 /// 2OP:13 Set the variable referenced by the operand to value
@@ -230,7 +248,7 @@ pub fn store(
     let value = ops.pull()?.unsigned(state)?;
 
     state.poke_variable(variable.try_into()?, value)?;
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:14 Move object to be the first child of the destination object
@@ -240,6 +258,11 @@ pub fn insert_obj(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object = ops.pull()?.unsigned(state)?;
     let destination = ops.pull()?.unsigned(state)?;
+    if object == 0 || destination == 0 {
+        warn!("insert_obj called with object 0");
+        return Ok(Continue);
+    }
+
     let old_child = state.memory.object_child(destination);
 
     state.memory.detach_object(object);
@@ -248,7 +271,7 @@ pub fn insert_obj(
     state.memory.set_object_child(destination, object);
     state.memory.set_object_sibling(object, old_child);
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:15 Store a word found at the given array and word index.
@@ -262,7 +285,7 @@ pub fn loadw(
     let word = state.memory.get_word(usize::from(array + (2 * word_index)));
 
     state.set_variable(store_to, word);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:16 Store a byte found at the given array and byte index.
@@ -276,7 +299,7 @@ pub fn loadb(
     let byte = state.memory.get_byte(usize::from(array + byte_index));
 
     state.set_variable(store_to, byte as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:17 Return the data of the specified property
@@ -288,15 +311,19 @@ pub fn get_prop(
     let object = ops.pull()?.unsigned(state)?;
     let property = ops.pull()?.unsigned(state)?;
 
-    let data = state
-        .memory
-        .property(object, property)
-        .map(|prop| prop.data_to_u16())
-        .transpose()?
-        .unwrap_or_else(|| state.memory.default_property(property));
-
+    let data = if object == 0 {
+        warn!("get_prop called with object 0");
+        0
+    } else {
+        state
+            .memory
+            .property(object, property)
+            .map(|prop| prop.data_to_u16())
+            .transpose()?
+            .unwrap_or_else(|| state.memory.default_property(property))
+    };
     state.set_variable(store_to, data);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:18 Return the byte address of the specified property data
@@ -308,14 +335,19 @@ pub fn get_prop_addr(
     let object = ops.pull()?.unsigned(state)?;
     let property = ops.pull()?.unsigned(state)?;
 
-    let address = state
-        .memory
-        .property(object, property)
-        .map(|prop| prop.address)
-        .unwrap_or(0);
+    let address = if object == 0 {
+        warn!("@get-prop_addr called with 0");
+        0
+    } else {
+        state
+            .memory
+            .property(object, property)
+            .map(|prop| prop.data_address)
+            .unwrap_or(0)
+    };
 
     state.set_variable(store_to, address);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:19 Get the number of the next property after the proided one
@@ -325,6 +357,13 @@ pub fn get_next_prop(
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object = ops.pull()?.unsigned(state)?;
+
+    if object == 0 {
+        warn!("@get_next_prop called with object 0");
+        state.set_variable(store_to, 0);
+        return Ok(Continue);
+    }
+
     let property = ops.pull()?.unsigned(state)?;
 
     let next_prop = if property == 0 {
@@ -336,7 +375,7 @@ pub fn get_next_prop(
     let next_prop_number = next_prop.map(|p| p.number).unwrap_or(0);
 
     state.set_variable(store_to, next_prop_number);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:20 Signed 16-bit addition
@@ -350,7 +389,7 @@ pub fn add(
     let result = first.wrapping_add(second);
 
     state.set_variable(store_to, result as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 // 2OP:21 Signed 16-bit subtraction
@@ -364,7 +403,7 @@ pub fn sub(
     let result = first.wrapping_sub(second);
 
     state.set_variable(store_to, result as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:22 Signed 16-bit multiplication.
@@ -379,7 +418,7 @@ pub fn mul(
     let result = first.wrapping_mul(second);
 
     state.set_variable(store_to, result as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:23 Signed 16-bit division.
@@ -398,7 +437,7 @@ pub fn div(
     let result = first.wrapping_div(second);
 
     state.set_variable(store_to, result as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 2OP:24 Signed 16-bit modulo.
@@ -417,7 +456,7 @@ pub fn z_mod(
     let result = first.wrapping_rem(second);
 
     state.set_variable(store_to, result as u16);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:128 Jump if the argument equals zero.
@@ -446,7 +485,12 @@ pub fn get_sibling(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
 
-    let result = state.memory.object_sibling(object_id);
+    let result = if object_id == 0 {
+        warn!("@get_sibling called with object 0");
+        0
+    } else {
+        state.memory.object_sibling(object_id)
+    };
 
     state.set_variable(store_to, result);
 
@@ -466,8 +510,12 @@ pub fn get_child(
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
-
-    let result = state.memory.object_child(object_id);
+    let result = if object_id == 0 {
+        warn!("@get_child called with object 0");
+        0
+    } else {
+        state.memory.object_child(object_id)
+    };
 
     state.set_variable(store_to, result);
 
@@ -486,10 +534,15 @@ pub fn get_parent(
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object_id = ops.pull()?.unsigned(state)?;
 
-    let result = state.memory.object_parent(object_id);
+    let result = if object_id == 0 {
+        warn!("@get_parent called with object 0");
+        0
+    } else {
+        state.memory.object_parent(object_id)
+    };
 
     state.set_variable(store_to, result);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:132 Get the length of propery at the provided address
@@ -503,18 +556,10 @@ pub fn get_prop_len(
     let result = if address == 0 {
         0
     } else {
-        state
-            .memory
-            .property_at_address(address as usize)
-            .map(|p| p.data.len())
-            .ok_or_else(|| {
-                GameError::InvalidOperation(
-                    "Cannot get length of property that does not exist".into(),
-                )
-            })?
+        state.memory.property_data_length(address as usize)
     };
     state.set_variable(store_to, result.try_into()?);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:133 Increment the provided variable.
@@ -528,7 +573,7 @@ pub fn inc(
     let result = value.wrapping_add(1) as u16;
 
     state.poke_variable(variable_id, result)?;
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:134 Decrement the provided variable.
@@ -542,7 +587,7 @@ pub fn dec(
     let result = value.wrapping_sub(1) as u16;
 
     state.poke_variable(variable_id, result)?;
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:135 Prints a string stored at a padded address.
@@ -556,7 +601,7 @@ pub fn print_addr(
         .interface
         .print(&state.memory.extract_string(address, true)?.0)?;
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:137 Detach an object from its parents and siblings
@@ -565,10 +610,13 @@ pub fn remove_obj(
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
     let object = ops.pull()?.unsigned(state)?;
+    if object == 0 {
+        warn!("remove_obj called with object 0");
+    } else {
+        state.memory.detach_object(object);
+    }
 
-    state.memory.detach_object(object);
-
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:138 Print the short name of the given object.
@@ -581,7 +629,7 @@ pub fn print_obj(
         .interface
         .print(&state.memory.object_short_name(object)?)?;
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:139 Returns from the current routine with the given value
@@ -589,7 +637,7 @@ pub fn ret(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Return(ops.pull()?.unsigned(state)?))
+    Ok(Return(ops.pull()?.unsigned(state)?))
 }
 
 /// 1OP:140 Jump unconditionally
@@ -613,7 +661,7 @@ pub fn print_paddr(
         .interface
         .print(&state.memory.extract_string(address, true)?.0)?;
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:142 Load the variable referred to by the operand into the result
@@ -626,7 +674,7 @@ pub fn load(
     let value = state.peek_variable(variable_id.try_into()?)?;
 
     state.set_variable(store_to, value);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 1OP:143 (v1-4)
@@ -641,23 +689,23 @@ pub fn not(
     let result = !op;
 
     state.set_variable(store_to, result);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 0OP:176 Returns true (1).
 pub fn rtrue(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Return(1))
+    Ok(Return(1))
 }
 
 /// 0OP:177 Returns false (0).
 pub fn rfalse(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Return(0))
+    Ok(Return(0))
 }
 
 /// 0OP:178 Prints a string stored immediately after the instruction.
 pub fn print(state: &mut GameState, string: String) -> Result<InstructionResult, Box<dyn Error>> {
     state.interface.print(&string)?;
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 0OP:179 Prints a literal string, prints a newline then returns from the current routine.
@@ -668,12 +716,12 @@ pub fn print_ret(
     state.interface.print(&string)?;
     state.interface.print(&"\n")?;
 
-    Ok(InstructionResult::Return(1))
+    Ok(Return(1))
 }
 
 /// 0OP:180 Does nothing.
 pub fn nop(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// 0OP:184 Returns the top of the stack.
@@ -681,19 +729,19 @@ pub fn ret_popped(
     state: &mut GameState,
     _: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Return(state.frame().pop_stack()?))
+    Ok(Return(state.frame().pop_stack()?))
 }
 
 /// 0OP:186 Exits the game.
 pub fn quit(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
-    Ok(InstructionResult::Quit)
+    Ok(Quit)
 }
 
 /// 0OP:187 Prints a newline
 pub fn new_line(state: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
     state.interface.print(&"\n")?;
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:224 Calls a routine with up to 3 operands and stores the result. If the address is
@@ -706,7 +754,7 @@ pub fn call(
     let address = ops.pull()?.unsigned(state)?;
     if address == 0 {
         state.set_variable(store_to, 0);
-        return Ok(InstructionResult::Continue);
+        return Ok(Continue);
     }
 
     let address = state.memory.unpack_address(address as usize);
@@ -717,7 +765,7 @@ pub fn call(
         .while_some()
         .collect();
 
-    Ok(InstructionResult::Invoke {
+    Ok(Invoke {
         address,
         arguments: Some(arguments),
         store_to: Some(store_to),
@@ -736,7 +784,7 @@ pub fn storew(
     state
         .memory
         .set_word(usize::from(array + 2 * word_index), value);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:226 Store a byte in the given array and word index
@@ -751,7 +799,7 @@ pub fn storeb(
     state
         .memory
         .set_byte(usize::from(array + byte_index), value as u8);
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:227 Update the property data of the goven object
@@ -780,7 +828,7 @@ pub fn put_prop(
             .into())
         }
     }
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:229 Print a ZSCII character
@@ -795,7 +843,7 @@ pub fn print_char(
         state.interface.print_char(char)?;
     }
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:230 Print a signed number.
@@ -806,7 +854,7 @@ pub fn print_num(
     let num = ops.pull()?.signed(state)?;
 
     state.interface.print(&format!("{}", num))?;
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:231 If the argument is >0, store a random number between 1 and the argument. If it is
@@ -832,7 +880,7 @@ pub fn random(
         }
     };
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:232 Pushes a value to the stack.
@@ -843,7 +891,7 @@ pub fn push(
     let value = ops.pull()?.unsigned(state)?;
     state.frame().push_stack(value);
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }
 
 /// VAR:233 Pulls a value off the stack and stores it.
@@ -855,5 +903,5 @@ pub fn pull(
     let value = state.frame().pop_stack()?;
     state.poke_variable(store_to, value)?;
 
-    Ok(InstructionResult::Continue)
+    Ok(Continue)
 }

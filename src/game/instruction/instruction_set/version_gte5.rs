@@ -57,16 +57,37 @@ pub fn aread(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let address = ops.pull()?.unsigned(state)?;
-    let max_characters = state.memory.get_byte(address as usize);
+    let text_address = ops.pull()?.unsigned(state)?;
+    let parse_address = ops.pull()?.try_unsigned(state)?;
+
+    let max_characters = state.memory.get_byte(text_address as usize);
+    if max_characters < 3 {
+        return Err(
+            GameError::InvalidOperation("Text buffer cannot be less than 3 bytes".into()).into(),
+        );
+    }
 
     let string = state.interface.read_line(max_characters as usize)?;
 
     state
         .memory
-        .set_byte(address as usize + 1, string.len() as u8);
+        .set_byte(text_address as usize + 1, string.len() as u8);
 
-    state.memory.write_string(address + 2, &string)?;
+    state.set_variable(store_to, 13);
+    state.memory.write_string(text_address as usize, &string)?;
+
+    if let Some(parse_address) = parse_address {
+        let max_words = state.memory.get_byte(parse_address as usize);
+        if max_words < 6 {
+            return Err(GameError::InvalidOperation(
+                "Parse buffer cannot be less than 6 bytes".into(),
+            )
+            .into());
+        }
+        state
+            .memory
+            .parse_string(parse_address as usize, &string, max_words as usize)?;
+    }
 
     Ok(InstructionResult::Continue)
 }

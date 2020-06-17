@@ -91,7 +91,7 @@ impl Interface for TerminalInterface {
                         }
                     }
                     KeyCode::Backspace => {
-                        if line.len() > 0 {
+                        if !line.is_empty() {
                             queue!(self.stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
                             self.stdout.flush()?;
                             line.pop();

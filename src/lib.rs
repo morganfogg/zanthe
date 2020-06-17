@@ -20,12 +20,11 @@ pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
         .open("main.log")
         .map_err(|e| format!("Couldn't prepare log file: {}", e))?;
 
-    let log_level;
-    if args.is_present("debug") {
-        log_level = LevelFilter::Debug;
+    let log_level = if args.is_present("debug") {
+        LevelFilter::Debug
     } else {
-        log_level = LevelFilter::Info;
-    }
+        LevelFilter::Info
+    };
 
     let config = ConfigBuilder::new()
         .set_target_level(LevelFilter::Trace)
@@ -33,7 +32,7 @@ pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
         .build();
 
     if let Err(e) = WriteLogger::init(log_level, config, log_file) {
-        return Err(format!("Couldn't start logger: {}", e).into()).into();
+        return Err(format!("Couldn't start logger: {}", e).into());
     };
 
     let game_file = fs::read(args.value_of("INPUT").unwrap())
