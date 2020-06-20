@@ -45,20 +45,23 @@ impl<'a> GameState<'a> {
             interface,
         })
     }
-    
+
     pub fn frame(&mut self) -> &mut StackFrame {
         self.call_stack.frame()
     }
 
-    pub fn save_undo(&mut self) {
+    pub fn save_undo(&mut self, restore_flag: u8) {
+        self.set_variable(restore_flag, 2);
         self.undo_buffer.push(UndoBufferEntry {
             memory: self.memory.clone(),
             call_stack: self.call_stack.clone(),
             rng: self.rng.clone(),
         });
+
+        self.poke_variable(restore_flag, 1).unwrap();
     }
-    
-    pub fn load_undo(&mut self) -> bool {
+
+    pub fn restore_undo(&mut self) -> bool {
         if let Some(buffer) = self.undo_buffer.pop() {
             self.memory = buffer.memory;
             self.call_stack = buffer.call_stack;
@@ -68,7 +71,7 @@ impl<'a> GameState<'a> {
             false
         }
     }
-    
+
     fn next_op(&mut self) -> Result<InstructionResult, Box<dyn Error>> {
         let frame = self.call_stack.frame();
         debug!("--------------------------------------");

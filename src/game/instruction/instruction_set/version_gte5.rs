@@ -25,6 +25,8 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0x1F), Branch(&check_arg_count, "CHEC_ARG_COUNT")),
         (Extended(0x2), Store(&log_shift, "LOG_SHIFT")),
         (Extended(0x3), Store(&art_shift, "ART_SHIFT")),
+        (Extended(0x9), Store(&save_undo, "SAVE_UNDO")),
+        (Extended(0xA), Store(&restore_undo, "RESTORE_UNDO")),
     ]
     .into_iter()
     .collect()
@@ -215,5 +217,28 @@ fn art_shift(
     };
 
     state.set_variable(store_to, result as u16);
+    Ok(InstructionResult::Continue)
+}
+
+/// EXT:9 Save the current game state to the undo buffer.
+fn save_undo(
+    state: &mut GameState,
+    mut _ops: OperandSet,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    state.save_undo(store_to);
+    Ok(InstructionResult::Continue)
+}
+
+/// EXT:10 Load the most recent undo state.
+fn restore_undo(
+    state: &mut GameState,
+    mut _ops: OperandSet,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let success = state.restore_undo();
+    if !success {
+        state.set_variable(store_to, 0);
+    }
     Ok(InstructionResult::Continue)
 }
