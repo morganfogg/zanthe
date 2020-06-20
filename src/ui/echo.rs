@@ -11,6 +11,7 @@ use crossterm::{
     style::{Attribute, Print, ResetColor, SetAttribute},
 };
 
+use crate::game::InputCode;
 use crate::ui::{Interface, TextStyle};
 
 /// A less advanced terminal interface that just echos instead of using a TUI.
@@ -64,6 +65,25 @@ impl Interface for EchoInterface {
         self.stdout.flush()?;
         read()?;
         Ok(())
+    }
+
+    fn read_char(&mut self) -> Result<InputCode, Box<dyn Error>> {
+        loop {
+            match event::read()? {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => return Ok(InputCode::Newline),
+                    KeyCode::Char(c) => return Ok(InputCode::Character(c)),
+                    KeyCode::Up => return Ok(InputCode::CursorUp),
+                    KeyCode::Down => return Ok(InputCode::CursorDown),
+                    KeyCode::Left => return Ok(InputCode::CursorLeft),
+                    KeyCode::Right => return Ok(InputCode::CursorRight),
+                    KeyCode::Backspace | KeyCode::Delete => return Ok(InputCode::Delete),
+                    KeyCode::Esc => return Ok(InputCode::Escape),
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
     }
 
     fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {

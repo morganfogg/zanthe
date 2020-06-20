@@ -280,9 +280,9 @@ pub fn loadw(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops.pull()?.unsigned(state)?;
-    let word_index = ops.pull()?.unsigned(state)?;
-    let word = state.memory.get_word(usize::from(array + (2 * word_index)));
+    let array: usize = ops.pull()?.unsigned(state)?.into();
+    let word_index: usize = ops.pull()?.unsigned(state)?.into();
+    let word = state.memory.get_word(array + (2 * word_index));
 
     state.set_variable(store_to, word);
     Ok(Continue)

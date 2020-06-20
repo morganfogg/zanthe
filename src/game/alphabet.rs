@@ -2,6 +2,8 @@ use crate::game::error::GameError;
 use std::convert::TryFrom;
 use std::error::Error;
 
+use crate::game::InputCode;
+
 const ALPHABET_0: &[char; 26] = &[
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
     't', 'u', 'v', 'w', 'x', 'y', 'z',
@@ -102,7 +104,7 @@ impl Alphabet {
     }
 
     /// Transform a character into a ZSCII code
-    pub fn encode_zscii(&self, value: char) -> Result<u8, Box<dyn Error>> {
+    pub fn zscii_from_char(&self, value: char) -> Result<u8, Box<dyn Error>> {
         let codepoint = value as u32;
 
         if codepoint >= 32 && codepoint <= 126 {
@@ -113,6 +115,20 @@ impl Alphabet {
             Ok(p as u8 + 155)
         } else {
             Err(GameError::InvalidOperation("Invalid input character".into()).into())
+        }
+    }
+
+    pub fn zscii_from_code(&self, value: InputCode) -> Result<u8, Box<dyn Error>> {
+        use InputCode::*;
+        match value {
+            Delete => Ok(8),
+            Newline => Ok(13),
+            Escape => Ok(27),
+            CursorUp => Ok(129),
+            CursorDown => Ok(130),
+            CursorLeft => Ok(131),
+            CursorRight => Ok(132),
+            Character(c) => self.zscii_from_char(c),
         }
     }
 }

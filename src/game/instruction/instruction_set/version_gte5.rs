@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use itertools::Itertools;
+use log::warn;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{OperandSet, Result as InstructionResult};
@@ -159,7 +160,7 @@ pub fn log_shift(
     let number = ops.pull()?.unsigned(state)?;
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
-        return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
+        warn!("Attempted to bitshift more than 15 places. This is unspecified behaviour.");
     }
 
     let result = if places < 0 {
@@ -181,7 +182,7 @@ pub fn art_shift(
     let number = ops.pull()?.signed(state)?;
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
-        return Err(GameError::InvalidOperation("Shift cannot exceed 15".into()).into());
+        warn!("Attempted to bitshift more than 15 places. This is unspecified behaviour.");
     }
 
     let result = if places < 0 {

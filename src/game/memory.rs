@@ -10,6 +10,7 @@ use crate::game::alphabet::{Alphabet, AlphabetTable};
 use crate::game::error::GameError;
 use crate::game::instruction::Operand;
 use crate::game::property::Property;
+use crate::game::InputCode;
 
 /// Represents the game's internal memory.
 
@@ -468,7 +469,7 @@ impl Memory {
     pub fn property_data_length(&self, data_addr: usize) -> u16 {
         let size_byte = self.get_byte(data_addr - 1);
         if (size_byte >> 7) == 1 {
-            let length = size_byte as u16 | 0b11_1111;
+            let length = size_byte as u16 & 0b11_1111;
             if length == 0 {
                 64
             } else {
@@ -665,7 +666,7 @@ impl Memory {
         }
 
         for c in text.chars() {
-            let zscii = alphabet.encode_zscii(c)?;
+            let zscii = alphabet.zscii_from_char(c)?;
             self.write_byte(&mut address, zscii);
         }
 
@@ -674,6 +675,10 @@ impl Memory {
         }
 
         Ok(())
+    }
+
+    pub fn zscii_from_code(&self, code: InputCode) -> Result<u8, Box<dyn Error>> {
+        self.alphabet().zscii_from_code(code)
     }
 
     pub fn parse_string(

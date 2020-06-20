@@ -105,3 +105,15 @@ pub fn call_vs(
         store_to: Some(store_to),
     })
 }
+
+/// VAR:246 Read a single character of input.
+pub fn read_char(
+    state: &mut GameState,
+    mut _ops: OperandSet,
+    store_to: u8,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    let input = state.interface.read_char()?;
+    let zscii = state.memory.zscii_from_code(input)?;
+    state.set_variable(store_to, zscii.into());
+    Ok(InstructionResult::Continue)
+}

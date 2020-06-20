@@ -178,6 +178,10 @@ impl InstructionSet {
                         VarOp(0x11),
                         Instruction::Normal(&version_gte4::set_text_style, "SET_TEXT_STYLE"),
                     ),
+                    (
+                        VarOp(0x16),
+                        Instruction::Store(&version_gte4::read_char, "READ_CHAR"),
+                    ),
                 ]
                 .iter()
                 .cloned()

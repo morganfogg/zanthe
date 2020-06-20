@@ -1,3 +1,4 @@
+use crate::game::InputCode;
 use std::error::Error;
 
 /// The user interface. Responsible for both rendering the game and recieving input.
@@ -27,6 +28,8 @@ pub trait Interface {
     fn text_style_clear(&mut self);
 
     fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>>;
+
+    fn read_char(&mut self) -> Result<InputCode, Box<dyn Error>>;
 
     /// Close the UI immediately.
     fn quit(&mut self);
