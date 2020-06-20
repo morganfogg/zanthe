@@ -196,7 +196,7 @@ impl<'a> GameState<'a> {
                     // The offset is a signed 14-bit number.
                     let base = self.memory.read_word(&mut pc);
                     if base >> 13 == 1 {
-                        -((base & 0x1fff) as i16)
+                        -1i16 & (base & 0x1fff) as i16
                     } else {
                         (base & 0x1fff) as i16
                     }
@@ -225,7 +225,7 @@ impl<'a> GameState<'a> {
                     // The offset is a signed 14-bit number.
                     let base = self.memory.read_word(&mut pc);
                     if base >> 13 == 1 {
-                        -((base & 0x1fff) as i16)
+                        -1i16 & (base & 0x1fff) as i16
                     } else {
                         (base & 0x1fff) as i16
                     }
