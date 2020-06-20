@@ -21,7 +21,7 @@ fn main() {
                 .help("The interface to use")
                 .takes_value(true)
                 .default_value("terminal")
-                .possible_values(&["terminal", "null", "echo"]),
+                .possible_values(&["terminal", "echo"]),
         )
         .arg(
             Arg::with_name("debug")
