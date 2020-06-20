@@ -6,13 +6,80 @@ use std::error::Error;
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use std::collections::HashMap;
 
 use crate::game::error::GameError;
+use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::{
-    OperandSet,
+    Instruction, OperandSet,
     Result::{self as InstructionResult, *},
 };
 use crate::game::state::GameState;
+
+pub fn instructions() -> HashMap<OpCode, Instruction> {
+    use Instruction::*;
+    use OpCode::*;
+    vec![
+        (TwoOp(0x1), Branch(&je, "JE")),
+        (TwoOp(0x2), Branch(&jl, "JL")),
+        (TwoOp(0x3), Branch(&jg, "JG")),
+        (TwoOp(0x4), Branch(&dec_chk, "DEC_CHK")),
+        (TwoOp(0x5), Branch(&inc_chk, "INC_CHK")),
+        (TwoOp(0x6), Branch(&jin, "JIN")),
+        (TwoOp(0x7), Branch(&test, "TEST")),
+        (TwoOp(0x8), Store(&or, "OR")),
+        (TwoOp(0x9), Store(&and, "AND")),
+        (TwoOp(0xA), Branch(&test_attr, "TEST_ATTR")),
+        (TwoOp(0xB), Normal(&set_attr, "SET_ATTR")),
+        (TwoOp(0xC), Normal(&clear_attr, "CLEAR_ATTR")),
+        (TwoOp(0xD), Normal(&store, "STORE")),
+        (TwoOp(0xE), Normal(&insert_obj, "INSERT_OBJ")),
+        (TwoOp(0xF), Store(&loadw, "LOADW")),
+        (TwoOp(0x10), Store(&loadb, "LOADB")),
+        (TwoOp(0x11), Store(&get_prop, "GET_PROP")),
+        (TwoOp(0x12), Store(&get_prop_addr, "GET_PROP_ADDR")),
+        (TwoOp(0x13), Store(&get_next_prop, "GET_NEXT_PROP")),
+        (TwoOp(0x14), Store(&add, "ADD")),
+        (TwoOp(0x15), Store(&sub, "SUB")),
+        (TwoOp(0x16), Store(&mul, "MUL")),
+        (TwoOp(0x17), Store(&div, "DIV")),
+        (TwoOp(0x18), Store(&z_mod, "MOD")),
+        (OneOp(0x0), Branch(&jz, "JZ")),
+        (OneOp(0x1), BranchStore(&get_sibling, "GET_SIBLING")),
+        (OneOp(0x2), BranchStore(&get_child, "GET_CHILD")),
+        (OneOp(0x3), Store(&get_parent, "GET_PARENT")),
+        (OneOp(0x4), Store(&get_prop_len, "GET_PROP_LEN")),
+        (OneOp(0x5), Normal(&inc, "INC")),
+        (OneOp(0x6), Normal(&dec, "DEC")),
+        (OneOp(0x7), Normal(&print_addr, "PRINT_ADDR")),
+        (OneOp(0x9), Normal(&remove_obj, "REMOVE_OBJ")),
+        (OneOp(0xA), Normal(&print_obj, "PRINT_OBJ")),
+        (OneOp(0xB), Normal(&ret, "RET")),
+        (OneOp(0xC), Normal(&jump, "JUMP")),
+        (OneOp(0xD), Normal(&print_paddr, "PRINT_PADDR")),
+        (OneOp(0xE), Store(&load, "LOAD")),
+        (OneOp(0xF), Store(&not, "NOT")), // Moved in V5
+        (ZeroOp(0x0), Normal(&rtrue, "RTRUE")),
+        (ZeroOp(0x1), Normal(&rfalse, "RFALSE")),
+        (ZeroOp(0x2), StringLiteral(&print, "PRINT")),
+        (ZeroOp(0x3), StringLiteral(&print_ret, "PRINT_RET")),
+        (ZeroOp(0x4), Normal(&nop, "NOP")),
+        (ZeroOp(0x8), Normal(&ret_popped, "RET_POPPED")),
+        (ZeroOp(0xA), Normal(&quit, "QUIT")),
+        (ZeroOp(0xB), Normal(&new_line, "NEW_LINE")),
+        (VarOp(0x0), Store(&call, "CALL")),
+        (VarOp(0x1), Normal(&storew, "STOREW")),
+        (VarOp(0x2), Normal(&storeb, "STOREB")),
+        (VarOp(0x3), Normal(&put_prop, "PUT_PROP")),
+        (VarOp(0x5), Normal(&print_char, "PRINT_CHAR")),
+        (VarOp(0x6), Normal(&print_num, "PRINT_NUM")),
+        (VarOp(0x7), Store(&random, "RANDOM")),
+        (VarOp(0x8), Normal(&push, "PUSH")),
+        (VarOp(0x9), Normal(&pull, "PULL")),
+    ]
+    .into_iter()
+    .collect()
+}
 
 ///20P:1 Branch if the first operand is equal to any subsequent operands
 pub fn je(

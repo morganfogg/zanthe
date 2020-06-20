@@ -1,10 +1,28 @@
+use std::collections::HashMap;
 use std::error::Error;
 
 use itertools::Itertools;
 
 use crate::game::error::GameError;
+use crate::game::instruction::op_code::OpCode;
+use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult};
 use crate::game::state::GameState;
+
+pub fn instructions() -> HashMap<OpCode, Instruction> {
+    use Instruction::*;
+    use OpCode::*;
+    vec![
+        (TwoOp(0x19), Store(&call_2s, "CALL_2S")),
+        (OneOp(0x8), Store(&call_1s, "CALL_1S")),
+        (VarOp(0x0), Store(&call_vs, "CALL_VS")),
+        (VarOp(0xC), Store(&call_vs2, "CALL_VS2")),
+        (VarOp(0x11), Normal(&set_text_style, "SET_TEXT_STYLE")),
+        (VarOp(0x16), Store(&read_char, "READ_CHAR")),
+    ]
+    .into_iter()
+    .collect()
+}
 
 /// 2OP:25 Call a routine with 1 argument and store the result.
 pub fn call_2s(

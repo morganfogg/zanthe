@@ -1,14 +1,37 @@
+use std::collections::HashMap;
 use std::error::Error;
 
 use itertools::Itertools;
 use log::warn;
 
 use crate::game::error::GameError;
+use crate::game::instruction::op_code::OpCode;
+use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult};
 use crate::game::state::GameState;
 
+pub fn instructions() -> HashMap<OpCode, Instruction> {
+    use crate::game::instruction::instruction_set::common;
+    use Instruction::*;
+    use OpCode::*;
+    vec![
+        (TwoOp(0x1A), Normal(&call_2n, "CALL_2N")),
+        (OneOp(0xF), Normal(&call_1n, "CALL_1N")),
+        (ZeroOp(0xf), Branch(&piracy, "PIRACY")),
+        (VarOp(0x4), Store(&aread, "AREAD")),
+        (VarOp(0x18), Store(&common::not, "NOT")), // Moved from 1OP:143
+        (VarOp(0x19), Normal(&call_vn, "CALL_VN")),
+        (VarOp(0x1A), Normal(&call_vn2, "CALL_VN2")),
+        (VarOp(0x1F), Branch(&check_arg_count, "CHEC_ARG_COUNT")),
+        (Extended(0x2), Store(&log_shift, "LOG_SHIFT")),
+        (Extended(0x3), Store(&art_shift, "ART_SHIFT")),
+    ]
+    .into_iter()
+    .collect()
+}
+
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.
-pub fn call_2n(
+fn call_2n(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
@@ -25,7 +48,7 @@ pub fn call_2n(
 }
 
 /// 1OP:143 Calls a routine with no arguments and throws away the result.
-pub fn call_1n(
+fn call_1n(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
@@ -40,7 +63,7 @@ pub fn call_1n(
 }
 
 /// 0OP:191 Branch if game is genuine
-pub fn piracy(
+fn piracy(
     state: &mut GameState,
     _: OperandSet,
     expected: bool,
@@ -53,7 +76,7 @@ pub fn piracy(
 }
 
 // /// VAR:228 Read a string from the user
-pub fn aread(
+fn aread(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
@@ -94,7 +117,7 @@ pub fn aread(
 }
 
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
-pub fn call_vn(
+fn call_vn(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
@@ -115,7 +138,7 @@ pub fn call_vn(
 }
 
 /// VAR:250 Call a routine with up to 7 arguments and throw away the result.
-pub fn call_vn2(
+fn call_vn2(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
@@ -136,7 +159,7 @@ pub fn call_vn2(
 }
 
 /// VAR:255 Branches if the argument number (1-indexed) has been provided.
-pub fn check_arg_count(
+fn check_arg_count(
     state: &mut GameState,
     mut ops: OperandSet,
     expected: bool,
@@ -152,7 +175,7 @@ pub fn check_arg_count(
 }
 
 /// EXT:2 Logical shift
-pub fn log_shift(
+fn log_shift(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
@@ -174,7 +197,7 @@ pub fn log_shift(
 }
 
 /// EXT:3 Artihmetic shift
-pub fn art_shift(
+fn art_shift(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
