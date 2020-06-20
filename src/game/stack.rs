@@ -4,11 +4,13 @@ use crate::game::error::GameError;
 use crate::game::instruction::Result as InstructionResult;
 
 /// The call-stack of the machine. Divided into stack frames, representing individual routines.
+#[derive(Clone)]
 pub struct CallStack {
     frames: Vec<StackFrame>,
 }
 
 /// The section of the call stack associated with a particular routine.
+#[derive(Clone)]
 pub struct StackFrame {
     pub pc: usize,
     pub stack: Vec<u16>,

@@ -13,7 +13,7 @@ use crate::game::property::Property;
 use crate::game::InputCode;
 
 /// Represents the game's internal memory.
-
+#[derive(Clone)]
 pub struct Memory {
     data: Vec<u8>,
 }

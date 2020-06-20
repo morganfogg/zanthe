@@ -12,6 +12,12 @@ use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
 use crate::ui::Interface;
 
+struct UndoBufferEntry {
+    pub memory: Memory,
+    pub call_stack: CallStack,
+    pub rng: StdRng,
+}
+
 /// Represents the current state of play.
 pub struct GameState<'a> {
     pub memory: Memory,
@@ -21,6 +27,7 @@ pub struct GameState<'a> {
     call_stack: CallStack,
     pub interface: &'a mut dyn Interface,
     pub rng: StdRng,
+    undo_buffer: Vec<UndoBufferEntry>,
 }
 
 impl<'a> GameState<'a> {
@@ -32,16 +39,36 @@ impl<'a> GameState<'a> {
             version: memory.version(),
             instruction_set: InstructionSet::new(memory.version()),
             call_stack: CallStack::new(),
+            undo_buffer: Vec::new(),
+            rng: StdRng::from_entropy(),
             memory,
             interface,
-            rng: StdRng::from_entropy(),
         })
     }
-
+    
     pub fn frame(&mut self) -> &mut StackFrame {
         self.call_stack.frame()
     }
 
+    pub fn save_undo(&mut self) {
+        self.undo_buffer.push(UndoBufferEntry {
+            memory: self.memory.clone(),
+            call_stack: self.call_stack.clone(),
+            rng: self.rng.clone(),
+        });
+    }
+    
+    pub fn load_undo(&mut self) -> bool {
+        if let Some(buffer) = self.undo_buffer.pop() {
+            self.memory = buffer.memory;
+            self.call_stack = buffer.call_stack;
+            self.rng = buffer.rng;
+            true
+        } else {
+            false
+        }
+    }
+    
     fn next_op(&mut self) -> Result<InstructionResult, Box<dyn Error>> {
         let frame = self.call_stack.frame();
         debug!("--------------------------------------");
