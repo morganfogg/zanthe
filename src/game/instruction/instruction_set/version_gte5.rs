@@ -186,6 +186,8 @@ fn log_shift(
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
         warn!("Attempted to bitshift more than 15 places. This is unspecified behaviour.");
+        state.set_variable(store_to, 0);
+        return Ok(InstructionResult::Continue);
     }
 
     let result = if places < 0 {
@@ -208,6 +210,8 @@ fn art_shift(
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
         warn!("Attempted to bitshift more than 15 places. This is unspecified behaviour.");
+        state.set_variable(store_to, if number < 0 { -1i16 as u16 } else { 0 });
+        return Ok(InstructionResult::Continue);
     }
 
     let result = if places < 0 {
