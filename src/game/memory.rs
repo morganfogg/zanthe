@@ -1,9 +1,8 @@
 use std::char;
 use std::convert::TryInto;
 use std::error::Error;
-use std::iter::{from_fn, successors};
+use std::iter::successors;
 
-use itertools::Itertools;
 use log::{error, info, warn};
 
 use crate::game::address;
@@ -414,7 +413,7 @@ impl Memory {
         self.get_word(self.object_table_location() as usize + offset)
     }
 
-    pub fn property_at_address(&self, address: usize) -> Option<Property> {
+    fn property_at_address(&self, address: usize) -> Option<Property> {
         match self.version() {
             1..=3 => {
                 let mut cursor = address as usize;
@@ -465,11 +464,20 @@ impl Memory {
         }
     }
 
+    /// Get the length (in bytes) of the property data at a given address.
     pub fn property_data_length(&self, data_addr: usize) -> u16 {
-        if (self.data[data_addr - 1] >> 7) == 1 {
-            self.get_word(data_addr - 2)
+        let size_byte = self.get_byte(data_addr - 1);
+        if (size_byte >> 7) == 1 {
+            let length = size_byte as u16 | 0b11_1111;
+            if length == 0 {
+                64
+            } else {
+                length
+            }
+        } else if ((size_byte >> 6) & 1) == 1 {
+            2
         } else {
-            self.get_byte(data_addr - 1) as u16
+            1
         }
     }
 
@@ -493,7 +501,7 @@ impl Memory {
             .nth(1)
     }
 
-    pub fn word_seperators(&self) -> Result<Vec<char>, Box<dyn Error>> {
+    pub fn word_separators(&self) -> Result<Vec<char>, Box<dyn Error>> {
         let alphabet = self.alphabet();
         let mut cursor = self.dictionary_location();
         let count = self.read_byte(&mut cursor);
@@ -523,10 +531,6 @@ impl Memory {
             result.push((address, text));
         }
         Ok(result)
-    }
-
-    fn dictionary_entry_address(&self, text: &str) -> Result<Option<usize>, Box<dyn Error>> {
-        Ok(self.dictionary()?.iter().find(|x| x.1 == text).map(|x| x.0))
     }
 
     /// Retrieve the location of an abbreviation from the abbreviation tables(s)
@@ -678,7 +682,7 @@ impl Memory {
         text: &str,
         max_words: usize,
     ) -> Result<(), Box<dyn Error>> {
-        let separators = self.word_seperators()?;
+        let separators = self.word_separators()?;
         let mut new_word = true;
         let words = text
             .chars()
@@ -700,25 +704,22 @@ impl Memory {
                 }
                 acc
             });
-        println!("{:?}", words);
+
         let words = words.iter().take(max_words);
 
         let dictionary = self.dictionary()?;
-        println!("{:?}", dictionary);
         cursor += 1;
         self.write_byte(&mut cursor, words.len() as u8);
+
         for (i, word) in words {
-            let dictionary_address = dictionary.iter().find(|e| &e.1 == word);
-
-            println!("{:?}", dictionary_address);
-            let dictionary_address = dictionary_address.map(|e| e.0 as u16).unwrap_or(0);
-
+            let dictionary_entry = dictionary.iter().find(|e| &e.1 == word);
+            let dictionary_address = dictionary_entry.map(|e| e.0 as u16).unwrap_or(0);
             let chars = word.chars().count();
             let buffer_offset = i + 1;
 
             self.write_word(&mut cursor, dictionary_address);
             self.write_byte(&mut cursor, chars as u8);
-            self.write_byte(&mut cursor, buffer_offset as u8)
+            self.write_byte(&mut cursor, buffer_offset as u8);
         }
 
         Ok(())
