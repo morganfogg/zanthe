@@ -10,7 +10,7 @@ use crate::game::instruction::{
 };
 use crate::game::memory::Memory;
 use crate::game::stack::{CallStack, StackFrame};
-use crate::ui::Interface;
+use crate::ui::interface::Interface;
 
 struct UndoBufferEntry {
     pub memory: Memory,

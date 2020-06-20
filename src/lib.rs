@@ -10,7 +10,7 @@ use simplelog::ConfigBuilder;
 use simplelog::*;
 
 use game::state::GameState;
-use ui::{EchoInterface, Interface, TerminalInterface};
+use ui::interface::{EchoInterface, Interface, TerminalInterface};
 
 pub fn run(args: ArgMatches) -> Result<(), Box<dyn Error>> {
     let log_file = OpenOptions::new()

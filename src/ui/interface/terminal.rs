@@ -4,30 +4,35 @@ use std::io::{self, Stdout, Write};
 
 use crossterm::{
     self,
-    cursor::MoveLeft,
-    event::read,
-    event::{self, Event, KeyCode, KeyEvent},
-    queue,
-    style::{Attribute, Print, ResetColor, SetAttribute},
-    terminal::{Clear, ClearType},
+    cursor::{MoveLeft, MoveTo},
+    event::{self, read, Event, KeyCode, KeyEvent},
+    execute, queue,
+    style::{Attribute, Print, SetAttribute},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 
 use crate::game::InputCode;
-use crate::ui::{Interface, TextStyle};
+use crate::ui::interface::Interface;
+use crate::ui::TextStyle;
 
-/// A less advanced terminal interface that just echos instead of using a TUI.
-pub struct EchoInterface {
+/// A traditional terminal-based user interface.
+pub struct TerminalInterface {
     stdout: Stdout,
     text_style: TextStyle,
 }
 
-impl EchoInterface {
-    pub fn new() -> EchoInterface {
-        let stdout = io::stdout();
-        EchoInterface {
+impl TerminalInterface {
+    pub fn new() -> Result<TerminalInterface, Box<dyn Error>> {
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
+        enable_raw_mode()?;
+        Ok(TerminalInterface {
             stdout,
             text_style: TextStyle::new(),
-        }
+        })
     }
 
     fn write<T>(&mut self, text: T) -> Result<(), Box<dyn Error>>
@@ -43,34 +48,36 @@ impl EchoInterface {
         if self.text_style.reverse_video {
             queue!(self.stdout, SetAttribute(Attribute::Reverse))?;
         }
-        queue!(self.stdout, Print(text), SetAttribute(Attribute::Reset))?;
+        queue!(
+            self.stdout,
+            Print(format!("{}", text).replace("\n", "\n\r")),
+            SetAttribute(Attribute::Reset)
+        )?;
+        self.stdout.flush()?;
         Ok(())
     }
 }
 
-impl Interface for EchoInterface {
+impl Drop for TerminalInterface {
+    /// Restore the terminal to its previous state when exiting.
+    fn drop(&mut self) {
+        execute!(self.stdout, LeaveAlternateScreen).unwrap();
+        disable_raw_mode().unwrap();
+    }
+}
+
+impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
-        self.write(&text)?;
-        self.stdout.flush()?;
-        Ok(())
+        self.write(text)
     }
 
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
-        self.write(&text.to_string())?;
-        self.stdout.flush()?;
-        Ok(())
+        self.print(&text.to_string())
     }
 
     fn clear(&mut self) -> Result<(), Box<dyn Error>> {
         queue!(self.stdout, Clear(ClearType::All))?;
         self.stdout.flush()?;
-        Ok(())
-    }
-
-    fn done(&mut self) -> Result<(), Box<dyn Error>> {
-        queue!(self.stdout, ResetColor, SetAttribute(Attribute::Reset))?;
-        self.stdout.flush()?;
-        read()?;
         Ok(())
     }
 
@@ -95,31 +102,43 @@ impl Interface for EchoInterface {
 
     fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {
         let mut line = String::new();
-        while let Event::Key(KeyEvent { code, .. }) = event::read()? {
-            match code {
-                KeyCode::Enter => {
-                    self.write(&"\n")?;
-                    self.stdout.flush()?;
-                    break;
-                }
-                KeyCode::Char(c) => {
-                    if line.len() < max_chars {
-                        self.write(&c)?;
-                        self.stdout.flush()?;
-                        line.push(c);
+        loop {
+            match event::read()? {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => {
+                        self.write(&"\n")?;
+                        break;
                     }
-                }
-                KeyCode::Backspace => {
-                    if !line.is_empty() {
-                        queue!(self.stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
-                        self.stdout.flush()?;
-                        line.pop();
+                    KeyCode::Esc => {
+                        panic!("Yes");
                     }
-                }
+                    KeyCode::Char(c) => {
+                        if line.len() < max_chars {
+                            self.write(c)?;
+                            self.stdout.flush()?;
+                            line.push(c);
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if !line.is_empty() {
+                            queue!(self.stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
+                            self.stdout.flush()?;
+                            line.pop();
+                        }
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
         }
         Ok(line)
+    }
+
+    fn done(&mut self) -> Result<(), Box<dyn Error>> {
+        queue!(self.stdout, Print("\n\r[Hit any key to exit...]"))?;
+        self.stdout.flush()?;
+        read()?;
+        Ok(())
     }
 
     fn text_style_bold(&mut self) {

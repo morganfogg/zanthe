@@ -1,3 +1,8 @@
+mod echo;
+mod terminal;
+pub use echo::EchoInterface;
+pub use terminal::TerminalInterface;
+
 use crate::game::InputCode;
 use std::error::Error;
 
