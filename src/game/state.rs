@@ -24,9 +24,9 @@ pub struct GameState<'a> {
     pub checksum_valid: bool,
     pub version: u8,
     pub instruction_set: InstructionSet,
-    call_stack: CallStack,
     pub interface: &'a mut dyn Interface,
     pub rng: StdRng,
+    call_stack: CallStack,
     undo_buffer: Vec<UndoBufferEntry>,
 }
 
@@ -44,6 +44,28 @@ impl<'a> GameState<'a> {
             memory,
             interface,
         })
+    }
+
+    /// Start the game
+    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+        self.call_stack.push(StackFrame::new(
+            self.memory.program_counter_starts().into(),
+            Vec::new(),
+            0,
+            None,
+        ));
+        loop {
+            match self.next_op()? {
+                InstructionResult::Continue => {}
+                InstructionResult::Quit => return Ok(()),
+                InstructionResult::Return(result) => self.return_with(result)?,
+                InstructionResult::Invoke {
+                    address,
+                    store_to,
+                    arguments,
+                } => self.invoke(address, store_to, arguments)?,
+            }
+        }
     }
 
     pub fn frame(&mut self) -> &mut StackFrame {
@@ -269,28 +291,6 @@ impl<'a> GameState<'a> {
             self.set_variable(store_to, result);
         }
         Ok(())
-    }
-
-    /// Start the game
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        self.call_stack.push(StackFrame::new(
-            self.memory.program_counter_starts().into(),
-            Vec::new(),
-            0,
-            None,
-        ));
-        loop {
-            match self.next_op()? {
-                InstructionResult::Continue => {}
-                InstructionResult::Quit => return Ok(()),
-                InstructionResult::Return(result) => self.return_with(result)?,
-                InstructionResult::Invoke {
-                    address,
-                    store_to,
-                    arguments,
-                } => self.invoke(address, store_to, arguments)?,
-            }
-        }
     }
 
     /// Invoke an interupt routine and return the result of that routine.

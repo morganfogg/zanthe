@@ -347,9 +347,9 @@ pub fn loadw(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array: usize = ops.pull()?.unsigned(state)?.into();
-    let word_index: usize = ops.pull()?.unsigned(state)?.into();
-    let word = state.memory.get_word(array + (2 * word_index));
+    let array: isize = ops.pull()?.unsigned(state)? as isize;
+    let word_index: isize = ops.pull()?.signed(state)?.into();
+    let word = state.memory.get_word((array + (2 * word_index)) as usize);
 
     state.set_variable(store_to, word);
     Ok(Continue)
@@ -361,9 +361,9 @@ pub fn loadb(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops.pull()?.unsigned(state)?;
-    let byte_index = ops.pull()?.unsigned(state)?;
-    let byte = state.memory.get_byte(usize::from(array + byte_index));
+    let array: isize = ops.pull()?.unsigned(state)? as isize;
+    let byte_index: isize = ops.pull()?.signed(state)?.into();
+    let byte = state.memory.get_byte((array + byte_index) as usize);
 
     state.set_variable(store_to, byte as u16);
     Ok(Continue)
@@ -844,13 +844,13 @@ pub fn storew(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops.pull()?.unsigned(state)?;
-    let word_index = ops.pull()?.unsigned(state)?;
+    let array: isize = ops.pull()?.unsigned(state)? as isize;
+    let word_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
     state
         .memory
-        .set_word(usize::from(array + 2 * word_index), value);
+        .set_word((array + 2 * word_index) as usize, value);
     Ok(Continue)
 }
 
@@ -859,13 +859,13 @@ pub fn storeb(
     state: &mut GameState,
     mut ops: OperandSet,
 ) -> Result<InstructionResult, Box<dyn Error>> {
-    let array = ops.pull()?.unsigned(state)?;
-    let byte_index = ops.pull()?.unsigned(state)?;
+    let array: isize = ops.pull()?.unsigned(state)? as isize;
+    let byte_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
     state
         .memory
-        .set_byte(usize::from(array + byte_index), value as u8);
+        .set_byte((array + byte_index) as usize, value as u8);
     Ok(Continue)
 }
 
