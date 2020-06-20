@@ -78,60 +78,22 @@ impl<'a> GameState<'a> {
         debug!("PC AT {:x}", frame.pc);
         let mut code_byte = self.memory.read_byte(&mut frame.pc);
         let mut operands: Vec<Operand> = Vec::new();
-        let form;
-        if code_byte == 190 {
-            form = Form::Extended;
+
+        // Determine the form of the instruction.
+        let form = if code_byte == 190 {
             code_byte = self.memory.read_byte(&mut frame.pc);
+            Form::Extended
         } else {
-            form = match code_byte >> 6 {
+            match code_byte >> 6 {
                 0b11 => Form::Variable,
                 0b10 => Form::Short,
                 _ => Form::Long,
-            };
-        }
+            }
+        };
+
         let mut pc = frame.pc;
-        match form {
-            Form::Short => {
-                if ((code_byte >> 4) & 0b11) != 3 {
-                    operands.push(
-                        self.memory
-                            .read_operand_other(&mut pc, (code_byte >> 4) & 0b11),
-                    );
-                }
-            }
-            Form::Variable if self.version >= 5 && (code_byte == 236 || code_byte == 250) => {
-                let op_types = self.memory.read_word(&mut pc);
-                operands = (0..=14)
-                    .rev()
-                    .step_by(2)
-                    .map(|x| {
-                        self.memory
-                            .read_operand_other(&mut pc, ((op_types >> x) & 0b11) as u8)
-                    })
-                    .collect()
-            }
-            Form::Variable | Form::Extended => {
-                let op_types = self.memory.read_byte(&mut pc);
-                operands = (0..=6)
-                    .rev()
-                    .step_by(2)
-                    .map(|x| {
-                        self.memory
-                            .read_operand_other(&mut pc, (op_types >> x) & 0b11)
-                    })
-                    .collect();
-            }
-            Form::Long => {
-                for x in (5..=6).rev() {
-                    operands.push(self.memory.read_operand_long(&mut pc, (code_byte >> x) & 1));
-                }
-            }
-        }
 
-        self.call_stack.frame().pc = pc;
-
-        let operands = OperandSet::new(operands);
-
+        // Read the op code
         let op_code = match form {
             Form::Long => OpCode::TwoOp(code_byte & 31),
             Form::Extended => OpCode::Extended(code_byte),
@@ -150,6 +112,47 @@ impl<'a> GameState<'a> {
                 }
             }
         };
+
+        // Read in the instruction's operands.
+        match form {
+            Form::Short => {
+                if let OpCode::OneOp(_) = op_code {
+                    let operand = self
+                        .memory
+                        .read_operand_other(&mut pc, (code_byte >> 4) & 3);
+                    operands.push(operand);
+                }
+            }
+            Form::Variable if self.version >= 5 && (code_byte == 236 || code_byte == 250) => {
+                let op_types = self.memory.read_word(&mut pc);
+                operands = (0..=14)
+                    .rev()
+                    .step_by(2)
+                    .map(|x| {
+                        self.memory
+                            .read_operand_other(&mut pc, ((op_types >> x) & 3) as u8)
+                    })
+                    .collect()
+            }
+            Form::Variable | Form::Extended => {
+                let op_types = self.memory.read_byte(&mut pc);
+                operands = (0..=6)
+                    .rev()
+                    .step_by(2)
+                    .map(|x| self.memory.read_operand_other(&mut pc, (op_types >> x) & 3))
+                    .collect();
+            }
+            Form::Long => {
+                for x in (5..=6).rev() {
+                    operands.push(self.memory.read_operand_long(&mut pc, (code_byte >> x) & 1));
+                }
+            }
+        }
+
+        self.call_stack.frame().pc = pc;
+
+        let operands = OperandSet::new(operands);
+
         let instruction = self.instruction_set.get(&op_code).ok_or_else(|| {
             GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
         })?;
@@ -223,6 +226,7 @@ impl<'a> GameState<'a> {
         }
     }
 
+    /// Move game control into a subroutine.
     fn invoke(
         &mut self,
         mut address: usize,
@@ -258,6 +262,7 @@ impl<'a> GameState<'a> {
         Ok(())
     }
 
+    // Return control from a subroutine to its calling routine.
     pub fn return_with(&mut self, result: u16) -> Result<(), Box<dyn Error>> {
         let old_frame = self.call_stack.pop()?;
         if let Some(store_to) = old_frame.store_to {
@@ -288,6 +293,7 @@ impl<'a> GameState<'a> {
         }
     }
 
+    /// Invoke an interupt routine and return the result of that routine.
     pub fn run_routine(&mut self, address: u16) -> Result<Option<u16>, Box<dyn Error>> {
         self.call_stack
             .push(StackFrame::new(address as usize, Vec::new(), 0, None));
@@ -314,6 +320,7 @@ impl<'a> GameState<'a> {
         }
     }
 
+    /// Set a game variable
     pub fn set_variable(&mut self, variable: u8, value: u16) {
         match variable {
             0x0 => {
@@ -361,6 +368,7 @@ impl<'a> GameState<'a> {
         Ok(())
     }
 
+    /// Retrieve a game varaible.
     pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
         let result;
         match variable {
