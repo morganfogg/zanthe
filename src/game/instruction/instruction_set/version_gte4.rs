@@ -13,12 +13,13 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
     use Instruction::*;
     use OpCode::*;
     vec![
-        (TwoOp(0x19), Store(&call_2s, "CALL_2S")),
-        (OneOp(0x8), Store(&call_1s, "CALL_1S")),
         (VarOp(0x0), Store(&call_vs, "CALL_VS")),
+        (OneOp(0x8), Store(&call_1s, "CALL_1S")),
         (VarOp(0xC), Store(&call_vs2, "CALL_VS2")),
+        (VarOp(0xD), Normal(&erase_window, "ERASE_WINDOW")),
         (VarOp(0x11), Normal(&set_text_style, "SET_TEXT_STYLE")),
         (VarOp(0x16), Store(&read_char, "READ_CHAR")),
+        (TwoOp(0x19), Store(&call_2s, "CALL_2S")),
     ]
     .into_iter()
     .collect()
@@ -77,6 +78,16 @@ pub fn call_vs2(
         arguments: Some(arguments),
         store_to: Some(store_to),
     })
+}
+
+/// VAR:237 Clear the screen
+pub fn erase_window(
+    state: &mut GameState,
+    mut _ops: OperandSet,
+) -> Result<InstructionResult, Box<dyn Error>> {
+    // TODO: Add multiple windows.
+    state.interface.clear()?;
+    Ok(InstructionResult::Continue)
 }
 
 /// VAR:241 Sets the active text style (bold, emphasis etc.)

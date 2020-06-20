@@ -10,7 +10,10 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent},
     execute, queue,
     style::{Attribute, Print, SetAttribute},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 
 use crate::ui::{Interface, TextStyle};
@@ -70,6 +73,12 @@ impl Interface for TerminalInterface {
 
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
         self.print(&text.to_string())
+    }
+
+    fn clear(&mut self) -> Result<(), Box<dyn Error>> {
+        queue!(self.stdout, Clear(ClearType::All))?;
+        self.stdout.flush()?;
+        Ok(())
     }
 
     fn read_char(&mut self) -> Result<InputCode, Box<dyn Error>> {

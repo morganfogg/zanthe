@@ -77,12 +77,13 @@ fn piracy(
         .conditional_branch(offset, is_genuine, expected))
 }
 
-// /// VAR:228 Read a string from the user
+/// VAR:228 Read a string from the user
 fn aread(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult, Box<dyn Error>> {
+    // TODO: add time routines
     let text_address = ops.pull()?.unsigned(state)?;
     let parse_address = ops.pull()?.try_unsigned(state)?;
 

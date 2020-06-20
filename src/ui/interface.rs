@@ -9,6 +9,9 @@ pub trait Interface {
     /// Print a single character to the UI
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>>;
 
+    /// Clear the entire window
+    fn clear(&mut self) -> Result<(), Box<dyn Error>>;
+
     /// The game exited successfully, show a message then quit
     fn done(&mut self) -> Result<(), Box<dyn Error>>;
 

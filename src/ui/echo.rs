@@ -9,6 +9,7 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent},
     queue,
     style::{Attribute, Print, ResetColor, SetAttribute},
+    terminal::{Clear, ClearType},
 };
 
 use crate::game::InputCode;
@@ -56,6 +57,12 @@ impl Interface for EchoInterface {
 
     fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
         self.write(&text.to_string())?;
+        self.stdout.flush()?;
+        Ok(())
+    }
+
+    fn clear(&mut self) -> Result<(), Box<dyn Error>> {
+        queue!(self.stdout, Clear(ClearType::All))?;
         self.stdout.flush()?;
         Ok(())
     }
