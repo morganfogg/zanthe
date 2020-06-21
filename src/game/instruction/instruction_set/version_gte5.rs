@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::error::Error;
-
+//
+use anyhow::Result;
 use itertools::Itertools;
 use log::warn;
 
@@ -33,10 +33,7 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
 }
 
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.
-fn call_2n(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+fn call_2n(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
 
@@ -50,10 +47,7 @@ fn call_2n(
 }
 
 /// 1OP:143 Calls a routine with no arguments and throws away the result.
-fn call_1n(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+fn call_1n(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
 
@@ -70,7 +64,7 @@ fn piracy(
     _: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let is_genuine = true; // TODO: Add a way to toggle this
     Ok(state
         .frame()
@@ -78,11 +72,7 @@ fn piracy(
 }
 
 /// VAR:228 Read a string from the user
-fn aread(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     // TODO: add time routines
     let text_address = ops.pull()?.unsigned(state)?;
     let parse_address = ops.pull()?.try_unsigned(state)?;
@@ -120,15 +110,12 @@ fn aread(
 }
 
 /// VAR:249 Call a routine with up to 3 arguments and throw away the result.
-fn call_vn(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+fn call_vn(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(state))
-        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .collect::<Result<Vec<Option<u16>>>>()?
         .into_iter()
         .while_some()
         .collect();
@@ -141,15 +128,12 @@ fn call_vn(
 }
 
 /// VAR:250 Call a routine with up to 7 arguments and throw away the result.
-fn call_vn2(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+fn call_vn2(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(state))
-        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .collect::<Result<Vec<Option<u16>>>>()?
         .into_iter()
         .while_some()
         .collect();
@@ -167,7 +151,7 @@ fn check_arg_count(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let index = ops.pull()?.unsigned(state)? as usize;
 
     let condition = index <= state.frame().arg_count;
@@ -182,7 +166,7 @@ fn log_shift(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let number = ops.pull()?.unsigned(state)?;
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
@@ -206,7 +190,7 @@ fn art_shift(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let number = ops.pull()?.signed(state)?;
     let places = ops.pull()?.signed(state)?;
     if places.abs() > 15 {
@@ -230,7 +214,7 @@ fn save_undo(
     state: &mut GameState,
     mut _ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     state.save_undo(store_to);
     Ok(InstructionResult::Continue)
 }
@@ -240,7 +224,7 @@ fn restore_undo(
     state: &mut GameState,
     mut _ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let success = state.restore_undo();
     if !success {
         state.set_variable(store_to, 0);

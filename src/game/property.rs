@@ -1,5 +1,6 @@
+use anyhow::Result;
+
 use crate::game::error::GameError;
-use std::error::Error;
 
 pub struct Property {
     pub number: u16,
@@ -9,7 +10,7 @@ pub struct Property {
 }
 
 impl Property {
-    pub fn data_to_u16(&self) -> Result<u16, Box<dyn Error>> {
+    pub fn data_to_u16(&self) -> Result<u16> {
         match self.data.len() {
             1 => Ok(self.data[0] as u16),
             2 => Ok(((self.data[0] as u16) << 8) + self.data[1] as u16),

@@ -1,6 +1,6 @@
-use std::error::Error;
 use std::vec::Vec;
 
+use anyhow::Result;
 use log::debug;
 use rand::{rngs::StdRng, SeedableRng};
 
@@ -47,7 +47,7 @@ impl<'a> GameState<'a> {
     }
 
     /// Start the game
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self) -> Result<()> {
         self.call_stack.push(StackFrame::new(
             self.memory.program_counter_starts().into(),
             Vec::new(),
@@ -94,7 +94,7 @@ impl<'a> GameState<'a> {
         }
     }
 
-    fn next_op(&mut self) -> Result<InstructionResult, Box<dyn Error>> {
+    fn next_op(&mut self) -> Result<InstructionResult> {
         let frame = self.call_stack.frame();
         debug!("--------------------------------------");
         debug!("PC AT {:x}", frame.pc);
@@ -254,7 +254,7 @@ impl<'a> GameState<'a> {
         mut address: usize,
         store_to: Option<u8>,
         arguments: Option<Vec<u16>>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         let local_count = self.memory.read_byte(&mut address) as usize;
         if local_count > 15 {
             return Err(GameError::InvalidOperation(
@@ -285,7 +285,7 @@ impl<'a> GameState<'a> {
     }
 
     // Return control from a subroutine to its calling routine.
-    pub fn return_with(&mut self, result: u16) -> Result<(), Box<dyn Error>> {
+    pub fn return_with(&mut self, result: u16) -> Result<()> {
         let old_frame = self.call_stack.pop()?;
         if let Some(store_to) = old_frame.store_to {
             self.set_variable(store_to, result);
@@ -294,7 +294,7 @@ impl<'a> GameState<'a> {
     }
 
     /// Invoke an interupt routine and return the result of that routine.
-    pub fn run_routine(&mut self, address: u16) -> Result<Option<u16>, Box<dyn Error>> {
+    pub fn run_routine(&mut self, address: u16) -> Result<Option<u16>> {
         self.call_stack
             .push(StackFrame::new(address as usize, Vec::new(), 0, None));
 
@@ -340,7 +340,7 @@ impl<'a> GameState<'a> {
 
     /// Used by the "indirect variable reference" opcodes. Reads a variable without potentially
     /// modifying the stack.
-    pub fn peek_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+    pub fn peek_variable(&mut self, variable: u8) -> Result<u16> {
         if variable == 0 {
             Ok(*self
                 .frame()
@@ -354,7 +354,7 @@ impl<'a> GameState<'a> {
 
     /// Used by the "indirect variable reference" opcodes. When writing the stack, replace the the
     /// topmost item in the stack instead of pushing on top of it.
-    pub fn poke_variable(&mut self, variable: u8, value: u16) -> Result<(), Box<dyn Error>> {
+    pub fn poke_variable(&mut self, variable: u8, value: u16) -> Result<()> {
         if variable == 0 {
             *self
                 .frame()
@@ -369,7 +369,7 @@ impl<'a> GameState<'a> {
     }
 
     /// Retrieve a game varaible.
-    pub fn get_variable(&mut self, variable: u8) -> Result<u16, Box<dyn Error>> {
+    pub fn get_variable(&mut self, variable: u8) -> Result<u16> {
         let result;
         match variable {
             0x0 => {

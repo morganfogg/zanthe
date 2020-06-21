@@ -1,13 +1,14 @@
+use anyhow::Result;
+
 use super::OperandSet;
 use super::Result as InstructionResult;
 use crate::game::state::GameState;
-use std::error::Error;
 
 /// A wrapper for instruction functions to associate them with their argument types.
 #[derive(Clone)]
 pub enum Instruction {
     Normal(
-        &'static dyn Fn(&mut GameState, OperandSet) -> Result<InstructionResult, Box<dyn Error>>,
+        &'static dyn Fn(&mut GameState, OperandSet) -> Result<InstructionResult>,
         &'static str,
     ),
     Branch(
@@ -16,7 +17,7 @@ pub enum Instruction {
             OperandSet,
             bool,
             i16,
-        ) -> Result<InstructionResult, Box<dyn Error>>,
+        ) -> Result<InstructionResult>,
         &'static str,
     ),
     BranchStore(
@@ -26,7 +27,7 @@ pub enum Instruction {
             bool,
             i16,
             u8,
-        ) -> Result<InstructionResult, Box<dyn Error>>,
+        ) -> Result<InstructionResult>,
         &'static str,
     ),
     Store(
@@ -34,11 +35,11 @@ pub enum Instruction {
             &mut GameState,
             OperandSet,
             u8,
-        ) -> Result<InstructionResult, Box<dyn Error>>,
+        ) -> Result<InstructionResult>,
         &'static str,
     ),
     StringLiteral(
-        &'static dyn Fn(&mut GameState, String) -> Result<InstructionResult, Box<dyn Error>>,
+        &'static dyn Fn(&mut GameState, String) -> Result<InstructionResult>,
         &'static str,
     ),
 }

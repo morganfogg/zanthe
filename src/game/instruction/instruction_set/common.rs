@@ -1,8 +1,8 @@
 use log::warn;
 use std::cmp::Ordering;
 use std::convert::TryInto;
-use std::error::Error;
 
+use anyhow::Result;
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -87,7 +87,7 @@ pub fn je(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let mut condition = false;
     for op in ops {
@@ -112,7 +112,7 @@ pub fn jl(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let a = ops.pull()?.signed(state)?;
     let b = ops.pull()?.signed(state)?;
 
@@ -129,7 +129,7 @@ pub fn jg(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let a = ops.pull()?.signed(state)?;
     let b = ops.pull()?.signed(state)?;
 
@@ -146,7 +146,7 @@ pub fn dec_chk(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into()?;
     let comparand = ops.pull()?.signed(state)?;
     let value = (state.peek_variable(variable_id)? as i16).wrapping_sub(1);
@@ -166,7 +166,7 @@ pub fn inc_chk(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into()?;
     let comparand = ops.pull()?.signed(state)?;
     let value = (state.peek_variable(variable_id)? as i16).wrapping_add(1);
@@ -186,7 +186,7 @@ pub fn jin(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object_a = ops.pull()?.unsigned(state)?;
     let object_b = ops.pull()?.unsigned(state)?;
     let parent = if object_a == 0 || object_b == 0 {
@@ -209,7 +209,7 @@ pub fn test(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let bitmap = ops.pull()?.unsigned(state)?;
     let flags = ops.pull()?.unsigned(state)?;
 
@@ -221,11 +221,7 @@ pub fn test(
 }
 
 /// 2OP:8 Bitwise OR
-pub fn or(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn or(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let x = ops.pull()?.unsigned(state)?;
     let y = ops.pull()?.unsigned(state)?;
 
@@ -237,11 +233,7 @@ pub fn or(
 }
 
 // 2OP:9 Bitwise AND
-pub fn and(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn and(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let x = ops.pull()?.unsigned(state)?;
     let y = ops.pull()?.unsigned(state)?;
 
@@ -258,7 +250,7 @@ pub fn test_attr(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
     let flag_set = if object_id == 0 {
@@ -272,10 +264,7 @@ pub fn test_attr(
 }
 
 /// 2OP:11 Set the attribute on the provided object to true
-pub fn set_attr(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn set_attr(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
     if object_id == 0 {
@@ -290,10 +279,7 @@ pub fn set_attr(
 }
 
 /// 2OP:12 Set the attribute on the provided object to false
-pub fn clear_attr(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn clear_attr(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
     let attribute = ops.pull()?.unsigned(state)?;
     if object_id == 0 {
@@ -307,10 +293,7 @@ pub fn clear_attr(
 }
 
 /// 2OP:13 Set the variable referenced by the operand to value
-pub fn store(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn store(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let variable = ops.pull()?.unsigned(state)?;
     let value = ops.pull()?.unsigned(state)?;
 
@@ -319,10 +302,7 @@ pub fn store(
 }
 
 /// 2OP:14 Move object to be the first child of the destination object
-pub fn insert_obj(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn insert_obj(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
     let destination = ops.pull()?.unsigned(state)?;
     if object == 0 || destination == 0 {
@@ -346,7 +326,7 @@ pub fn loadw(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let array: isize = ops.pull()?.unsigned(state)? as isize;
     let word_index: isize = ops.pull()?.signed(state)?.into();
     let word = state.memory.get_word((array + (2 * word_index)) as usize);
@@ -360,7 +340,7 @@ pub fn loadb(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let array: isize = ops.pull()?.unsigned(state)? as isize;
     let byte_index: isize = ops.pull()?.signed(state)?.into();
     let byte = state.memory.get_byte((array + byte_index) as usize);
@@ -374,7 +354,7 @@ pub fn get_prop(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
     let property = ops.pull()?.unsigned(state)?;
 
@@ -398,7 +378,7 @@ pub fn get_prop_addr(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
     let property = ops.pull()?.unsigned(state)?;
 
@@ -422,7 +402,7 @@ pub fn get_next_prop(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
 
     if object == 0 {
@@ -446,11 +426,7 @@ pub fn get_next_prop(
 }
 
 /// 2OP:20 Signed 16-bit addition
-pub fn add(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn add(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let second = ops.pull()?.signed(state)?;
     let result = first.wrapping_add(second);
@@ -460,11 +436,7 @@ pub fn add(
 }
 
 // 2OP:21 Signed 16-bit subtraction
-pub fn sub(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn sub(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let second = ops.pull()?.signed(state)?;
     let result = first.wrapping_sub(second);
@@ -474,11 +446,7 @@ pub fn sub(
 }
 
 /// 2OP:22 Signed 16-bit multiplication.
-pub fn mul(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn mul(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let second = ops.pull()?.signed(state)?;
 
@@ -489,11 +457,7 @@ pub fn mul(
 }
 
 /// 2OP:23 Signed 16-bit division.
-pub fn div(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn div(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let second = ops.pull()?.signed(state)?;
 
@@ -512,7 +476,7 @@ pub fn z_mod(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let first = ops.pull()?.signed(state)?;
     let second = ops.pull()?.signed(state)?;
 
@@ -532,7 +496,7 @@ pub fn jz(
     mut ops: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let a = ops.pull()?.unsigned(state)?;
 
     let condition = a == 0;
@@ -549,7 +513,7 @@ pub fn get_sibling(
     expected: bool,
     offset: i16,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
 
     let result = if object_id == 0 {
@@ -575,7 +539,7 @@ pub fn get_child(
     expected: bool,
     offset: i16,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
     let result = if object_id == 0 {
         warn!("@get_child called with object 0");
@@ -598,7 +562,7 @@ pub fn get_parent(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
 
     let result = if object_id == 0 {
@@ -617,7 +581,7 @@ pub fn get_prop_len(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
 
     let result = if address == 0 {
@@ -630,10 +594,7 @@ pub fn get_prop_len(
 }
 
 /// 1OP:133 Increment the provided variable.
-pub fn inc(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn inc(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into()?;
     let value = state.peek_variable(variable_id)? as i16;
 
@@ -644,10 +605,7 @@ pub fn inc(
 }
 
 /// 1OP:134 Decrement the provided variable.
-pub fn dec(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn dec(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into()?;
     let value = state.peek_variable(variable_id)? as i16;
 
@@ -658,10 +616,7 @@ pub fn dec(
 }
 
 /// 1OP:135 Prints a string stored at a padded address.
-pub fn print_addr(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_addr(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)? as usize;
 
     state
@@ -672,10 +627,7 @@ pub fn print_addr(
 }
 
 /// 1OP:137 Detach an object from its parents and siblings
-pub fn remove_obj(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn remove_obj(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
     if object == 0 {
         warn!("remove_obj called with object 0");
@@ -687,10 +639,7 @@ pub fn remove_obj(
 }
 
 /// 1OP:138 Print the short name of the given object.
-pub fn print_obj(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_obj(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object = ops.pull()?.unsigned(state)?;
     state
         .interface
@@ -700,28 +649,19 @@ pub fn print_obj(
 }
 
 /// 1OP:139 Returns from the current routine with the given value
-pub fn ret(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn ret(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     Ok(Return(ops.pull()?.unsigned(state)?))
 }
 
 /// 1OP:140 Jump unconditionally
-pub fn jump(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn jump(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let offset = ops.pull()?.signed(state)?;
 
     Ok(state.frame().branch(offset))
 }
 
 /// 1OP:141 Prints a string stored at a padded address.
-pub fn print_paddr(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_paddr(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address.into());
     state
@@ -732,11 +672,7 @@ pub fn print_paddr(
 }
 
 /// 1OP:142 Load the variable referred to by the operand into the result
-pub fn load(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn load(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let variable_id = ops.pull()?.unsigned(state)?;
     let value = state.peek_variable(variable_id.try_into()?)?;
 
@@ -746,11 +682,7 @@ pub fn load(
 
 /// 1OP:143 (v1-4)
 /// VAR:248 (v5+) Bitwise NOT
-pub fn not(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn not(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let op = ops.pull()?.unsigned(state)?;
 
     let result = !op;
@@ -760,26 +692,23 @@ pub fn not(
 }
 
 /// 0OP:176 Returns true (1).
-pub fn rtrue(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn rtrue(_: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Return(1))
 }
 
 /// 0OP:177 Returns false (0).
-pub fn rfalse(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn rfalse(_: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Return(0))
 }
 
 /// 0OP:178 Prints a string stored immediately after the instruction.
-pub fn print(state: &mut GameState, string: String) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print(state: &mut GameState, string: String) -> Result<InstructionResult> {
     state.interface.print(&string)?;
     Ok(Continue)
 }
 
 /// 0OP:179 Prints a literal string, prints a newline then returns from the current routine.
-pub fn print_ret(
-    state: &mut GameState,
-    string: String,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_ret(state: &mut GameState, string: String) -> Result<InstructionResult> {
     state.interface.print(&string)?;
     state.interface.print(&"\n")?;
 
@@ -787,25 +716,22 @@ pub fn print_ret(
 }
 
 /// 0OP:180 Does nothing.
-pub fn nop(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn nop(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Continue)
 }
 
 /// 0OP:184 Returns the top of the stack.
-pub fn ret_popped(
-    state: &mut GameState,
-    _: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn ret_popped(state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Return(state.frame().pop_stack()?))
 }
 
 /// 0OP:186 Exits the game.
-pub fn quit(_: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn quit(_: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Quit)
 }
 
 /// 0OP:187 Prints a newline
-pub fn new_line(state: &mut GameState, _: OperandSet) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn new_line(state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     state.interface.print(&"\n")?;
 
     Ok(Continue)
@@ -813,11 +739,7 @@ pub fn new_line(state: &mut GameState, _: OperandSet) -> Result<InstructionResul
 
 /// VAR:224 Calls a routine with up to 3 operands and stores the result. If the address is
 /// zero, does nothing and returns false.
-pub fn call(
-    state: &mut GameState,
-    mut ops: OperandSet,
-    store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn call(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     if address == 0 {
         state.set_variable(store_to, 0);
@@ -827,7 +749,7 @@ pub fn call(
     let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(state))
-        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .collect::<Result<Vec<Option<u16>>>>()?
         .into_iter()
         .while_some()
         .collect();
@@ -840,10 +762,7 @@ pub fn call(
 }
 
 /// VAR:225 Store a word in the given array and word index.
-pub fn storew(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn storew(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let array: isize = ops.pull()?.unsigned(state)? as isize;
     let word_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
@@ -855,10 +774,7 @@ pub fn storew(
 }
 
 /// VAR:226 Store a byte in the given array and word index
-pub fn storeb(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn storeb(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let array: isize = ops.pull()?.unsigned(state)? as isize;
     let byte_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
@@ -870,10 +786,7 @@ pub fn storeb(
 }
 
 /// VAR:227 Update the property data of the goven object
-pub fn put_prop(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn put_prop(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let object_id = ops.pull()?.unsigned(state)?;
     let property_id = ops.pull()?.unsigned(state)?;
     let value = ops.pull()?.unsigned(state)?;
@@ -899,10 +812,7 @@ pub fn put_prop(
 }
 
 /// VAR:229 Print a ZSCII character
-pub fn print_char(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_char(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let char_id = ops.pull()?.unsigned(state)?;
 
     let char = state.memory.alphabet().decode_zscii(char_id)?;
@@ -914,10 +824,7 @@ pub fn print_char(
 }
 
 /// VAR:230 Print a signed number.
-pub fn print_num(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn print_num(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let num = ops.pull()?.signed(state)?;
 
     state.interface.print(&format!("{}", num))?;
@@ -930,7 +837,7 @@ pub fn random(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let range = ops.pull()?.signed(state)?;
     match range.cmp(&0) {
         Ordering::Less => {
@@ -951,10 +858,7 @@ pub fn random(
 }
 
 /// VAR:232 Pushes a value to the stack.
-pub fn push(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn push(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let value = ops.pull()?.unsigned(state)?;
     state.frame().push_stack(value);
 
@@ -962,10 +866,7 @@ pub fn push(
 }
 
 /// VAR:233 Pulls a value off the stack and stores it.
-pub fn pull(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn pull(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let store_to = ops.pull()?.unsigned(state)? as u8;
     let value = state.frame().pop_stack()?;
     state.poke_variable(store_to, value)?;

@@ -1,4 +1,4 @@
-use std::error::Error;
+use anyhow::Result;
 
 use crate::game::error::GameError;
 use crate::game::instruction::Result as InstructionResult;
@@ -38,7 +38,7 @@ impl StackFrame {
         self.locals[index] = value;
     }
 
-    pub fn pop_stack(&mut self) -> Result<u16, Box<dyn Error>> {
+    pub fn pop_stack(&mut self) -> Result<u16> {
         self.stack.pop().ok_or_else(|| {
             GameError::InvalidOperation("Attempted to read from empty stack".into()).into()
         })
@@ -94,7 +94,7 @@ impl CallStack {
         self.frames.push(frame);
     }
 
-    pub fn pop(&mut self) -> Result<StackFrame, Box<dyn Error>> {
+    pub fn pop(&mut self) -> Result<StackFrame> {
         if self.frames.len() <= 1 {
             Err(GameError::InvalidOperation("Tried to return from main routine".into()).into())
         } else {

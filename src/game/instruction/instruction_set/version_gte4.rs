@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::error::Error;
 
+use anyhow::Result;
 use itertools::Itertools;
 
 use crate::game::error::GameError;
@@ -30,7 +30,7 @@ pub fn call_2s(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
     let arguments = vec![ops.pull()?.unsigned(state)?];
@@ -47,7 +47,7 @@ pub fn call_1s(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
 
@@ -63,12 +63,12 @@ pub fn call_vs2(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(state))
-        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .collect::<Result<Vec<Option<u16>>>>()?
         .into_iter()
         .while_some()
         .collect();
@@ -81,20 +81,14 @@ pub fn call_vs2(
 }
 
 /// VAR:237 Clear the screen
-pub fn erase_window(
-    state: &mut GameState,
-    mut _ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn erase_window(state: &mut GameState, mut _ops: OperandSet) -> Result<InstructionResult> {
     // TODO: Add multiple windows.
     state.interface.clear()?;
     Ok(InstructionResult::Continue)
 }
 
 /// VAR:241 Sets the active text style (bold, emphasis etc.)
-pub fn set_text_style(
-    state: &mut GameState,
-    mut ops: OperandSet,
-) -> Result<InstructionResult, Box<dyn Error>> {
+pub fn set_text_style(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let format = ops.pull()?.unsigned(state)?;
 
     match format {
@@ -118,12 +112,12 @@ pub fn call_vs(
     state: &mut GameState,
     mut ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
     let address = state.memory.unpack_address(address as usize);
     let arguments: Vec<u16> = ops
         .map(|op| op.try_unsigned(state))
-        .collect::<Result<Vec<Option<u16>>, Box<dyn Error>>>()?
+        .collect::<Result<Vec<Option<u16>>>>()?
         .into_iter()
         .while_some()
         .collect();
@@ -140,7 +134,7 @@ pub fn read_char(
     state: &mut GameState,
     mut _ops: OperandSet,
     store_to: u8,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let input = state.interface.read_char()?;
     let zscii = state.memory.zscii_from_code(input)?;
     state.set_variable(store_to, zscii.into());

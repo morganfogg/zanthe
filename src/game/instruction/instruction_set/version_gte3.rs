@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::error::Error;
+
+use anyhow::Result;
 
 use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;
@@ -20,7 +21,7 @@ pub fn verify(
     _: OperandSet,
     expected: bool,
     offset: i16,
-) -> Result<InstructionResult, Box<dyn Error>> {
+) -> Result<InstructionResult> {
     let condition = state.checksum_valid;
 
     Ok(state

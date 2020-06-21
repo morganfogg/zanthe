@@ -1,7 +1,7 @@
-use std::error::Error;
 use std::fmt::Display;
 use std::io::{self, Stdout, Write};
 
+use anyhow::Result;
 use crossterm::{
     self,
     cursor::MoveLeft,
@@ -31,7 +31,7 @@ impl EchoInterface {
         }
     }
 
-    fn write<T>(&mut self, text: T) -> Result<(), Box<dyn Error>>
+    fn write<T>(&mut self, text: T) -> Result<()>
     where
         T: Display + Clone,
     {
@@ -50,32 +50,32 @@ impl EchoInterface {
 }
 
 impl Interface for EchoInterface {
-    fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+    fn print(&mut self, text: &str) -> Result<()> {
         self.write(&text)?;
         self.stdout.flush()?;
         Ok(())
     }
 
-    fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
+    fn print_char(&mut self, text: char) -> Result<()> {
         self.write(&text.to_string())?;
         self.stdout.flush()?;
         Ok(())
     }
 
-    fn clear(&mut self) -> Result<(), Box<dyn Error>> {
+    fn clear(&mut self) -> Result<()> {
         queue!(self.stdout, Clear(ClearType::All))?;
         self.stdout.flush()?;
         Ok(())
     }
 
-    fn done(&mut self) -> Result<(), Box<dyn Error>> {
+    fn done(&mut self) -> Result<()> {
         queue!(self.stdout, ResetColor, SetAttribute(Attribute::Reset))?;
         self.stdout.flush()?;
         read()?;
         Ok(())
     }
 
-    fn read_char(&mut self) -> Result<InputCode, Box<dyn Error>> {
+    fn read_char(&mut self) -> Result<InputCode> {
         loop {
             match event::read()? {
                 Event::Key(KeyEvent { code, .. }) => match code {
@@ -94,7 +94,7 @@ impl Interface for EchoInterface {
         }
     }
 
-    fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {
+    fn read_line(&mut self, max_chars: usize) -> Result<String> {
         let mut line = String::new();
         while let Event::Key(KeyEvent { code, .. }) = event::read()? {
             match code {

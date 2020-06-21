@@ -1,7 +1,8 @@
-use crate::game::error::GameError;
 use std::convert::TryFrom;
-use std::error::Error;
 
+use anyhow::Result;
+
+use crate::game::error::GameError;
 use crate::game::InputCode;
 
 const ALPHABET_0: &[char; 26] = &[
@@ -93,7 +94,7 @@ impl Alphabet {
     }
 
     /// Transform a ZSCII output code into a char.
-    pub fn decode_zscii(&self, value: u16) -> Result<Option<char>, Box<dyn Error>> {
+    pub fn decode_zscii(&self, value: u16) -> Result<Option<char>> {
         match value {
             0 => Ok(None),
             13 => Ok(Some('\n')),
@@ -104,7 +105,7 @@ impl Alphabet {
     }
 
     /// Transform a character into a ZSCII code
-    pub fn zscii_from_char(&self, value: char) -> Result<u8, Box<dyn Error>> {
+    pub fn zscii_from_char(&self, value: char) -> Result<u8> {
         let codepoint = value as u32;
 
         if codepoint >= 32 && codepoint <= 126 {
@@ -118,7 +119,7 @@ impl Alphabet {
         }
     }
 
-    pub fn zscii_from_code(&self, value: InputCode) -> Result<u8, Box<dyn Error>> {
+    pub fn zscii_from_code(&self, value: InputCode) -> Result<u8> {
         use InputCode::*;
         match value {
             Delete => Ok(8),

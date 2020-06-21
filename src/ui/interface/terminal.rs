@@ -1,7 +1,7 @@
-use std::error::Error;
 use std::fmt::Display;
 use std::io::{self, Stdout, Write};
 
+use anyhow::Result;
 use crossterm::{
     self,
     cursor::{MoveLeft, MoveTo},
@@ -25,7 +25,7 @@ pub struct TerminalInterface {
 }
 
 impl TerminalInterface {
-    pub fn new() -> Result<TerminalInterface, Box<dyn Error>> {
+    pub fn new() -> Result<TerminalInterface> {
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
         enable_raw_mode()?;
@@ -35,7 +35,7 @@ impl TerminalInterface {
         })
     }
 
-    fn write<T>(&mut self, text: T) -> Result<(), Box<dyn Error>>
+    fn write<T>(&mut self, text: T) -> Result<()>
     where
         T: Display + Clone,
     {
@@ -67,21 +67,21 @@ impl Drop for TerminalInterface {
 }
 
 impl Interface for TerminalInterface {
-    fn print(&mut self, text: &str) -> Result<(), Box<dyn Error>> {
+    fn print(&mut self, text: &str) -> Result<()> {
         self.write(text)
     }
 
-    fn print_char(&mut self, text: char) -> Result<(), Box<dyn Error>> {
+    fn print_char(&mut self, text: char) -> Result<()> {
         self.print(&text.to_string())
     }
 
-    fn clear(&mut self) -> Result<(), Box<dyn Error>> {
+    fn clear(&mut self) -> Result<()> {
         queue!(self.stdout, Clear(ClearType::All))?;
         self.stdout.flush()?;
         Ok(())
     }
 
-    fn read_char(&mut self) -> Result<InputCode, Box<dyn Error>> {
+    fn read_char(&mut self) -> Result<InputCode> {
         loop {
             match event::read()? {
                 Event::Key(KeyEvent { code, .. }) => match code {
@@ -100,7 +100,7 @@ impl Interface for TerminalInterface {
         }
     }
 
-    fn read_line(&mut self, max_chars: usize) -> Result<String, Box<dyn Error>> {
+    fn read_line(&mut self, max_chars: usize) -> Result<String> {
         let mut line = String::new();
         loop {
             match event::read()? {
@@ -134,7 +134,7 @@ impl Interface for TerminalInterface {
         Ok(line)
     }
 
-    fn done(&mut self) -> Result<(), Box<dyn Error>> {
+    fn done(&mut self) -> Result<()> {
         queue!(self.stdout, Print("\n\r[Hit any key to exit...]"))?;
         self.stdout.flush()?;
         read()?;

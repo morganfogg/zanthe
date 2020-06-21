@@ -1,8 +1,8 @@
 use std::char;
 use std::convert::TryInto;
-use std::error::Error;
 use std::iter::successors;
 
+use anyhow::Result;
 use log::{error, info, warn};
 
 use crate::game::address;
@@ -103,7 +103,7 @@ impl Memory {
     }
 
     /// Extract a string from the memory, placing the cursor at the end of the string.
-    pub fn read_string(&mut self, cursor: &mut usize) -> Result<String, Box<dyn Error>> {
+    pub fn read_string(&mut self, cursor: &mut usize) -> Result<String> {
         let (string, len) = self.extract_string(*cursor, true)?;
         *cursor += len;
 
@@ -400,7 +400,7 @@ impl Memory {
         self.get_word(address as usize)
     }
 
-    pub fn object_short_name(&self, object: u16) -> Result<String, Box<dyn Error>> {
+    pub fn object_short_name(&self, object: u16) -> Result<String> {
         Ok(self
             .extract_string(
                 self.object_properties_table_location(object) as usize + 1,
@@ -502,7 +502,7 @@ impl Memory {
             .nth(1)
     }
 
-    pub fn word_separators(&self) -> Result<Vec<char>, Box<dyn Error>> {
+    pub fn word_separators(&self) -> Result<Vec<char>> {
         let alphabet = self.alphabet();
         let mut cursor = self.dictionary_location();
         let count = self.read_byte(&mut cursor);
@@ -516,7 +516,7 @@ impl Memory {
         Ok(result)
     }
 
-    fn dictionary(&self) -> Result<Vec<(usize, String)>, Box<dyn Error>> {
+    fn dictionary(&self) -> Result<Vec<(usize, String)>> {
         let mut cursor = self.dictionary_location();
         let separator_count = self.read_byte(&mut cursor) as usize;
         cursor += separator_count;
@@ -570,11 +570,7 @@ impl Memory {
     }
 
     /// Decode a Z-Character-encoded string, starting at the given point in memory.
-    pub fn extract_string(
-        &self,
-        start: usize,
-        abbreviations: bool,
-    ) -> Result<(String, usize), Box<dyn Error>> {
+    pub fn extract_string(&self, start: usize, abbreviations: bool) -> Result<(String, usize)> {
         let sequence = self.character_sequence(start);
         let byte_length = sequence.len() / 3 * 2;
         let mut sequence = sequence.iter();
@@ -655,7 +651,7 @@ impl Memory {
         Ok((result.iter().collect(), byte_length))
     }
 
-    pub fn write_string(&mut self, mut address: usize, text: &str) -> Result<(), Box<dyn Error>> {
+    pub fn write_string(&mut self, mut address: usize, text: &str) -> Result<()> {
         let alphabet = self.alphabet();
 
         // Skip the 'expected size' byte
@@ -677,16 +673,11 @@ impl Memory {
         Ok(())
     }
 
-    pub fn zscii_from_code(&self, code: InputCode) -> Result<u8, Box<dyn Error>> {
+    pub fn zscii_from_code(&self, code: InputCode) -> Result<u8> {
         self.alphabet().zscii_from_code(code)
     }
 
-    pub fn parse_string(
-        &mut self,
-        mut cursor: usize,
-        text: &str,
-        max_words: usize,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn parse_string(&mut self, mut cursor: usize, text: &str, max_words: usize) -> Result<()> {
         let separators = self.word_separators()?;
         let mut new_word = true;
         let words = text

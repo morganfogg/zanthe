@@ -1,5 +1,6 @@
-use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
+
+use anyhow::Result;
 
 use crate::game::error::GameError;
 use crate::game::state::GameState;
@@ -14,7 +15,7 @@ pub enum Operand {
 }
 
 impl Operand {
-    pub fn try_unsigned(self, state: &mut GameState) -> Result<Option<u16>, Box<dyn Error>> {
+    pub fn try_unsigned(self, state: &mut GameState) -> Result<Option<u16>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(v)),
             Operand::SmallConstant(v) => Ok(Some(u16::from(v))),
@@ -23,7 +24,7 @@ impl Operand {
         }
     }
 
-    pub fn try_signed(self, state: &mut GameState) -> Result<Option<i16>, Box<dyn Error>> {
+    pub fn try_signed(self, state: &mut GameState) -> Result<Option<i16>> {
         match self {
             Operand::LargeConstant(v) => Ok(Some(v as i16)),
             Operand::SmallConstant(v) => Ok(Some(v as i16)),
@@ -32,12 +33,13 @@ impl Operand {
         }
     }
 
-    pub fn unsigned(self, state: &mut GameState) -> Result<u16, Box<dyn Error>> {
+    pub fn unsigned(self, state: &mut GameState) -> Result<u16> {
         self.try_unsigned(state)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
+            .into()
     }
 
-    pub fn signed(self, state: &mut GameState) -> Result<i16, Box<dyn Error>> {
+    pub fn signed(self, state: &mut GameState) -> Result<i16> {
         self.try_signed(state)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
     }
