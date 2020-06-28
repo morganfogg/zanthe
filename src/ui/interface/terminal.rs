@@ -1,6 +1,5 @@
-use std::fmt::Display;
 use std::io::{self, Stdout, Write};
-use std::iter::{from_fn, once, Iterator};
+use std::iter::{once, Iterator};
 
 use anyhow::Result;
 use crossterm::{
@@ -14,8 +13,6 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use itertools::unfold;
-use log::warn;
 
 use crate::game::InputCode;
 use crate::helper::split_exhaustive;
@@ -35,10 +32,6 @@ struct BreakPoint {
 }
 
 impl TextBlob {
-    fn len(&self) -> usize {
-        self.text.len()
-    }
-
     fn from_string(text: &str, style: TextStyle) -> Vec<TextBlob> {
         split_exhaustive(&text, '\n')
             .map(|v| TextBlob {
@@ -50,7 +43,7 @@ impl TextBlob {
     }
 }
 
-/// Set the "wrap points" in text blobs, which are used by the 
+/// Set the "wrap points" in text blobs, which are used by the
 /// `print_blob` method to determine where to wrap lines.
 fn wrap_blobs(blobs: &mut [TextBlob], width: usize, mut offset: usize) {
     let mut last_possible_breakpoint: Option<(usize, BreakPoint)> = None;
@@ -117,7 +110,8 @@ struct Point {
 pub struct TerminalInterface {
     text_style: TextStyle,
     active_screen: Screen,
-    screen_buffer: Vec<TextBlob>,
+    history: Vec<TextBlob>,
+    buffer_point: usize,
     old_cursor_pos: Point,
 }
 
@@ -127,51 +121,56 @@ impl TerminalInterface {
         execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
         enable_raw_mode()?;
         Ok(TerminalInterface {
-            screen_buffer: Vec::new(),
+            history: Vec::new(),
             active_screen: Screen::Lower,
             text_style: TextStyle::default(),
             old_cursor_pos: Point { x: 0, y: 0 },
+            buffer_point: 0,
         })
     }
 
     fn str_to_blobs(&mut self, text: &str) -> Vec<TextBlob> {
-        let mut blobs = TextBlob::from_string(text, self.text_style.clone());
-        wrap_blobs(
-            &mut blobs,
-            term_size().unwrap().0 as usize,
-            cursor_pos().unwrap().0 as usize,
-        );
-        blobs
+        TextBlob::from_string(text, self.text_style.clone())
     }
 
-    fn store_blobs(&mut self, blobs: &mut Vec<TextBlob>) {
-        self.screen_buffer.append(blobs);
+    fn print_blobs(&mut self, blobs: &mut Vec<TextBlob>) -> Result<()> {
+        self.history.append(blobs);
+        Ok(())
     }
 
     fn backspace_screenbuffer(&mut self) {
-        if let Some(c) = self.screen_buffer.last_mut() {
+        if let Some(c) = self.history.last_mut() {
             if c.text.len() > 1 {
                 c.text.pop();
             } else {
-                self.screen_buffer.pop();
+                self.history.pop();
             }
         }
     }
 
-    fn print_blobs(&mut self, blobs: &[TextBlob]) -> Result<()> {
+    fn flush_buffer(&mut self) -> Result<()> {
+        wrap_blobs(
+            &mut self.history[self.buffer_point..],
+            term_size().unwrap().0 as usize,
+            cursor_pos().unwrap().0 as usize,
+        );
+        if self.buffer_point >= self.history.len() {
+            return Ok(());
+        }
         let mut stdout = io::stdout();
-        for blob in blobs.iter() {
+        for blob in self.history[self.buffer_point..].iter() {
             self.print_blob(blob, &mut stdout)?;
         }
-        stdout.flush();
+        stdout.flush()?;
+        self.buffer_point = self.history.len();
         Ok(())
     }
 
     fn reflow_screen(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
-        execute!(stdout, MoveTo(0, 0));
-        wrap_blobs(&mut self.screen_buffer, term_size().unwrap().0 as usize, 0);
-        for blob in self.screen_buffer.iter() {
+        execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+        wrap_blobs(&mut self.history, term_size().unwrap().0 as usize, 0);
+        for blob in self.history.iter() {
             self.print_blob(blob, &mut stdout)?;
         }
         stdout.flush()?;
@@ -196,7 +195,6 @@ impl TerminalInterface {
             )?;
         } else {
             queue!(stdout, Print(&blob.text[..blob.break_points[0].byte_index]),)?;
-            warn!("{:?}", blob.break_points);
             for i in 1..blob.break_points.len() {
                 queue!(
                     stdout,
@@ -229,8 +227,7 @@ impl Drop for TerminalInterface {
 impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
         let mut blobs = self.str_to_blobs(text);
-        self.print_blobs(&blobs)?;
-        self.store_blobs(&mut blobs);
+        self.print_blobs(&mut blobs)?;
         Ok(())
     }
 
@@ -241,11 +238,14 @@ impl Interface for TerminalInterface {
     fn clear(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
         queue!(stdout, Clear(ClearType::All))?;
+        self.history.clear();
+        self.buffer_point = 0;
         stdout.flush()?;
         Ok(())
     }
 
     fn read_char(&mut self) -> Result<InputCode> {
+        self.flush_buffer()?;
         loop {
             match event::read()? {
                 Event::Key(KeyEvent { code, .. }) => match code {
@@ -265,12 +265,12 @@ impl Interface for TerminalInterface {
     }
 
     fn read_line(&mut self, max_chars: usize) -> Result<String> {
+        self.flush_buffer()?;
         let mut line = String::new();
         let mut stdout = io::stdout();
         loop {
             match event::read()? {
                 Event::Resize(..) => {
-                    self.clear()?;
                     self.reflow_screen()?;
                     //self.reflow_screen();
                 }
