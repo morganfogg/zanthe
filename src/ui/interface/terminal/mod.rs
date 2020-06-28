@@ -59,14 +59,30 @@ impl TerminalInterface {
         Ok(())
     }
 
-    fn backspace(&mut self) {
+    fn backspace(&mut self) -> Result<()> {
+        let mut stdout = io::stdout();
         if let Some(c) = self.history.last_mut() {
             if c.text.len() > 1 {
                 c.text.pop();
             } else {
                 self.history.pop();
+                self.buffer_point -= 1;
             }
+            let (column, row) = cursor_pos()?;
+            if column == 0 {
+                let (width, _) = term_size()?;
+                queue!(
+                    stdout,
+                    MoveTo(width - 1, row - 1),
+                    Print(" "),
+                    MoveTo(width - 1, row - 1),
+                )?;
+            } else {
+                queue!(stdout, MoveLeft(1), Print(" "), MoveLeft(1),)?;
+            }
+            stdout.flush()?;
         }
+        Ok(())
     }
 
     fn flush_buffer(&mut self) -> Result<()> {
@@ -102,7 +118,7 @@ impl TerminalInterface {
         let mut blobs = self.str_to_blobs(text);
         self.print_blobs(&mut blobs)?;
         if immediate {
-            self.flush_buffer();
+            self.flush_buffer()?;
         }
         Ok(())
     }
@@ -198,7 +214,6 @@ impl Interface for TerminalInterface {
     fn read_line(&mut self, max_chars: usize) -> Result<String> {
         self.flush_buffer()?;
         let mut line = String::new();
-        let mut stdout = io::stdout();
         loop {
             match event::read()? {
                 Event::Resize(..) => {
@@ -220,9 +235,7 @@ impl Interface for TerminalInterface {
                     }
                     KeyCode::Backspace => {
                         if !line.is_empty() {
-                            queue!(stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
-                            self.backspace();
-                            //self.stdout.flush()?;
+                            self.backspace()?;
                             line.pop();
                         }
                     }
