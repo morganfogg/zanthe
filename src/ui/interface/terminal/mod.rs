@@ -1,5 +1,6 @@
+mod text_blob;
+
 use std::io::{self, Stdout, Write};
-use std::iter::{once, Iterator};
 
 use anyhow::Result;
 use crossterm::{
@@ -15,91 +16,11 @@ use crossterm::{
 };
 
 use crate::game::InputCode;
-use crate::helper::split_exhaustive;
 use crate::ui::interface::Interface;
 use crate::ui::Screen;
 use crate::ui::TextStyle;
 
-struct TextBlob {
-    text: String,
-    style: TextStyle,
-    break_points: Vec<BreakPoint>,
-}
-
-#[derive(Clone, Debug)]
-struct BreakPoint {
-    byte_index: usize,
-}
-
-impl TextBlob {
-    fn from_string(text: &str, style: TextStyle) -> Vec<TextBlob> {
-        split_exhaustive(&text, '\n')
-            .map(|v| TextBlob {
-                text: v.to_owned(),
-                style: style.clone(),
-                break_points: Vec::new(),
-            })
-            .collect()
-    }
-}
-
-/// Set the "wrap points" in text blobs, which are used by the
-/// `print_blob` method to determine where to wrap lines.
-fn wrap_blobs(blobs: &mut [TextBlob], width: usize, mut offset: usize) {
-    let mut last_possible_breakpoint: Option<(usize, BreakPoint)> = None;
-    for blob in blobs.iter_mut() {
-        blob.break_points.clear();
-    }
-    for i in 0..blobs.len() {
-        let blob = &blobs[i];
-        if blob.text == "\n" {
-            offset = 0;
-            last_possible_breakpoint = None;
-            continue;
-        }
-        let break_points: Vec<usize> = once(0)
-            .chain(
-                blob.text
-                    .match_indices(' ')
-                    .map(|x| vec![x.0, x.0 + x.1.len()].into_iter())
-                    .flatten()
-                    .chain(once(blob.text.len())),
-            )
-            .collect();
-        for point in break_points.windows(2) {
-            let start = point[0];
-            let end = point[1];
-
-            let len = blobs[i].text[start..end].chars().count();
-            if offset + len <= width {
-                offset += len;
-            } else if let Some((blob_index, breakpoint)) = &last_possible_breakpoint {
-                let len = if i == *blob_index {
-                    blobs[i].text[breakpoint.byte_index..end].chars().count()
-                } else {
-                    blobs[*blob_index].text[breakpoint.byte_index..]
-                        .chars()
-                        .count()
-                        + blobs[*blob_index..i]
-                            .iter()
-                            .skip(1)
-                            .fold(0, |acc, cur| acc + cur.text.chars().count())
-                        + blobs[i].text[..end].chars().count()
-                };
-                blobs[*blob_index].break_points.push(breakpoint.clone());
-                last_possible_breakpoint = None;
-                if len <= width {
-                    offset = len;
-                } else {
-                    //TODO
-                }
-            }
-            if &blobs[i].text[start..end] == " " {
-                last_possible_breakpoint = Some((i, BreakPoint { byte_index: start }));
-            }
-        }
-    }
-}
+use text_blob::{wrap_blobs, TextBlob};
 
 struct Point {
     x: usize,
@@ -138,7 +59,7 @@ impl TerminalInterface {
         Ok(())
     }
 
-    fn backspace_screenbuffer(&mut self) {
+    fn backspace(&mut self) {
         if let Some(c) = self.history.last_mut() {
             if c.text.len() > 1 {
                 c.text.pop();
@@ -174,6 +95,15 @@ impl TerminalInterface {
             self.print_blob(blob, &mut stdout)?;
         }
         stdout.flush()?;
+        Ok(())
+    }
+
+    fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
+        let mut blobs = self.str_to_blobs(text);
+        self.print_blobs(&mut blobs)?;
+        if immediate {
+            self.flush_buffer();
+        }
         Ok(())
     }
 
@@ -226,9 +156,7 @@ impl Drop for TerminalInterface {
 
 impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
-        let mut blobs = self.str_to_blobs(text);
-        self.print_blobs(&mut blobs)?;
-        Ok(())
+        self.print_bufferable(text, false)
     }
 
     fn print_char(&mut self, text: char) -> Result<()> {
@@ -250,7 +178,10 @@ impl Interface for TerminalInterface {
             match event::read()? {
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => return Ok(InputCode::Newline),
-                    KeyCode::Char(c) => return Ok(InputCode::Character(c)),
+                    KeyCode::Char(c) => {
+                        self.print_bufferable(&c.to_string(), true)?;
+                        return Ok(InputCode::Character(c));
+                    }
                     KeyCode::Up => return Ok(InputCode::CursorUp),
                     KeyCode::Down => return Ok(InputCode::CursorDown),
                     KeyCode::Left => return Ok(InputCode::CursorLeft),
@@ -272,11 +203,10 @@ impl Interface for TerminalInterface {
             match event::read()? {
                 Event::Resize(..) => {
                     self.reflow_screen()?;
-                    //self.reflow_screen();
                 }
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => {
-                        //self.write(&"\n")?;
+                        self.print_bufferable(&"\n", true)?;
                         break;
                     }
                     KeyCode::Esc => {
@@ -284,16 +214,14 @@ impl Interface for TerminalInterface {
                     }
                     KeyCode::Char(c) => {
                         if line.len() < max_chars {
-                            //self.write_screenbuffer(&c.to_string());
-                            //self.write(c)?;
-                            //self.stdout.flush()?;
+                            self.print_bufferable(&c.to_string(), true)?;
                             line.push(c);
                         }
                     }
                     KeyCode::Backspace => {
                         if !line.is_empty() {
                             queue!(stdout, MoveLeft(1), Print(" "), MoveLeft(1))?;
-                            self.backspace_screenbuffer();
+                            self.backspace();
                             //self.stdout.flush()?;
                             line.pop();
                         }
