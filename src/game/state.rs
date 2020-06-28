@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::vec::Vec;
 
 use anyhow::Result;
@@ -27,19 +28,20 @@ pub struct GameState<'a> {
     pub interface: &'a mut dyn Interface,
     pub rng: StdRng,
     call_stack: CallStack,
-    undo_buffer: Vec<UndoBufferEntry>,
+    undo_buffer: VecDeque<UndoBufferEntry>,
 }
 
 impl<'a> GameState<'a> {
     pub fn new(data: Vec<u8>, interface: &'a mut dyn Interface) -> Result<GameState, GameError> {
-        let memory = Memory::new(data);
+        let mut memory = Memory::new(data);
         memory.validate_header()?;
+        memory.set_headers();
         Ok(GameState {
             checksum_valid: memory.verify(),
             version: memory.version(),
             instruction_set: InstructionSet::new(memory.version()),
             call_stack: CallStack::new(),
-            undo_buffer: Vec::new(),
+            undo_buffer: VecDeque::new(),
             rng: StdRng::from_entropy(),
             memory,
             interface,
@@ -73,18 +75,20 @@ impl<'a> GameState<'a> {
     }
 
     pub fn save_undo(&mut self, restore_flag: u8) {
+        if self.undo_buffer.len() >= 10 {
+            self.undo_buffer.pop_front();
+        }
         self.set_variable(restore_flag, 2);
-        self.undo_buffer.push(UndoBufferEntry {
+        self.undo_buffer.push_front(UndoBufferEntry {
             memory: self.memory.clone(),
             call_stack: self.call_stack.clone(),
             rng: self.rng.clone(),
         });
-
         self.poke_variable(restore_flag, 1).unwrap();
     }
 
     pub fn restore_undo(&mut self) -> bool {
-        if let Some(buffer) = self.undo_buffer.pop() {
+        if let Some(buffer) = self.undo_buffer.pop_back() {
             self.memory = buffer.memory;
             self.call_stack = buffer.call_stack;
             self.rng = buffer.rng;

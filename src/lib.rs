@@ -1,11 +1,14 @@
 pub mod game;
+pub mod helper;
 pub mod ui;
-
 use std::fs;
 use std::fs::OpenOptions;
+use std::panic;
 
 use anyhow::{anyhow, Context, Result};
+use backtrace::Backtrace;
 use clap::ArgMatches;
+use log::error;
 use simplelog::ConfigBuilder;
 use simplelog::*;
 
@@ -32,6 +35,11 @@ pub fn run(args: ArgMatches) -> Result<()> {
         .build();
 
     WriteLogger::init(log_level, config, log_file).context("Couldn't start logger")?;
+
+    panic::set_hook(Box::new(|panic_info| {
+        let backtrace = Backtrace::new();
+        error!("{}\n{:?}", panic_info, backtrace);
+    }));
 
     let game_file =
         fs::read(args.value_of("INPUT").unwrap()).context("Couldn't open story file.")?;

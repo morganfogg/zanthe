@@ -1,3 +1,4 @@
+#[derive(Clone, PartialEq)]
 pub struct TextStyle {
     pub bold: bool,
     pub emphasis: bool,
@@ -5,8 +6,8 @@ pub struct TextStyle {
     pub reverse_video: bool,
 }
 
-impl TextStyle {
-    pub fn new() -> TextStyle {
+impl Default for TextStyle {
+    fn default() -> TextStyle {
         TextStyle {
             bold: false,
             emphasis: false,

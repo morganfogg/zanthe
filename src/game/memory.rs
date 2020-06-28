@@ -250,6 +250,46 @@ impl Memory {
         }
     }
 
+    fn set_flag(&mut self, mut address: usize, mut bit: u16, set: bool) {
+        if bit >= 8 {
+            bit -= 8;
+        } else {
+            address += 1;
+        }
+        if set {
+            self.data[address] |= 1 << bit;
+        } else {
+            self.data[address] &= !(1 << bit);
+        }
+    }
+
+    pub fn set_headers(&mut self) {
+        if self.version() < 4 {
+            use address::flags1_bits_pre_v4::*;
+            self.set_flag(address::FLAGS_1, STATUS_LINE_UNAVAILABLE, true);
+            self.set_flag(address::FLAGS_1, SCREEN_SPLITTING_AVAILABLE, false);
+            self.set_flag(address::FLAGS_1, VARIABLE_PITCH_FONT_DEFAULT, true);
+        } else {
+            use address::flags1_bits_post_v4::*;
+            self.set_flag(address::FLAGS_1, COLOR_AVAILABLE, true);
+            self.set_flag(address::FLAGS_1, PICTURE_DISPLAYING_AVAILABLE, false);
+            self.set_flag(address::FLAGS_1, BOLD_AVAILABLE, true);
+            self.set_flag(address::FLAGS_1, ITALICS_AVAILABLE, true);
+            self.set_flag(address::FLAGS_1, FIXED_WIDTH_AVAILABLE, true);
+            self.set_flag(address::FLAGS_1, SOUND_EFFECTS_AVAILABLE, false);
+            self.set_flag(address::FLAGS_1, TIMED_INPUT_AVAILABLE, false);
+        }
+        use address::flags2::*;
+        self.set_flag(address::FLAGS_2, TRANSCRIPTING_ON, false);
+        self.set_flag(address::FLAGS_2, UNDO_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, PICTURE_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, UNDO_SUPPORT, true);
+        self.set_flag(address::FLAGS_2, MOUSE_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, COLOR_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, SOUND_EFFECT_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, MENU_SUPPORT, false);
+    }
+
     /// Extract an encoded Z-Character character sequence from the memory.
     pub fn character_sequence(&self, mut cursor: usize) -> Vec<u8> {
         let mut z_chars = Vec::new();

@@ -27,7 +27,7 @@ impl EchoInterface {
         let stdout = io::stdout();
         EchoInterface {
             stdout,
-            text_style: TextStyle::new(),
+            text_style: TextStyle::default(),
         }
     }
 

@@ -3,15 +3,43 @@
 
 // Common to all versions
 pub const VERSION: usize = 0x0;
-pub const _FLAGS_1: usize = 0x1;
+pub const FLAGS_1: usize = 0x1;
 pub const HIGH_MEMORY_BASE: usize = 0x4;
 pub const PROGRAM_COUNTER_STARTS: usize = 0x6;
 pub const DICTIONARY_LOCATION: usize = 0x8;
 pub const OBJECT_TABLE_LOCATION: usize = 0xA;
 pub const GLOBAL_VARIABLE_TABLE_LOCATION: usize = 0xC;
 pub const STATIC_MEMORY_BASE: usize = 0xE;
-pub const _FLAGS_2: usize = 0x10;
+pub const FLAGS_2: usize = 0x10;
 pub const _STANDARD_REVISION_NUMBER: usize = 0x32;
+
+pub mod flags1_bits_pre_v4 {
+    pub const STATUS_LINE_UNAVAILABLE: u16 = 4;
+    pub const SCREEN_SPLITTING_AVAILABLE: u16 = 5;
+    pub const VARIABLE_PITCH_FONT_DEFAULT: u16 = 6;
+}
+
+pub mod flags1_bits_post_v4 {
+    pub const COLOR_AVAILABLE: u16 = 0;
+    pub const PICTURE_DISPLAYING_AVAILABLE: u16 = 1;
+    pub const BOLD_AVAILABLE: u16 = 2;
+    pub const ITALICS_AVAILABLE: u16 = 3;
+    pub const FIXED_WIDTH_AVAILABLE: u16 = 4;
+    pub const SOUND_EFFECTS_AVAILABLE: u16 = 5;
+    pub const TIMED_INPUT_AVAILABLE: u16 = 7;
+}
+
+pub mod flags2 {
+    pub const TRANSCRIPTING_ON: u16 = 0;
+    pub const _FORCE_FIXED_PITCH: u16 = 1;
+    pub const _REQUEST_REDRAW: u16 = 2;
+    pub const PICTURE_SUPPORT: u16 = 3;
+    pub const UNDO_SUPPORT: u16 = 4;
+    pub const MOUSE_SUPPORT: u16 = 5;
+    pub const COLOR_SUPPORT: u16 = 6;
+    pub const SOUND_EFFECT_SUPPORT: u16 = 7;
+    pub const MENU_SUPPORT: u16 = 8;
+}
 
 // Version 2+
 pub const ABBREVIATION_TABLE_LOCATION: usize = 0x18;
