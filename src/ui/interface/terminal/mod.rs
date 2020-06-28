@@ -54,11 +54,13 @@ impl TerminalInterface {
         TextBlob::from_string(text, self.text_style.clone())
     }
 
+    /// Save blobs to the screen buffer.
     fn print_blobs(&mut self, blobs: &mut Vec<TextBlob>) -> Result<()> {
         self.history.append(blobs);
         Ok(())
     }
 
+    /// Delete a character from the screen and the history.
     fn backspace(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
         if let Some(c) = self.history.last_mut() {
@@ -85,6 +87,7 @@ impl TerminalInterface {
         Ok(())
     }
 
+    /// Flush the screen buffer. 
     fn flush_buffer(&mut self) -> Result<()> {
         wrap_blobs(
             &mut self.history[self.buffer_point..],
@@ -103,6 +106,7 @@ impl TerminalInterface {
         Ok(())
     }
 
+    /// Completely reflow and redraw the screen (e.g. after a resize)
     fn reflow_screen(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
         execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;

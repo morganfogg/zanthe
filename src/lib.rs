@@ -13,7 +13,7 @@ use simplelog::ConfigBuilder;
 use simplelog::*;
 
 use game::state::GameState;
-use ui::interface::{EchoInterface, Interface, TerminalInterface};
+use ui::interface::{Interface, TerminalInterface};
 
 pub fn run(args: ArgMatches) -> Result<()> {
     let log_file = OpenOptions::new()
@@ -47,7 +47,7 @@ pub fn run(args: ArgMatches) -> Result<()> {
     let interface_name = args.value_of("interface").unwrap();
     let mut interface: Box<dyn Interface> = match interface_name {
         "terminal" => Box::new(TerminalInterface::new().context("Couldn't start UI")?),
-        "echo" => Box::new(EchoInterface::new()),
+        //"echo" => Box::new(EchoInterface::new()),
         _ => return Err(anyhow!("Invalid interface")), // Should be unreachable; CLAP enforces valid parameters.
     };
 

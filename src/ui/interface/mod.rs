@@ -1,6 +1,6 @@
-mod echo;
+//mod echo;
 mod terminal;
-pub use echo::EchoInterface;
+//pub use echo::EchoInterface;
 pub use terminal::TerminalInterface;
 
 use anyhow::Result;
