@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::io::{self, Stdout, Write};
-use std::iter::{from_fn, Iterator};
+use std::iter::{from_fn, once, Iterator};
 
 use anyhow::Result;
 use crossterm::{
@@ -29,10 +29,9 @@ struct TextBlob {
     break_points: Vec<BreakPoint>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct BreakPoint {
     byte_index: usize,
-    include_char: bool,
 }
 
 impl TextBlob {
@@ -51,6 +50,8 @@ impl TextBlob {
     }
 }
 
+/// Set the "wrap points" in text blobs, which are used by the 
+/// `print_blob` method to determine where to wrap lines.
 fn wrap_blobs(blobs: &mut [TextBlob], width: usize, mut offset: usize) {
     let mut last_possible_breakpoint: Option<(usize, BreakPoint)> = None;
     for blob in blobs.iter_mut() {
@@ -63,41 +64,46 @@ fn wrap_blobs(blobs: &mut [TextBlob], width: usize, mut offset: usize) {
             last_possible_breakpoint = None;
             continue;
         }
-        let break_points = blob
-            .text
-            .match_indices(' ')
-            .map(|x| x.0)
-            .collect::<Vec<_>>();
-        warn!("{:?}", &break_points);
-        let text_len = blob.text.chars().count();
-        if text_len + offset <= width {
-            offset += text_len;
-        } else {
-            if let Some((blob_index, breakpoint)) = &last_possible_breakpoint {
-                let mut len = blobs[*blob_index].text[breakpoint.byte_index..]
-                    .chars()
-                    .count()
-                    + blobs[*blob_index..i]
-                        .iter()
-                        .fold(0, |acc, cur| acc + cur.text.chars().count());
-                if let Some(i) = break_points.last() {
-                    len += blob.text[*i + 1..].chars().count();
-                }
-                warn!("Len is {}", len);
+        let break_points: Vec<usize> = once(0)
+            .chain(
+                blob.text
+                    .match_indices(' ')
+                    .map(|x| vec![x.0, x.0 + x.1.len()].into_iter())
+                    .flatten()
+                    .chain(once(blob.text.len())),
+            )
+            .collect();
+        for point in break_points.windows(2) {
+            let start = point[0];
+            let end = point[1];
+
+            let len = blobs[i].text[start..end].chars().count();
+            if offset + len <= width {
+                offset += len;
+            } else if let Some((blob_index, breakpoint)) = &last_possible_breakpoint {
+                let len = if i == *blob_index {
+                    blobs[i].text[breakpoint.byte_index..end].chars().count()
+                } else {
+                    blobs[*blob_index].text[breakpoint.byte_index..]
+                        .chars()
+                        .count()
+                        + blobs[*blob_index..i]
+                            .iter()
+                            .skip(1)
+                            .fold(0, |acc, cur| acc + cur.text.chars().count())
+                        + blobs[i].text[..end].chars().count()
+                };
+                blobs[*blob_index].break_points.push(breakpoint.clone());
+                last_possible_breakpoint = None;
                 if len <= width {
-                    blobs[*blob_index].break_points.push(breakpoint.clone());
                     offset = len;
+                } else {
+                    //TODO
                 }
             }
-        }
-        if let Some(byte_index) = break_points.last() {
-            last_possible_breakpoint = Some((
-                i,
-                BreakPoint {
-                    byte_index: *byte_index,
-                    include_char: false,
-                },
-            ));
+            if &blobs[i].text[start..end] == " " {
+                last_possible_breakpoint = Some((i, BreakPoint { byte_index: start }));
+            }
         }
     }
 }
@@ -153,9 +159,11 @@ impl TerminalInterface {
     }
 
     fn print_blobs(&mut self, blobs: &[TextBlob]) -> Result<()> {
+        let mut stdout = io::stdout();
         for blob in blobs.iter() {
-            self.print_blob(blob)?;
+            self.print_blob(blob, &mut stdout)?;
         }
+        stdout.flush();
         Ok(())
     }
 
@@ -164,14 +172,13 @@ impl TerminalInterface {
         execute!(stdout, MoveTo(0, 0));
         wrap_blobs(&mut self.screen_buffer, term_size().unwrap().0 as usize, 0);
         for blob in self.screen_buffer.iter() {
-            self.print_blob(blob)?;
+            self.print_blob(blob, &mut stdout)?;
         }
+        stdout.flush()?;
         Ok(())
     }
 
-    // Here be dragons.
-    fn print_blob(&self, blob: &TextBlob) -> Result<()> {
-        let mut stdout = io::stdout();
+    fn print_blob(&self, blob: &TextBlob, stdout: &mut Stdout) -> Result<()> {
         if blob.style.bold {
             queue!(stdout, SetAttribute(Attribute::Bold))?;
         }
@@ -189,6 +196,7 @@ impl TerminalInterface {
             )?;
         } else {
             queue!(stdout, Print(&blob.text[..blob.break_points[0].byte_index]),)?;
+            warn!("{:?}", blob.break_points);
             for i in 1..blob.break_points.len() {
                 queue!(
                     stdout,
@@ -206,7 +214,6 @@ impl TerminalInterface {
             )?;
         }
         queue!(stdout, SetAttribute(Attribute::Reset))?;
-        stdout.flush()?;
         Ok(())
     }
 }

@@ -2,7 +2,7 @@ use std::iter::from_fn;
 
 /// Split a string, including the separator as an element in the result.
 pub fn split_exhaustive<'a>(input: &'a str, separator: char) -> impl Iterator<Item = &'a str> {
-    let mut indices = input.match_indices(|x| x == '\n' || x == ' ');
+    let mut indices = input.match_indices(separator);
     let mut last = 0;
     from_fn(move || {
         let mut results = Vec::with_capacity(2);
