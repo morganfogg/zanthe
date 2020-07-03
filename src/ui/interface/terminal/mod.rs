@@ -2,7 +2,7 @@ mod text_blob;
 
 use std::io::{self, Stdout, Write};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use crossterm::{
     self,
     cursor::{position as cursor_pos, MoveLeft, MoveTo},
@@ -14,6 +14,8 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
+use log::info;
+use num_traits::FromPrimitive;
 
 use crate::game::InputCode;
 use crate::ui::interface::Interface;
@@ -34,6 +36,8 @@ pub struct TerminalInterface {
     history: Vec<TextBlob>,
     buffer_point: usize,
     old_cursor_pos: Point,
+    upper_window_height: u16,
+    enable_buffering: bool,
 }
 
 impl TerminalInterface {
@@ -47,6 +51,8 @@ impl TerminalInterface {
             text_style: TextStyle::default(),
             old_cursor_pos: Point { x: 0, y: 0 },
             buffer_point: 0,
+            upper_window_height: 0,
+            enable_buffering: true,
         })
     }
 
@@ -87,7 +93,7 @@ impl TerminalInterface {
         Ok(())
     }
 
-    /// Flush the screen buffer. 
+    /// Flush the screen buffer.
     fn flush_buffer(&mut self) -> Result<()> {
         wrap_blobs(
             &mut self.history[self.buffer_point..],
@@ -141,7 +147,6 @@ impl TerminalInterface {
             queue!(
                 stdout,
                 Print(format!("{}", blob.text).replace("\n", "\n\r")),
-                SetAttribute(Attribute::Reset)
             )?;
         } else {
             queue!(stdout, Print(&blob.text[..blob.break_points[0].byte_index]),)?;
@@ -176,11 +181,35 @@ impl Drop for TerminalInterface {
 
 impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
-        self.print_bufferable(text, false)
+        if self.active_screen == Screen::Upper {
+            return Ok(());
+        }
+        self.print_bufferable(text, self.enable_buffering)
     }
 
     fn print_char(&mut self, text: char) -> Result<()> {
         self.print(&text.to_string())
+    }
+
+    fn buffer_mode(&mut self, enable_buffering: bool) -> Result<()> {
+        self.enable_buffering = enable_buffering;
+        Ok(())
+    }
+
+    fn set_active(&mut self, split: u16) -> Result<()> {
+        self.active_screen = Screen::from_u16(split).ok_or_else(|| anyhow!("Invalid screen"))?;
+        info!("{:?}", self.active_screen);
+        Ok(())
+    }
+
+    fn split_screen(&mut self, split: u16) -> Result<()> {
+        self.upper_window_height = split;
+        Ok(())
+    }
+
+    fn set_cursor(&mut self, line: u16, column: u16) -> Result<()> {
+        //TODO
+        Ok(())
     }
 
     fn clear(&mut self) -> Result<()> {
@@ -253,6 +282,7 @@ impl Interface for TerminalInterface {
 
     fn done(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
+        self.flush_buffer()?;
         queue!(stdout, Print("\n\r[Hit any key to exit...]"))?;
         stdout.flush()?;
         read()?;

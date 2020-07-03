@@ -1,8 +1,9 @@
+use std::cmp::min;
 use std::collections::VecDeque;
 use std::vec::Vec;
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, warn};
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::game::error::GameError;
@@ -199,7 +200,7 @@ impl<'a> GameState<'a> {
                 } else {
                     // The offset is a signed 14-bit number.
                     let base = self.memory.read_word(&mut pc);
-                    if base >> 13 == 1 {
+                    if (base >> 13) & 1 == 1 {
                         ((base & 0x1fff) | (0b111 << 13)) as i16
                     } else {
                         (base & 0x1fff) as i16
@@ -280,8 +281,8 @@ impl<'a> GameState<'a> {
         let mut arg_count = 0;
 
         if let Some(arguments) = arguments {
-            locals.splice(..arguments.len(), arguments.iter().cloned());
             arg_count = arguments.len();
+            locals.splice(..min(arg_count, local_count), arguments.into_iter());
         }
         self.call_stack
             .push(StackFrame::new(address, locals, arg_count, store_to));

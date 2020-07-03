@@ -327,9 +327,9 @@ pub fn loadw(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult> {
-    let array: isize = ops.pull()?.unsigned(state)? as isize;
-    let word_index: isize = ops.pull()?.signed(state)?.into();
-    let word = state.memory.get_word((array + (2 * word_index)) as usize);
+    let array: usize = ops.pull()?.unsigned(state)?.into();
+    let word_index: usize = ops.pull()?.unsigned(state)?.into();
+    let word = state.memory.get_word(array + (2 * word_index));
 
     state.set_variable(store_to, word);
     Ok(Continue)
@@ -341,9 +341,9 @@ pub fn loadb(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult> {
-    let array: isize = ops.pull()?.unsigned(state)? as isize;
-    let byte_index: isize = ops.pull()?.signed(state)?.into();
-    let byte = state.memory.get_byte((array + byte_index) as usize);
+    let array: usize = ops.pull()?.unsigned(state)?.into();
+    let byte_index: usize = ops.pull()?.unsigned(state)?.into();
+    let byte = state.memory.get_byte(array + byte_index);
 
     state.set_variable(store_to, byte as u16);
     Ok(Continue)
@@ -498,7 +498,6 @@ pub fn jz(
     offset: i16,
 ) -> Result<InstructionResult> {
     let a = ops.pull()?.unsigned(state)?;
-
     let condition = a == 0;
 
     Ok(state
@@ -763,8 +762,8 @@ pub fn call(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<
 
 /// VAR:225 Store a word in the given array and word index.
 pub fn storew(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
-    let array: isize = ops.pull()?.unsigned(state)? as isize;
-    let word_index: isize = ops.pull()?.signed(state)?.into();
+    let array: usize = ops.pull()?.unsigned(state)?.into();
+    let word_index: usize = ops.pull()?.unsigned(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
     state
@@ -775,13 +774,11 @@ pub fn storew(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionR
 
 /// VAR:226 Store a byte in the given array and word index
 pub fn storeb(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
-    let array: isize = ops.pull()?.unsigned(state)? as isize;
-    let byte_index: isize = ops.pull()?.signed(state)?.into();
+    let array: usize = ops.pull()?.unsigned(state)?.into();
+    let byte_index: usize = ops.pull()?.unsigned(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
-    state
-        .memory
-        .set_byte((array + byte_index) as usize, value as u8);
+    state.memory.set_byte(array + byte_index, value as u8);
     Ok(Continue)
 }
 

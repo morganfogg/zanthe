@@ -6,20 +6,22 @@ use itertools::Itertools;
 use crate::game::error::GameError;
 use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;
-use crate::game::instruction::{OperandSet, Result as InstructionResult};
+use crate::game::instruction::{OperandSet, Result as InstructionResult, Result::*};
 use crate::game::state::GameState;
 
 pub fn instructions() -> HashMap<OpCode, Instruction> {
     use Instruction::*;
     use OpCode::*;
     vec![
-        (VarOp(0x0), Store(&call_vs, "CALL_VS")),
+        (TwoOp(0x19), Store(&call_2s, "CALL_2S")),
         (OneOp(0x8), Store(&call_1s, "CALL_1S")),
+        (VarOp(0x0), Store(&call_vs, "CALL_VS")),
         (VarOp(0xC), Store(&call_vs2, "CALL_VS2")),
         (VarOp(0xD), Normal(&erase_window, "ERASE_WINDOW")),
+        (VarOp(0xF), Normal(&set_cursor, "SET_CURSOR")),
         (VarOp(0x11), Normal(&set_text_style, "SET_TEXT_STYLE")),
+        (VarOp(0x12), Normal(&buffer_mode, "BUFFER_MODE")),
         (VarOp(0x16), Store(&read_char, "READ_CHAR")),
-        (TwoOp(0x19), Store(&call_2s, "CALL_2S")),
     ]
     .into_iter()
     .collect()
@@ -58,6 +60,13 @@ pub fn call_1s(
     })
 }
 
+/// VAR:242 Change the buffer mode.
+pub fn buffer_mode(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+    let enable_buffering = ops.pull()?.unsigned(state)? != 0;
+    state.interface.buffer_mode(enable_buffering)?;
+    Ok(Continue)
+}
+
 /// VAR:236 Call a routine with up to 7 arguments and store the result.
 pub fn call_vs2(
     state: &mut GameState,
@@ -84,6 +93,15 @@ pub fn call_vs2(
 pub fn erase_window(state: &mut GameState, mut _ops: OperandSet) -> Result<InstructionResult> {
     // TODO: Add multiple windows.
     state.interface.clear()?;
+    Ok(InstructionResult::Continue)
+}
+
+/// VAR:239 Set the cursor position.
+pub fn set_cursor(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+    let line = ops.pull()?.unsigned(state)?;
+    let column = ops.pull()?.unsigned(state)?;
+
+    state.interface.set_cursor(line, column)?;
     Ok(InstructionResult::Continue)
 }
 

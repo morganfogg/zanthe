@@ -40,6 +40,14 @@ pub trait Interface {
 
     fn read_char(&mut self) -> Result<InputCode>;
 
+    fn split_screen(&mut self, split: u16) -> Result<()>;
+
+    fn set_active(&mut self, active: u16) -> Result<()>;
+
+    fn set_cursor(&mut self, line: u16, column: u16) -> Result<()>;
+
+    fn buffer_mode(&mut self, enable: bool) -> Result<()>;
+
     /// Close the UI immediately.
     fn quit(&mut self);
 }
