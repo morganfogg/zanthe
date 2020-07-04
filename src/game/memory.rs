@@ -252,9 +252,8 @@ impl Memory {
 
     fn set_flag(&mut self, mut address: usize, mut bit: u16, set: bool) {
         if bit >= 8 {
-            bit -= 8;
-        } else {
             address += 1;
+            bit -= 8;
         }
         if set {
             self.data[address] |= 1 << bit;
