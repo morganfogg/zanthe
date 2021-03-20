@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct TextStyle {
     pub bold: bool,
     pub emphasis: bool,

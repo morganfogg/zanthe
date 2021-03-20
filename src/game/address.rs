@@ -38,7 +38,7 @@ pub mod flags2 {
     pub const MOUSE_SUPPORT: u16 = 5;
     pub const COLOR_SUPPORT: u16 = 6;
     pub const SOUND_EFFECT_SUPPORT: u16 = 7;
-    pub const MENU_SUPPORT: u16 = 8;
+    pub const _MENU_SUPPORT: u16 = 8;
 }
 
 // Version 2+

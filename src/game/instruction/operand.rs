@@ -36,7 +36,6 @@ impl Operand {
     pub fn unsigned(self, state: &mut GameState) -> Result<u16> {
         self.try_unsigned(state)?
             .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
-            .into()
     }
 
     pub fn signed(self, state: &mut GameState) -> Result<i16> {
@@ -51,14 +50,14 @@ impl Display for Operand {
             f,
             "{}",
             match &self {
-                Operand::LargeConstant(v) => format!("LargeConstant({0} [0x{0:x}])", v),
-                Operand::SmallConstant(v) => format!("SmallConstant({0} [0x{0:x})", v),
+                Operand::LargeConstant(v) => format!("#{:04x}", v),
+                Operand::SmallConstant(v) => format!("#{:02x}", v),
                 Operand::Variable(v) => match v {
-                    0x0 => "Variable(SP)".to_string(),
-                    0x1..=0xf => format!("Variable(L{:x})", v - 0x1),
-                    0x10..=0xff => format!("Variable(G{:x})", v - 0x10),
+                    0x0 => "(SP)+".to_string(),
+                    0x1..=0xf => format!("L{:02x}", v - 0x1),
+                    0x10..=0xff => format!("G{:02x}", v - 0x10),
                 },
-                Operand::Omitted => "Omitted".to_string(),
+                Operand::Omitted => "".to_string(),
             }
         )
     }

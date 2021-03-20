@@ -22,7 +22,7 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0x18), Store(&common::not, "NOT")), // Moved from 1OP:143
         (VarOp(0x19), Normal(&call_vn, "CALL_VN")),
         (VarOp(0x1A), Normal(&call_vn2, "CALL_VN2")),
-        (VarOp(0x1F), Branch(&check_arg_count, "CHEC_ARG_COUNT")),
+        (VarOp(0x1F), Branch(&check_arg_count, "CHECK_ARG_COUNT")),
         (Extended(0x2), Store(&log_shift, "LOG_SHIFT")),
         (Extended(0x3), Store(&art_shift, "ART_SHIFT")),
         (Extended(0x9), Store(&save_undo, "SAVE_UNDO")),

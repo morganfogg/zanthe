@@ -3,6 +3,7 @@ use std::iter::{once, Iterator};
 use crate::helper::split_exhaustive;
 use crate::ui::TextStyle;
 
+#[derive(Debug)]
 pub struct TextBlob {
     pub text: String,
     pub style: TextStyle,

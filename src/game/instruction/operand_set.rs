@@ -6,7 +6,7 @@ use super::Operand;
 
 pub struct OperandSet {
     index: usize,
-    set: Vec<Operand>,
+    pub set: Vec<Operand>,
 }
 
 impl OperandSet {
@@ -36,7 +36,14 @@ impl Iterator for OperandSet {
 
 impl Display for OperandSet {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "[{}]", self.set.iter().join(", "))
+        write!(
+            f,
+            "{}",
+            self.set
+                .iter()
+                .filter(|x| !matches!(x, Operand::Omitted))
+                .join(",")
+        )
     }
 }
 

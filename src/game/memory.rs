@@ -286,7 +286,7 @@ impl Memory {
         self.set_flag(address::FLAGS_2, MOUSE_SUPPORT, false);
         self.set_flag(address::FLAGS_2, COLOR_SUPPORT, false);
         self.set_flag(address::FLAGS_2, SOUND_EFFECT_SUPPORT, false);
-        self.set_flag(address::FLAGS_2, MENU_SUPPORT, false);
+        //self.set_flag(address::FLAGS_2, MENU_SUPPORT, false);
     }
 
     /// Extract an encoded Z-Character character sequence from the memory.

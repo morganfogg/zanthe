@@ -588,7 +588,7 @@ pub fn get_prop_len(
     } else {
         state.memory.property_data_length(address as usize)
     };
-    state.set_variable(store_to, result.try_into()?);
+    state.set_variable(store_to, result);
     Ok(Continue)
 }
 

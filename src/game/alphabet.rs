@@ -108,7 +108,7 @@ impl Alphabet {
     pub fn zscii_from_char(&self, value: char) -> Result<u8> {
         let codepoint = value as u32;
 
-        if codepoint >= 32 && codepoint <= 126 {
+        if (32..=126).contains(&codepoint) {
             Ok(codepoint as u8)
         } else if value == '\n' {
             Ok(13)

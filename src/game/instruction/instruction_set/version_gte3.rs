@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use log::warn;
 
 use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;
@@ -53,7 +54,8 @@ pub fn set_window(state: &mut GameState, mut ops: OperandSet) -> Result<Instruct
 }
 
 /// VAR:243 Change the output stream
-pub fn output_stream(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+pub fn output_stream(_state: &mut GameState, mut _ops: OperandSet) -> Result<InstructionResult> {
     // TODO: Implment
+    warn!("OUTPUT_STREAM UNIMPLEMENTED");
     Ok(Continue)
 }

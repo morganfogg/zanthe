@@ -12,8 +12,6 @@ pub use operand::Operand;
 pub use operand_set::OperandSet;
 pub use result::Result;
 
-use anyhow;
-
 use crate::game::state::GameState;
 use result::Result as InstructionResult;
 
