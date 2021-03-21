@@ -2,7 +2,7 @@ use std::collections::HashMap;
 //
 use anyhow::Result;
 use itertools::Itertools;
-use log::warn;
+use tracing::warn;
 
 use crate::game::error::GameError;
 use crate::game::instruction::op_code::OpCode;

@@ -15,8 +15,8 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use log::warn;
 use num_traits::FromPrimitive;
+use tracing::warn;
 
 use crate::game::InputCode;
 use crate::ui::interface::Interface;
@@ -113,20 +113,42 @@ impl TerminalInterface {
     /// Completely reflow and redraw the screen (e.g. after a resize)
     fn reflow_screen(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
-        execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
+        execute!(
+            stdout,
+            MoveTo(0, self.upper_window_height),
+            Clear(ClearType::FromCursorDown),
+            MoveTo(0, self.upper_window_height)
+        )?;
         wrap_blobs(&mut self.history, term_size().unwrap().0 as usize, 0);
         for blob in self.history.iter() {
-            self.print_blob(blob, &mut stdout)?;
+            //self.print_blob(blob, &mut stdout)?;
         }
         stdout.flush()?;
         self.old_cursor_pos = cursor_pos()?;
         Ok(())
     }
 
+    fn active_is_visible(&self) -> bool {
+        match self.active_screen {
+            Screen::Upper => self.upper_window_height != 0,
+            Screen::Lower => self.upper_window_height <= term_size().unwrap().1,
+        }
+    }
+
+    /// For printing to the upper screen where no buffering should take place
+    fn print_unbufferable(&self, text: &str) -> Result<()> {
+        if self.active_is_visible() {
+            let mut stdout = io::stdout();
+            execute!(stdout, Print(text))?;
+        }
+        Ok(())
+    }
+
+    /// For printing to the lower screen where buffering and wrapping should be attempted.
     fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
         let mut blobs = self.str_to_blobs(text);
         self.print_blobs(&mut blobs)?;
-        if immediate {
+        if immediate && self.active_is_visible() {
             self.flush_buffer()?;
         }
         Ok(())
@@ -181,7 +203,10 @@ impl Drop for TerminalInterface {
 
 impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
-        self.print_bufferable(text, self.enable_buffering)
+        match self.active_screen {
+            Screen::Lower => self.print_bufferable(text, self.enable_buffering),
+            Screen::Upper => self.print_unbufferable(text),
+        }
     }
 
     fn print_char(&mut self, text: char) -> Result<()> {
@@ -191,6 +216,10 @@ impl Interface for TerminalInterface {
     fn buffer_mode(&mut self, enable_buffering: bool) -> Result<()> {
         self.enable_buffering = enable_buffering;
         Ok(())
+    }
+
+    fn get_screen_size(&self) -> (u16, u16) {
+        return term_size().unwrap();
     }
 
     fn set_active(&mut self, split: u16) -> Result<()> {
@@ -207,6 +236,7 @@ impl Interface for TerminalInterface {
         } else {
             queue!(stdout, MoveTo(self.old_cursor_pos.0, self.old_cursor_pos.1))?;
         }
+        stdout.flush()?;
         self.active_screen = new_active;
         Ok(())
     }
@@ -216,13 +246,14 @@ impl Interface for TerminalInterface {
         Ok(())
     }
 
+    // Set the location of the cursor
     fn set_cursor(&mut self, line: u16, column: u16) -> Result<()> {
         let mut stdout = io::stdout();
         if self.active_screen != Screen::Upper {
             warn!("Tried to call set_cursor outside upper window");
             return Ok(());
         }
-        execute!(stdout, MoveTo(column, line))?;
+        execute!(stdout, MoveTo(column - 1, line - 1))?;
         Ok(())
     }
 
@@ -303,27 +334,36 @@ impl Interface for TerminalInterface {
         Ok(())
     }
 
-    fn text_style_bold(&mut self) {
+    fn text_style_bold(&mut self) -> Result<()> {
+        queue!(io::stdout(), SetAttribute(Attribute::Bold))?;
         self.text_style.bold = true;
+        Ok(())
     }
 
-    fn text_style_emphasis(&mut self) {
+    fn text_style_emphasis(&mut self) -> Result<()> {
+        queue!(io::stdout(), SetAttribute(Attribute::Underlined))?;
         self.text_style.emphasis = true;
+        Ok(())
     }
 
-    fn text_style_reverse(&mut self) {
+    fn text_style_reverse(&mut self) -> Result<()> {
+        queue!(io::stdout(), SetAttribute(Attribute::Reverse))?;
         self.text_style.reverse_video = true;
+        Ok(())
     }
 
-    fn text_style_fixed(&mut self) {
+    fn text_style_fixed(&mut self) -> Result<()> {
         self.text_style.fixed_width = true;
+        Ok(())
     }
 
-    fn text_style_clear(&mut self) {
+    fn text_style_clear(&mut self) -> Result<()> {
         self.text_style.bold = false;
         self.text_style.emphasis = false;
         self.text_style.reverse_video = false;
         self.text_style.fixed_width = false;
+        queue!(io::stdout(), SetAttribute(Attribute::Reset))?;
+        Ok(())
     }
 
     fn quit(&mut self) {}

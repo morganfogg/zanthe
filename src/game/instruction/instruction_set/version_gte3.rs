@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use log::warn;
+use tracing::warn;
 
 use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;

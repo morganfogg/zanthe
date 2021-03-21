@@ -110,11 +110,11 @@ pub fn set_text_style(state: &mut GameState, mut ops: OperandSet) -> Result<Inst
     let format = ops.pull()?.unsigned(state)?;
 
     match format {
-        0 => state.interface.text_style_clear(),
-        1 => state.interface.text_style_reverse(),
-        2 => state.interface.text_style_bold(),
-        4 => state.interface.text_style_emphasis(),
-        8 => state.interface.text_style_fixed(),
+        0 => state.interface.text_style_clear()?,
+        1 => state.interface.text_style_reverse()?,
+        2 => state.interface.text_style_bold()?,
+        4 => state.interface.text_style_emphasis()?,
+        8 => state.interface.text_style_fixed()?,
         _ => {
             return Err(
                 GameError::InvalidOperation("Tried to set invalid text style".into()).into(),

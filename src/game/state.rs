@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use std::vec::Vec;
 
 use anyhow::Result;
-use log::debug;
 use rand::{rngs::StdRng, SeedableRng};
+use tracing::debug;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
@@ -36,7 +36,9 @@ impl<'a> GameState<'a> {
     pub fn new(data: Vec<u8>, interface: &'a mut dyn Interface) -> Result<GameState, GameError> {
         let mut memory = Memory::new(data);
         memory.validate_header()?;
-        memory.set_headers();
+        memory.set_general_headers();
+        let (width, height) = interface.get_screen_size();
+        memory.set_screen_size(width, height);
         Ok(GameState {
             checksum_valid: memory.verify(),
             version: memory.version(),
@@ -116,10 +118,8 @@ impl<'a> GameState<'a> {
 
     fn next_op(&mut self) -> Result<InstructionResult> {
         let frame = self.call_stack.frame();
-        if cfg!(debug_assertions) {
-            debug!("--------------------------------------");
-            debug!("PC AT {:x}", frame.pc);
-        }
+        //debug!("--------------------------------------");
+        //debug!("PC AT {:x}", frame.pc);
         let instruction_pc = frame.pc;
 
         let mut code_byte = self.memory.read_byte(&mut frame.pc);
@@ -208,23 +208,23 @@ impl<'a> GameState<'a> {
 
         match instruction {
             Instruction::Normal(f, name) => {
-                debug!("{:x} {} {}", instruction_pc, name, operands);
+                //debug!("{:x} {} {}", instruction_pc, name, operands);
                 f(self, operands)
             }
             Instruction::Branch(f, name) => {
                 let condition = self.memory.get_byte(pc) >> 7 == 1;
                 let offset = self.branch_offset(&mut pc);
-                debug!(
-                    "{:x} {} {} ={} :{:x}",
-                    instruction_pc, name, operands, condition, offset
-                );
+                //                 debug!(
+                //                     "{:x} {} {} ={} :{:x}",
+                //                     instruction_pc, name, operands, condition, offset
+                //                 );
 
                 self.frame().pc = pc;
                 f(self, operands, condition, offset)
             }
             Instruction::Store(f, name) => {
                 let store_to = self.memory.read_byte(&mut pc);
-                debug!("{:x} {} {} >{:x}", instruction_pc, name, operands, store_to);
+                //debug!("{:x} {} {} >{:x}", instruction_pc, name, operands, store_to);
                 self.frame().pc = pc;
                 f(self, operands, store_to)
             }
@@ -233,10 +233,10 @@ impl<'a> GameState<'a> {
                 let condition = self.memory.get_byte(pc) >> 7 == 1;
 
                 let offset = self.branch_offset(&mut pc);
-                debug!(
+                /*debug!(
                     "{:x} {} {} ={} >{:x} :{:x}",
                     instruction_pc, name, operands, condition, store_to, offset
-                );
+                );*/
                 self.frame().pc = pc;
                 f(self, operands, condition, offset, store_to)
             }
@@ -245,7 +245,7 @@ impl<'a> GameState<'a> {
                     GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                 })?;
 
-                debug!("{:x} {} '{}'", instruction_pc, name, string);
+                //debug!("{:x} {} '{}'", instruction_pc, name, string);
 
                 self.frame().pc = pc;
                 f(self, string)
@@ -329,21 +329,15 @@ impl<'a> GameState<'a> {
     pub fn set_variable(&mut self, variable: u8, value: u16) {
         match variable {
             0x0 => {
-                if cfg!(debug_assertions) {
-                    debug!("SET SP = {0} [{0:x}]", value);
-                }
+                //debug!("SET SP = {0} [{0:x}]", value);
                 self.frame().push_stack(value)
             }
             0x1..=0xf => {
-                if cfg!(debug_assertions) {
-                    debug!("SET L{:x} = {1} [{1:x}]", variable - 0x1, value);
-                }
+                //debug!("SET L{:x} = {1} [{1:x}]", variable - 0x1, value);
                 self.frame().set_local(variable as usize - 1, value);
             }
             _ => {
-                if cfg!(debug_assertions) {
-                    debug!("SET G{:x} = {1} [{1:x}]", variable - 0x10, value);
-                }
+                //debug!("SET G{:x} = {1} [{1:x}]", variable - 0x10, value);
                 self.memory.set_global(variable - 16, value);
             }
         }
@@ -385,28 +379,22 @@ impl<'a> GameState<'a> {
         match variable {
             0x0 => {
                 result = self.frame().pop_stack();
-                if cfg!(debug_assertions) {
-                    debug!(
-                        "GET SP = {}",
-                        match result {
-                            Ok(v) => format!("{0}, [{0:x}]", v),
-                            Err(_) => "ERROR".to_string(),
-                        }
-                    );
-                }
+                //                 debug!(
+                //                     "GET SP = {}",
+                //                     match result {
+                //                         Ok(v) => format!("{0}, [{0:x}]", v),
+                //                         Err(_) => "ERROR".to_string(),
+                //                     }
+                //                 );
             }
             0x1..=0xf => {
                 let local = self.frame().get_local(variable as usize - 0x1);
-                if cfg!(debug_assertions) {
-                    debug!("GET L{:x} = {1} [{1:x}]", variable - 0x1, local);
-                }
+                //debug!("GET L{:x} = {1} [{1:x}]", variable - 0x1, local);
                 result = Ok(local);
             }
             _ => {
                 let global = self.memory.get_global(variable - 0x10);
-                if cfg!(debug_assertions) {
-                    debug!("GET G{:x} = {1} [{1:x}]", variable - 0x10, global);
-                }
+                //debug!("GET G{:x} = {1} [{1:x}]", variable - 0x10, global);
                 result = Ok(global);
             }
         };

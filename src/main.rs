@@ -1,5 +1,5 @@
 use clap::{App, Arg};
-use log::{error, info};
+use tracing::{error, info};
 
 use zanthe::run;
 

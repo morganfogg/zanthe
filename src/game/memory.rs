@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::iter::successors;
 
 use anyhow::Result;
-use log::{error, info, warn};
+use tracing::{error, info, warn};
 
 use crate::game::address;
 use crate::game::alphabet::{Alphabet, AlphabetTable};
@@ -262,7 +262,8 @@ impl Memory {
         }
     }
 
-    pub fn set_headers(&mut self) {
+    /// Set universal headers
+    pub fn set_general_headers(&mut self) {
         if self.version() < 4 {
             use address::flags1_bits_pre_v4::*;
             self.set_flag(address::FLAGS_1, STATUS_LINE_UNAVAILABLE, true);
@@ -280,13 +281,29 @@ impl Memory {
         }
         use address::flags2::*;
         self.set_flag(address::FLAGS_2, TRANSCRIPTING_ON, false);
-        self.set_flag(address::FLAGS_2, UNDO_SUPPORT, false);
         self.set_flag(address::FLAGS_2, PICTURE_SUPPORT, false);
         self.set_flag(address::FLAGS_2, UNDO_SUPPORT, true);
         self.set_flag(address::FLAGS_2, MOUSE_SUPPORT, false);
         self.set_flag(address::FLAGS_2, COLOR_SUPPORT, false);
         self.set_flag(address::FLAGS_2, SOUND_EFFECT_SUPPORT, false);
-        //self.set_flag(address::FLAGS_2, MENU_SUPPORT, false);
+        self.set_flag(address::FLAGS_2, MENU_SUPPORT, false)
+    }
+
+    /// Set the screen size headers
+    pub fn set_screen_size(&mut self, width: u16, height: u16) {
+        if self.version() >= 5 {
+            self.set_word(address::SCREEN_WIDTH_POST_Z5, width);
+            self.set_word(address::SCREEN_HEIGHT_POST_Z5, height);
+        } else if self.version() == 4 {
+            self.set_byte(
+                address::SCREEN_WIDTH_PRE_Z5,
+                width.try_into().unwrap_or(255),
+            );
+            self.set_byte(
+                address::SCREEN_HEIGHT_PRE_Z5,
+                height.try_into().unwrap_or(255),
+            );
+        }
     }
 
     /// Extract an encoded Z-Character character sequence from the memory.

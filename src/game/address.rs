@@ -38,7 +38,7 @@ pub mod flags2 {
     pub const MOUSE_SUPPORT: u16 = 5;
     pub const COLOR_SUPPORT: u16 = 6;
     pub const SOUND_EFFECT_SUPPORT: u16 = 7;
-    pub const _MENU_SUPPORT: u16 = 8;
+    pub const MENU_SUPPORT: u16 = 8;
 }
 
 // Version 2+
@@ -51,12 +51,12 @@ pub const CHECKSUM: usize = 0x1C; // ditto
 // Version 4+
 pub const _INTERPRETER_NUMBER: usize = 0x1E;
 pub const _INTERPRETER_VERSION: usize = 0x1F;
-pub const _SCREEN_HEIGHT_PRE_Z5: usize = 0x20; // Changed in version 5
-pub const _SCREEN_WIDTH_PRE_Z5: usize = 0x21; // ditto
+pub const SCREEN_HEIGHT_PRE_Z5: usize = 0x20; // Changed in version 5
+pub const SCREEN_WIDTH_PRE_Z5: usize = 0x21; // ditto
 
 // Version 5+
-pub const _SCREEN_WIDTH_POST_Z5: usize = 0x22;
-pub const _SCREEN_HEIGHT_POST_Z5: usize = 0x24;
+pub const SCREEN_WIDTH_POST_Z5: usize = 0x22;
+pub const SCREEN_HEIGHT_POST_Z5: usize = 0x24;
 pub const _FONT_WIDTH: usize = 0x26;
 pub const _FONT_HEIGHT: usize = 0x27;
 pub const _DEFAULT_BACKGROUND_COLOUR: usize = 0x2C;

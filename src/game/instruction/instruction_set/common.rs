@@ -1,6 +1,6 @@
-use log::warn;
 use std::cmp::Ordering;
 use std::convert::TryInto;
+use tracing::warn;
 
 use anyhow::Result;
 use itertools::Itertools;
@@ -327,9 +327,14 @@ pub fn loadw(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult> {
+    warn!("{} {:x}", ops, store_to);
     let array: usize = ops.pull()?.unsigned(state)?.into();
-    let word_index: usize = ops.pull()?.unsigned(state)?.into();
-    let word = state.memory.get_word(array + (2 * word_index));
+    let word_index: isize = ops.pull()?.signed(state)?.into();
+    let word = state.memory.get_word(if word_index < 0 {
+        array - ((-word_index as usize) * 2)
+    } else {
+        array + (word_index as usize * 2)
+    });
 
     state.set_variable(store_to, word);
     Ok(Continue)
@@ -342,8 +347,12 @@ pub fn loadb(
     store_to: u8,
 ) -> Result<InstructionResult> {
     let array: usize = ops.pull()?.unsigned(state)?.into();
-    let byte_index: usize = ops.pull()?.unsigned(state)?.into();
-    let byte = state.memory.get_byte(array + byte_index);
+    let byte_index: isize = ops.pull()?.signed(state)?.into();
+    let byte = state.memory.get_byte(if byte_index < 0 {
+        array - (-byte_index as usize)
+    } else {
+        array + (byte_index as usize)
+    });
 
     state.set_variable(store_to, byte as u16);
     Ok(Continue)
@@ -763,22 +772,34 @@ pub fn call(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<
 /// VAR:225 Store a word in the given array and word index.
 pub fn storew(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let array: usize = ops.pull()?.unsigned(state)?.into();
-    let word_index: usize = ops.pull()?.unsigned(state)?.into();
+    let word_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
-    state
-        .memory
-        .set_word((array + 2 * word_index) as usize, value);
+    state.memory.set_word(
+        if word_index < 0 {
+            array - ((-word_index as usize) * 2)
+        } else {
+            array + (word_index as usize * 2)
+        },
+        value,
+    );
     Ok(Continue)
 }
 
 /// VAR:226 Store a byte in the given array and word index
 pub fn storeb(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let array: usize = ops.pull()?.unsigned(state)?.into();
-    let byte_index: usize = ops.pull()?.unsigned(state)?.into();
+    let byte_index: isize = ops.pull()?.signed(state)?.into();
     let value = ops.pull()?.unsigned(state)?;
 
-    state.memory.set_byte(array + byte_index, value as u8);
+    state.memory.set_byte(
+        if byte_index < 0 {
+            array - (-byte_index as usize)
+        } else {
+            array + (byte_index as usize)
+        },
+        value as u8,
+    );
     Ok(Continue)
 }
 
@@ -846,7 +867,7 @@ pub fn random(
             state.set_variable(store_to, 0);
         }
         Ordering::Greater => {
-            let result = state.rng.gen_range(1, range + 1);
+            let result = state.rng.gen_range(1..=range);
             state.set_variable(store_to, result as u16);
         }
     };
