@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::game::error::GameError;
 use crate::game::instruction::Result as InstructionResult;
@@ -92,6 +92,17 @@ impl CallStack {
 
     pub fn push(&mut self, frame: StackFrame) {
         self.frames.push(frame);
+    }
+
+    pub fn throw(&mut self, to: usize) -> Result<()> {
+        if self.frames.len() <= to as usize {
+            return Err(GameError::InvalidOperation(
+                "Tried to throw to an invalid stack frame".into(),
+            )
+            .into());
+        }
+        self.frames.truncate(to);
+        Ok(())
     }
 
     pub fn pop(&mut self) -> Result<StackFrame> {

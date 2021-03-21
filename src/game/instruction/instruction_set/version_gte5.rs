@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 //
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use tracing::warn;
 
@@ -16,8 +16,10 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
     use OpCode::*;
     vec![
         (TwoOp(0x1A), Normal(&call_2n, "CALL_2N")),
+        (TwoOp(0x1C), Normal(&throw, "THROW")),
         (OneOp(0xF), Normal(&call_1n, "CALL_1N")),
-        (ZeroOp(0xf), Branch(&piracy, "PIRACY")),
+        (ZeroOp(0x9), Store(&catch, "CATCH")),
+        (ZeroOp(0xF), Branch(&piracy, "PIRACY")),
         (VarOp(0x4), Store(&aread, "AREAD")),
         (VarOp(0x18), Store(&common::not, "NOT")), // Moved from 1OP:143
         (VarOp(0x19), Normal(&call_vn, "CALL_VN")),
@@ -46,6 +48,15 @@ fn call_2n(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResu
     })
 }
 
+/// 2OP:28 Return to the specified stack frame, then return.
+fn throw(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+    let value = ops.pull()?.unsigned(state)?;
+    let frame = ops.pull()?.unsigned(state)?;
+
+    state.throw(frame)?;
+    Ok(InstructionResult::Return(value))
+}
+
 /// 1OP:143 Calls a routine with no arguments and throws away the result.
 fn call_1n(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let address = ops.pull()?.unsigned(state)?;
@@ -56,6 +67,12 @@ fn call_1n(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResu
         arguments: None,
         store_to: None,
     })
+}
+
+/// 0OP:185 Return the ID of the current stack frame.
+fn catch(state: &mut GameState, _: OperandSet, store_to: u8) -> Result<InstructionResult> {
+    state.set_variable(store_to, state.frame_id());
+    Ok(InstructionResult::Continue)
 }
 
 /// 0OP:191 Branch if game is genuine

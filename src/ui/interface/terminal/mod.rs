@@ -1,7 +1,8 @@
 mod text_blob;
 
 use std::cell::RefCell;
-use std::io::{self, Stdout, Write};
+use std::fs::File;
+use std::io::{self, prelude::*, Stdout};
 
 use anyhow::{anyhow, Result};
 use crossterm::{
@@ -35,6 +36,7 @@ pub struct TerminalInterface {
     upper_window_height: u16,
     enable_buffering: bool,
     screen_style: RefCell<TextStyle>,
+    transcript: File,
 }
 
 impl TerminalInterface {
@@ -51,6 +53,7 @@ impl TerminalInterface {
             upper_window_height: 0,
             enable_buffering: true,
             screen_style: RefCell::new(TextStyle::default()),
+            transcript: File::create("transcript.txt")?,
         })
     }
 
@@ -203,6 +206,7 @@ impl Drop for TerminalInterface {
 
 impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
+        self.transcript.write_all(text.as_bytes())?;
         match self.active_screen {
             Screen::Lower => self.print_bufferable(text, self.enable_buffering),
             Screen::Upper => self.print_unbufferable(text),

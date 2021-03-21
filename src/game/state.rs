@@ -73,6 +73,15 @@ impl<'a> GameState<'a> {
         }
     }
 
+    pub fn frame_id(&self) -> u16 {
+        self.call_stack.depth() as u16
+    }
+
+    pub fn throw(&mut self, to: u16) -> Result<()> {
+        self.call_stack.throw(to as usize)?;
+        Ok(())
+    }
+
     pub fn frame(&mut self) -> &mut StackFrame {
         self.call_stack.frame()
     }
