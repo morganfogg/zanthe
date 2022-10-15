@@ -1,22 +1,24 @@
 pub mod game;
 pub mod helper;
 pub mod ui;
+pub mod cli;
 use std::fs;
 
 use anyhow::{anyhow, Context, Result};
 use clap::ArgMatches;
 use tracing::error;
 
+use crate::cli::{Cli, InterfaceMode};
 use game::state::GameState;
 use ui::interface::{Interface, TerminalInterface};
 
-pub fn run(args: ArgMatches) -> Result<()> {
+pub fn run(args: Cli) -> Result<()> {
     let game_file =
-        fs::read(args.value_of("INPUT").unwrap()).context("Couldn't open story file.")?;
+        fs::read(&args.game_file).context("Couldn't open story file.")?;
 
-    let interface_name = args.value_of("interface").unwrap();
-    let mut interface: Box<dyn Interface> = match interface_name {
-        "terminal" => Box::new(TerminalInterface::new().context("Couldn't start UI")?),
+    let interface_type = args.interface.unwrap_or(InterfaceMode::Terminal);
+    let mut interface: Box<dyn Interface> = match interface_type {
+        InterfaceMode::Terminal => Box::new(TerminalInterface::new().context("Couldn't start UI")?),
         _ => return Err(anyhow!("Invalid interface")), // Should be unreachable; CLAP enforces valid parameters.
     };
 

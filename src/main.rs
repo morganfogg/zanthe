@@ -3,14 +3,19 @@ use std::panic;
 
 use anyhow::{anyhow, Context, Result};
 use backtrace::Backtrace;
-use clap::{App, Arg};
+use clap::{ValueEnum, Parser};
+use clap::{Command, Arg, ArgAction};
+use clap::builder::PossibleValuesParser;
 use tracing::{error, info};
 use tracing_appender;
 use tracing_subscriber;
 
 use zanthe::run;
+use zanthe::cli::Cli;
+
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 
 fn main() {
     let log_file = OpenOptions::new()
@@ -32,29 +37,7 @@ fn main() {
         error!("{}\n{:?}", panic_info, backtrace);
     }));
 
-    let args = App::new("Zanthe")
-        .version(APP_VERSION)
-        .about("A Z-Machine interpreter")
-        .arg(
-            Arg::with_name("INPUT")
-                .help("Input file")
-                .required(true)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name("interface")
-                .short("i")
-                .help("The interface to use")
-                .takes_value(true)
-                .default_value("terminal")
-                .possible_values(&["terminal"]),
-        )
-        .arg(
-            Arg::with_name("debug")
-                .short("d")
-                .help("Enable debug logging"),
-        )
-        .get_matches();
+    let args = Cli::parse();
 
     if let Err(e) = run(args) {
         eprintln!("{}", e);
