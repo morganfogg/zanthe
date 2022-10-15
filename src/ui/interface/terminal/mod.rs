@@ -123,7 +123,7 @@ impl TerminalInterface {
             MoveTo(0, self.upper_window_height)
         )?;
         wrap_blobs(&mut self.history, term_size().unwrap().0 as usize, 0);
-        for blob in self.history.iter() {
+        for _blob in self.history.iter() {
             //self.print_blob(blob, &mut stdout)?;
         }
         stdout.flush()?;

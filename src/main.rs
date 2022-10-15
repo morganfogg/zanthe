@@ -1,21 +1,15 @@
 use std::fs::OpenOptions;
 use std::panic;
 
-use anyhow::{anyhow, Context, Result};
 use backtrace::Backtrace;
-use clap::{ValueEnum, Parser};
-use clap::{Command, Arg, ArgAction};
-use clap::builder::PossibleValuesParser;
+use clap::Parser;
+
 use tracing::{error, info};
 use tracing_appender;
 use tracing_subscriber;
 
-use zanthe::run;
 use zanthe::cli::Cli;
-
-
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
+use zanthe::run;
 
 fn main() {
     let log_file = OpenOptions::new()

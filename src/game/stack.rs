@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use crate::game::error::GameError;
 use crate::game::instruction::Result as InstructionResult;
