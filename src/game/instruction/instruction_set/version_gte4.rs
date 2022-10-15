@@ -99,7 +99,7 @@ pub fn erase_window(state: &mut GameState, mut _ops: OperandSet) -> Result<Instr
 /// VAR:239 Set the cursor position.
 pub fn set_cursor(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let line = ops.pull()?.signed(state)?;
-    if line < 0  {
+    if line < 0 {
         // TODO
         return Ok(InstructionResult::Continue);
     }

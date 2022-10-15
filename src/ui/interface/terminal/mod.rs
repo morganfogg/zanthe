@@ -1,6 +1,5 @@
-mod text_blob;
-
 use std::cell::RefCell;
+use std::error::Error;
 use std::fs::File;
 use std::io::{self, prelude::*, Stdout};
 
@@ -24,18 +23,15 @@ use crate::ui::interface::Interface;
 use crate::ui::Screen;
 use crate::ui::TextStyle;
 
-use text_blob::{wrap_blobs, TextBlob};
-
 /// A traditional terminal-based user interface.
 pub struct TerminalInterface {
     text_style: TextStyle,
     active_screen: Screen,
-    history: Vec<TextBlob>,
     buffer_point: usize,
     old_cursor_pos: (u16, u16),
     upper_window_height: u16,
     enable_buffering: bool,
-    screen_style: RefCell<TextStyle>,
+    screen_style: TextStyle,
     transcript: File,
 }
 
@@ -45,89 +41,33 @@ impl TerminalInterface {
         execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
         enable_raw_mode()?;
         Ok(TerminalInterface {
-            history: Vec::new(),
             active_screen: Screen::Lower,
             text_style: TextStyle::default(),
             old_cursor_pos: (0, 0),
             buffer_point: 0,
             upper_window_height: 0,
             enable_buffering: true,
-            screen_style: RefCell::new(TextStyle::default()),
+            screen_style: TextStyle::default(),
             transcript: File::create("transcript.txt")?,
         })
-    }
-
-    fn str_to_blobs(&mut self, text: &str) -> Vec<TextBlob> {
-        TextBlob::from_string(text, self.text_style.clone())
-    }
-
-    /// Save blobs to the screen buffer.
-    fn print_blobs(&mut self, blobs: &mut Vec<TextBlob>) -> Result<()> {
-        self.history.append(blobs);
-        Ok(())
     }
 
     /// Delete a character from the screen and the history.
     fn backspace(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
-        if let Some(c) = self.history.last_mut() {
-            if c.text.len() > 1 {
-                c.text.pop();
-            } else {
-                self.history.pop();
-                self.buffer_point -= 1;
-            }
-            let (column, row) = cursor_pos()?;
-            if column == 0 {
-                let (width, _) = term_size()?;
-                queue!(
-                    stdout,
-                    MoveTo(width - 1, row - 1),
-                    Print(" "),
-                    MoveTo(width - 1, row - 1),
-                )?;
-            } else {
-                queue!(stdout, MoveLeft(1), Print(" "), MoveLeft(1),)?;
-            }
-            stdout.flush()?;
-        }
-        Ok(())
-    }
-
-    /// Flush the screen buffer.
-    fn flush_buffer(&mut self) -> Result<()> {
-        if self.buffer_point >= self.history.len() {
-            return Ok(());
-        }
-        wrap_blobs(
-            &mut self.history[self.buffer_point..],
-            term_size().unwrap().0 as usize,
-            cursor_pos().unwrap().0 as usize,
-        );
-        let mut stdout = io::stdout();
-        for blob in self.history[self.buffer_point..].iter() {
-            self.print_blob(blob, &mut stdout)?;
+        let (column, row) = cursor_pos()?;
+        if column == 0 {
+            let (width, _) = term_size()?;
+            queue!(
+                stdout,
+                MoveTo(width - 1, row - 1),
+                Print(" "),
+                MoveTo(width - 1, row - 1),
+            )?;
+        } else {
+            queue!(stdout, MoveLeft(1), Print(" "), MoveLeft(1),)?;
         }
         stdout.flush()?;
-        self.buffer_point = self.history.len();
-        Ok(())
-    }
-
-    /// Completely reflow and redraw the screen (e.g. after a resize)
-    fn reflow_screen(&mut self) -> Result<()> {
-        let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            MoveTo(0, self.upper_window_height),
-            Clear(ClearType::FromCursorDown),
-            MoveTo(0, self.upper_window_height)
-        )?;
-        wrap_blobs(&mut self.history, term_size().unwrap().0 as usize, 0);
-        for _blob in self.history.iter() {
-            //self.print_blob(blob, &mut stdout)?;
-        }
-        stdout.flush()?;
-        self.old_cursor_pos = cursor_pos()?;
         Ok(())
     }
 
@@ -147,50 +87,15 @@ impl TerminalInterface {
         Ok(())
     }
 
-    /// For printing to the lower screen where buffering and wrapping should be attempted.
-    fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
-        let mut blobs = self.str_to_blobs(text);
-        self.print_blobs(&mut blobs)?;
-        if immediate && self.active_is_visible() {
-            self.flush_buffer()?;
-        }
+    fn flush_buffer(&self) -> Result<()> {
         Ok(())
     }
 
-    fn print_blob(&self, blob: &TextBlob, stdout: &mut Stdout) -> Result<()> {
-        if *self.screen_style.borrow() != blob.style {
-            self.screen_style.replace(blob.style.clone());
-            queue!(stdout, SetAttribute(Attribute::Reset))?;
-            if blob.style.bold {
-                queue!(stdout, SetAttribute(Attribute::Bold))?;
-            }
-            if blob.style.emphasis {
-                queue!(stdout, SetAttribute(Attribute::Underlined))?;
-            }
-            if blob.style.reverse_video {
-                queue!(stdout, SetAttribute(Attribute::Reverse))?;
-            }
-        }
-
-        if blob.break_points.is_empty() {
-            queue!(stdout, Print(blob.text.clone().replace("\n", "\n\r")),)?;
-        } else {
-            queue!(stdout, Print(&blob.text[..blob.break_points[0].byte_index]),)?;
-            for i in 1..blob.break_points.len() {
-                queue!(
-                    stdout,
-                    Print("\n\r"),
-                    Print(
-                        &blob.text[blob.break_points[i - 1].byte_index + 1
-                            ..blob.break_points[i].byte_index]
-                    ),
-                )?;
-            }
-            queue!(
-                stdout,
-                Print("\n\r"),
-                Print(&blob.text[blob.break_points[blob.break_points.len() - 1].byte_index + 1..]),
-            )?;
+    /// For printing to the lower screen where buffering and wrapping should be attempted.
+    fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
+        if self.active_is_visible() {
+            let mut stdout = io::stdout();
+            execute!(stdout, Print(text.replace("\n", "\r\n")));
         }
         Ok(())
     }
@@ -264,7 +169,6 @@ impl Interface for TerminalInterface {
     fn clear(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
         queue!(stdout, Clear(ClearType::All))?;
-        self.history.clear();
         self.buffer_point = 0;
         stdout.flush()?;
         Ok(())
@@ -299,7 +203,7 @@ impl Interface for TerminalInterface {
         loop {
             match event::read()? {
                 Event::Resize(..) => {
-                    self.reflow_screen()?;
+                    // Todo
                 }
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => {

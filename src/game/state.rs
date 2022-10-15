@@ -225,10 +225,10 @@ impl<'a> GameState<'a> {
             Instruction::Branch(f, name) => {
                 let condition = self.memory.get_byte(pc) >> 7 == 1;
                 let offset = self.branch_offset(&mut pc);
-                                 debug!(
-                                     "{:x} {} {} ={} :{:x}",
-                                     instruction_pc, name, operands, condition, offset
-                                 );
+                debug!(
+                    "{:x} {} {} ={} :{:x}",
+                    instruction_pc, name, operands, condition, offset
+                );
 
                 self.frame().pc = pc;
                 f(self, operands, condition, offset)
