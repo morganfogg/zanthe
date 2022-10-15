@@ -4,6 +4,7 @@ use std::vec::Vec;
 
 use anyhow::Result;
 use rand::{rngs::StdRng, SeedableRng};
+use tracing::debug;
 
 use crate::game::error::GameError;
 use crate::game::instruction::{
@@ -128,7 +129,7 @@ impl<'a> GameState<'a> {
         let frame = self.call_stack.frame();
         //debug!("--------------------------------------");
         //debug!("PC AT {:x}", frame.pc);
-        let _instruction_pc = frame.pc;
+        let instruction_pc = frame.pc;
 
         let mut code_byte = self.memory.read_byte(&mut frame.pc);
         let mut operands: Vec<Operand> = Vec::new();
@@ -166,6 +167,8 @@ impl<'a> GameState<'a> {
                 }
             }
         };
+
+        debug!("{:?}", form);
 
         // Read in the instruction's operands.
         match form {
@@ -215,45 +218,45 @@ impl<'a> GameState<'a> {
         let mut pc = frame.pc;
 
         match instruction {
-            Instruction::Normal(f, _name) => {
-                //debug!("{:x} {} {}", instruction_pc, name, operands);
+            Instruction::Normal(f, name) => {
+                debug!("{:x} {} {}", instruction_pc, name, operands);
                 f(self, operands)
             }
-            Instruction::Branch(f, _name) => {
+            Instruction::Branch(f, name) => {
                 let condition = self.memory.get_byte(pc) >> 7 == 1;
                 let offset = self.branch_offset(&mut pc);
-                //                 debug!(
-                //                     "{:x} {} {} ={} :{:x}",
-                //                     instruction_pc, name, operands, condition, offset
-                //                 );
+                                 debug!(
+                                     "{:x} {} {} ={} :{:x}",
+                                     instruction_pc, name, operands, condition, offset
+                                 );
 
                 self.frame().pc = pc;
                 f(self, operands, condition, offset)
             }
-            Instruction::Store(f, _name) => {
+            Instruction::Store(f, name) => {
                 let store_to = self.memory.read_byte(&mut pc);
-                //debug!("{:x} {} {} >{:x}", instruction_pc, name, operands, store_to);
+                debug!("{:x} {} {} >{:x}", instruction_pc, name, operands, store_to);
                 self.frame().pc = pc;
                 f(self, operands, store_to)
             }
-            Instruction::BranchStore(f, _name) => {
+            Instruction::BranchStore(f, name) => {
                 let store_to = self.memory.read_byte(&mut pc);
                 let condition = self.memory.get_byte(pc) >> 7 == 1;
 
                 let offset = self.branch_offset(&mut pc);
-                /*debug!(
+                debug!(
                     "{:x} {} {} ={} >{:x} :{:x}",
                     instruction_pc, name, operands, condition, store_to, offset
-                );*/
+                );
                 self.frame().pc = pc;
                 f(self, operands, condition, offset, store_to)
             }
-            Instruction::StringLiteral(f, _name) => {
+            Instruction::StringLiteral(f, name) => {
                 let string = self.memory.read_string(&mut pc).map_err(|e| {
                     GameError::InvalidOperation(format!("Error reading string literal: {}", e))
                 })?;
 
-                //debug!("{:x} {} '{}'", instruction_pc, name, string);
+                debug!("{:x} {} '{}'", instruction_pc, name, string);
 
                 self.frame().pc = pc;
                 f(self, string)
