@@ -292,15 +292,13 @@ impl Memory {
     /// Set the screen size headers
     pub fn set_screen_size(&mut self, width: u16, height: u16) {
         if self.version() >= 5 {
-            self.set_word(address::SCREEN_WIDTH_POST_Z5, width);
-            self.set_word(address::SCREEN_HEIGHT_POST_Z5, height);
-        } else if self.version() == 4 {
+            self.set_word(address::SCREEN_WIDTH_UNITS, width);
+            self.set_word(address::SCREEN_HEIGHT_UNITS, height);
+        }
+        if self.version() >= 4 {
+            self.set_byte(address::SCREEN_WIDTH_CHARS, width.try_into().unwrap_or(255));
             self.set_byte(
-                address::SCREEN_WIDTH_PRE_Z5,
-                width.try_into().unwrap_or(255),
-            );
-            self.set_byte(
-                address::SCREEN_HEIGHT_PRE_Z5,
+                address::SCREEN_HEIGHT_CHARS,
                 height.try_into().unwrap_or(255),
             );
         }

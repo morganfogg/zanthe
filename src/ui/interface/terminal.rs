@@ -15,7 +15,7 @@ use crossterm::{
     },
 };
 use num_traits::FromPrimitive;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::game::InputCode;
 use crate::ui::interface::{ClearMode, Interface};
@@ -184,14 +184,14 @@ impl Interface for TerminalInterface {
                 queue!(stdout, Clear(ClearType::All))?;
             }
             ClearMode::FullUnsplit => {
-                self.split_screen(0);
+                self.split_screen(0)?;
                 queue!(stdout, Clear(ClearType::All))?;
             }
             ClearMode::Single(v) => {
                 panic!("AAAAAAAA");
             }
         }
-        self.cursor_to_home();
+        self.cursor_to_home()?;
         self.buffer_point = 0;
         stdout.flush()?;
         Ok(())

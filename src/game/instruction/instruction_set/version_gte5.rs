@@ -115,7 +115,6 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
 
     let mut t_addr = text_address as usize;
     let q = state.memory.read_string_array(t_addr);
-    error!("Q: {:?}", q);
 
     if let Some(parse_address) = parse_address {
         let max_words = state.memory.get_byte(parse_address as usize);
@@ -190,8 +189,6 @@ fn tokenise(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionRes
     let mut t_cursor = text_address as usize;
 
     let string = state.memory.read_string_array(t_cursor)?;
-
-    error!("THIS {:?}", string);
 
     state
         .memory

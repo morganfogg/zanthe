@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::convert::TryInto;
-use tracing::warn;
+use tracing::{error, warn};
 
 use anyhow::Result;
 use itertools::Itertools;
@@ -327,7 +327,6 @@ pub fn loadw(
     mut ops: OperandSet,
     store_to: u8,
 ) -> Result<InstructionResult> {
-    warn!("{} {:x}", ops, store_to);
     let array: usize = ops.pull()?.unsigned(state)?.into();
     let word_index: isize = ops.pull()?.signed(state)?.into();
     let word = state.memory.get_word(if word_index < 0 {
@@ -353,7 +352,6 @@ pub fn loadb(
     } else {
         array + (byte_index as usize)
     });
-
     state.set_variable(store_to, byte as u16);
     Ok(Continue)
 }
@@ -833,9 +831,11 @@ pub fn put_prop(state: &mut GameState, mut ops: OperandSet) -> Result<Instructio
 pub fn print_char(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
     let char_id = ops.pull()?.unsigned(state)?;
 
-    let char = state.memory.alphabet().decode_zscii(char_id)?;
-    if let Some(char) = char {
-        state.interface.print_char(char)?;
+    let c = state.memory.alphabet().decode_zscii(char_id)?;
+    if let Some(c) = c {
+        state.interface.print_char(c)?;
+    } else {
+        panic!("Huh?");
     }
 
     Ok(Continue)

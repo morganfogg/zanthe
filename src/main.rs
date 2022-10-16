@@ -23,7 +23,7 @@ fn main() {
     tracing_subscriber::fmt()
         .with_writer(writer)
         .with_ansi(false)
-        .with_max_level(tracing::Level::ERROR)
+        .with_max_level(tracing::Level::DEBUG)
         .init();
 
     panic::set_hook(Box::new(|panic_info| {
