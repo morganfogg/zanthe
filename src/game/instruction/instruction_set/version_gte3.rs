@@ -8,7 +8,7 @@ use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult, Result::*};
 use crate::game::state::GameState;
 
-pub fn instructions() -> HashMap<OpCode, Instruction> {
+pub fn instructions() -> Vec<(OpCode, Instruction)> {
     use Instruction::*;
     use OpCode::*;
     vec![
@@ -17,8 +17,6 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0xB), Normal(&set_window, "SET_WINDOW")),
         (VarOp(0x13), Normal(&output_stream, "OUTPUT_STREAM")),
     ]
-    .into_iter()
-    .collect()
 }
 
 /// 0OP:189 Verify the file's checksum

@@ -10,7 +10,7 @@ use crate::game::instruction::{OperandSet, Result as InstructionResult, Result::
 use crate::game::state::GameState;
 use crate::ui::interface::ClearMode;
 
-pub fn instructions() -> HashMap<OpCode, Instruction> {
+pub fn instructions() -> Vec<(OpCode, Instruction)> {
     use Instruction::*;
     use OpCode::*;
     vec![
@@ -24,8 +24,6 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0x12), Normal(&buffer_mode, "BUFFER_MODE")),
         (VarOp(0x16), Store(&read_char, "READ_CHAR")),
     ]
-    .into_iter()
-    .collect()
 }
 
 /// 2OP:25 Call a routine with 1 argument and store the result.

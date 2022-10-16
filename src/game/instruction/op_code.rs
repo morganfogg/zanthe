@@ -10,6 +10,18 @@ pub enum OpCode {
     Extended(u8),
 }
 
+impl OpCode {
+    pub fn lookup_value(&self) -> usize {
+        match self {
+            OpCode::TwoOp(v) => *v as usize,
+            OpCode::OneOp(v) => *v as usize + 128,
+            OpCode::ZeroOp(v) => *v as usize + 176,
+            OpCode::VarOp(v) => *v as usize + 224,
+            OpCode::Extended(v) => *v as usize + 256,
+        }
+    }
+}
+
 impl Display for OpCode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(

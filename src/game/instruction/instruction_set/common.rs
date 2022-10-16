@@ -16,7 +16,7 @@ use crate::game::instruction::{
 };
 use crate::game::state::GameState;
 
-pub fn instructions() -> HashMap<OpCode, Instruction> {
+pub fn instructions() -> Vec<(OpCode, Instruction)> {
     use Instruction::*;
     use OpCode::*;
     vec![
@@ -77,8 +77,6 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0x8), Normal(&push, "PUSH")),
         (VarOp(0x9), Normal(&pull, "PULL")),
     ]
-    .into_iter()
-    .collect()
 }
 
 ///20P:1 Branch if the first operand is equal to any subsequent operands

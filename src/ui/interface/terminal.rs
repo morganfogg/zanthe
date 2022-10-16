@@ -99,6 +99,8 @@ impl TerminalInterface {
     }
 
     fn flush_buffer(&self) -> Result<()> {
+        let mut stdout = io::stdout();
+        stdout.flush()?;
         Ok(())
     }
 
@@ -106,7 +108,10 @@ impl TerminalInterface {
     fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
         if self.active_is_visible() {
             let mut stdout = io::stdout();
-            execute!(stdout, Print(text.replace("\n", "\r\n")))?;
+            queue!(stdout, Print(text.replace("\n", "\r\n")))?;
+            if immediate {
+                stdout.flush()?;
+            }
         }
         Ok(())
     }

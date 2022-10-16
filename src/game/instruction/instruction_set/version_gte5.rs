@@ -10,7 +10,7 @@ use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult};
 use crate::game::state::GameState;
 
-pub fn instructions() -> HashMap<OpCode, Instruction> {
+pub fn instructions() -> Vec<(OpCode, Instruction)> {
     use crate::game::instruction::instruction_set::common;
     use Instruction::*;
     use OpCode::*;
@@ -31,8 +31,6 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (Extended(0x9), Store(&save_undo, "SAVE_UNDO")),
         (Extended(0xA), Store(&restore_undo, "RESTORE_UNDO")),
     ]
-    .into_iter()
-    .collect()
 }
 
 /// 2OP:26 Execute a routine with 1 argument and throw away the result.

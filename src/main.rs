@@ -12,6 +12,8 @@ use zanthe::cli::Cli;
 use zanthe::run;
 
 fn main() {
+    let args = Cli::parse();
+
     let log_file = OpenOptions::new()
         .read(true)
         .append(true)
@@ -23,7 +25,7 @@ fn main() {
     tracing_subscriber::fmt()
         .with_writer(writer)
         .with_ansi(false)
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(if args.debug {tracing::Level::DEBUG} else {tracing::Level::WARN})
         .init();
 
     panic::set_hook(Box::new(|panic_info| {
@@ -31,7 +33,6 @@ fn main() {
         error!("{}\n{:?}", panic_info, backtrace);
     }));
 
-    let args = Cli::parse();
 
     if let Err(e) = run(args) {
         eprintln!("{}", e);
