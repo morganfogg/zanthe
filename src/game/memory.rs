@@ -625,6 +625,44 @@ impl Memory {
         }
     }
 
+    pub fn read_string_array(&self, mut start: usize) -> Result<String> {
+        let mut output = String::new();
+        let alphabet = self.alphabet();
+        let version = self.version();
+        if version >= 5 {
+            let num_chars = self.read_byte(&mut start);
+            for _ in 0..num_chars {
+                let b = self.read_byte(&mut start);
+                let c = alphabet.decode_zscii(b.into())?.unwrap();
+                output.push(c);
+            }
+        } else {
+            loop {
+                let b = self.read_byte(&mut start);
+                if b == 0 {
+                    break;
+                }
+                let c = alphabet.decode_zscii(b.into())?.unwrap();
+                output.push(c);
+            }
+        }
+        Ok(output)
+    }
+
+    pub fn write_string_array(&mut self, mut start: usize, text: &str) -> Result<()> {
+        let alphabet = self.alphabet();
+        if self.version() >= 5 {
+            self.write_byte(&mut start, text.chars().count() as u8);
+        }
+        for c in text.chars() {
+            self.write_byte(&mut start, alphabet.zscii_from_char(c)?);
+        }
+        if self.version() < 5 {
+            self.write_byte(&mut start, 0);
+        }
+        Ok(())
+    }
+
     /// Decode a Z-Character-encoded string, starting at the given point in memory.
     pub fn extract_string(&self, start: usize, abbreviations: bool) -> Result<(String, usize)> {
         let sequence = self.character_sequence(start);
@@ -705,28 +743,6 @@ impl Memory {
             }
         }
         Ok((result.iter().collect(), byte_length))
-    }
-
-    pub fn write_string(&mut self, mut address: usize, text: &str) -> Result<()> {
-        let alphabet = self.alphabet();
-
-        // Skip the 'expected size' byte
-        address += 1;
-
-        if self.version() >= 5 {
-            self.write_byte(&mut address, text.len().try_into()?);
-        }
-
-        for c in text.chars() {
-            let zscii = alphabet.zscii_from_char(c)?;
-            self.write_byte(&mut address, zscii);
-        }
-
-        if self.version() < 5 {
-            self.write_byte(&mut address, 0);
-        }
-
-        Ok(())
     }
 
     pub fn zscii_from_code(&self, code: InputCode) -> Result<u8> {

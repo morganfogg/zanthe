@@ -37,6 +37,7 @@ impl<'a> GameState<'a> {
         let mut memory = Memory::new(data);
         memory.validate_header()?;
         memory.set_general_headers();
+        interface.set_z_machine_version(memory.version());
         let (width, height) = interface.get_screen_size();
         memory.set_screen_size(width, height);
         Ok(GameState {

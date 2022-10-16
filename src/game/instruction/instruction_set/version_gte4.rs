@@ -8,6 +8,7 @@ use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult, Result::*};
 use crate::game::state::GameState;
+use crate::ui::interface::ClearMode;
 
 pub fn instructions() -> HashMap<OpCode, Instruction> {
     use Instruction::*;
@@ -90,9 +91,15 @@ pub fn call_vs2(
 }
 
 /// VAR:237 Clear the screen
-pub fn erase_window(state: &mut GameState, mut _ops: OperandSet) -> Result<InstructionResult> {
-    // TODO: Add multiple windows.
-    state.interface.clear()?;
+pub fn erase_window(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+    let window = ops.pull()?.signed(state)?;
+    let mode = match window {
+        -1 => ClearMode::FullUnsplit,
+        -2 => ClearMode::Full,
+        x if x < 0 => return Err(GameError::InvalidOperation("Bad split".to_string()).into()),
+        x => ClearMode::Single(x as u16),
+    };
+    state.interface.clear(mode)?;
     Ok(InstructionResult::Continue)
 }
 

@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::error::Error;
 use std::fs::File;
 use std::io::{self, prelude::*, Stdout};
 
@@ -19,7 +18,7 @@ use num_traits::FromPrimitive;
 use tracing::warn;
 
 use crate::game::InputCode;
-use crate::ui::interface::Interface;
+use crate::ui::interface::{ClearMode, Interface};
 use crate::ui::Screen;
 use crate::ui::TextStyle;
 
@@ -33,6 +32,7 @@ pub struct TerminalInterface {
     enable_buffering: bool,
     screen_style: TextStyle,
     transcript: File,
+    z_machine_version: u8,
 }
 
 impl TerminalInterface {
@@ -49,6 +49,7 @@ impl TerminalInterface {
             enable_buffering: true,
             screen_style: TextStyle::default(),
             transcript: File::create("transcript.txt")?,
+            z_machine_version: 5,
         })
     }
 
@@ -87,6 +88,16 @@ impl TerminalInterface {
         Ok(())
     }
 
+    fn cursor_to_home(&self) -> Result<()> {
+        if self.z_machine_version < 5 {
+            todo!("DO THIS");
+        } else {
+            let mut stdout = io::stdout();
+            queue!(stdout, MoveTo(0, self.upper_window_height))?;
+        }
+        Ok(())
+    }
+
     fn flush_buffer(&self) -> Result<()> {
         Ok(())
     }
@@ -95,7 +106,7 @@ impl TerminalInterface {
     fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
         if self.active_is_visible() {
             let mut stdout = io::stdout();
-            execute!(stdout, Print(text.replace("\n", "\r\n")));
+            execute!(stdout, Print(text.replace("\n", "\r\n")))?;
         }
         Ok(())
     }
@@ -166,9 +177,21 @@ impl Interface for TerminalInterface {
         Ok(())
     }
 
-    fn clear(&mut self) -> Result<()> {
+    fn clear(&mut self, mode: ClearMode) -> Result<()> {
         let mut stdout = io::stdout();
-        queue!(stdout, Clear(ClearType::All))?;
+        match mode {
+            ClearMode::Full => {
+                queue!(stdout, Clear(ClearType::All))?;
+            }
+            ClearMode::FullUnsplit => {
+                self.split_screen(0);
+                queue!(stdout, Clear(ClearType::All))?;
+            }
+            ClearMode::Single(v) => {
+                panic!("AAAAAAAA");
+            }
+        }
+        self.cursor_to_home();
         self.buffer_point = 0;
         stdout.flush()?;
         Ok(())
@@ -240,6 +263,10 @@ impl Interface for TerminalInterface {
         stdout.flush()?;
         read()?;
         Ok(())
+    }
+
+    fn set_z_machine_version(&mut self, version: u8) {
+        self.z_machine_version = version;
     }
 
     fn text_style_bold(&mut self) -> Result<()> {

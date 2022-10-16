@@ -7,6 +7,13 @@ use anyhow::Result;
 
 use crate::game::InputCode;
 
+#[derive(Debug, Clone, Copy)]
+pub enum ClearMode {
+    Full,
+    FullUnsplit,
+    Single(u16),
+}
+
 /// The user interface. Responsible for both rendering the game and recieving input.
 pub trait Interface {
     /// Print text to the UI
@@ -16,7 +23,7 @@ pub trait Interface {
     fn print_char(&mut self, text: char) -> Result<()>;
 
     /// Clear the entire window
-    fn clear(&mut self) -> Result<()>;
+    fn clear(&mut self, mode: ClearMode) -> Result<()>;
 
     /// The game exited successfully, show a message then quit
     fn done(&mut self) -> Result<()>;
@@ -35,6 +42,8 @@ pub trait Interface {
 
     /// Remove all text styles
     fn text_style_clear(&mut self) -> Result<()>;
+
+    fn set_z_machine_version(&mut self, version: u8);
 
     fn read_line(&mut self, max_chars: usize) -> Result<String>;
 

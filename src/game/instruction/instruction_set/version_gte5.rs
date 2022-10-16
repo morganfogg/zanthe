@@ -2,7 +2,7 @@ use std::collections::HashMap;
 //
 use anyhow::Result;
 use itertools::Itertools;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::game::error::GameError;
 use crate::game::instruction::op_code::OpCode;
@@ -24,6 +24,7 @@ pub fn instructions() -> HashMap<OpCode, Instruction> {
         (VarOp(0x18), Store(&common::not, "NOT")), // Moved from 1OP:143
         (VarOp(0x19), Normal(&call_vn, "CALL_VN")),
         (VarOp(0x1A), Normal(&call_vn2, "CALL_VN2")),
+        (VarOp(0x1B), Normal(&tokenise, "TOKENISE")),
         (VarOp(0x1F), Branch(&check_arg_count, "CHECK_ARG_COUNT")),
         (Extended(0x2), Store(&log_shift, "LOG_SHIFT")),
         (Extended(0x3), Store(&art_shift, "ART_SHIFT")),
@@ -103,12 +104,18 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
 
     let string = state.interface.read_line(max_characters as usize)?;
 
-    state
-        .memory
-        .set_byte(text_address as usize + 1, string.len() as u8);
+    // state
+    //     .memory
+    //     .set_byte(text_address as usize, string.len() as u8);
 
     state.set_variable(store_to, 13);
-    state.memory.write_string(text_address as usize, &string)?;
+    state
+        .memory
+        .write_string_array(text_address as usize, &string)?;
+
+    let mut t_addr = text_address as usize;
+    let q = state.memory.read_string_array(t_addr);
+    error!("Q: {:?}", q);
 
     if let Some(parse_address) = parse_address {
         let max_words = state.memory.get_byte(parse_address as usize);
@@ -160,6 +167,37 @@ fn call_vn2(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionRes
         arguments: Some(arguments),
         store_to: None,
     })
+}
+
+/// VAR:251 Tokenise a string.
+fn tokenise(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
+    let text_address = ops.pull()?.unsigned(state)?;
+    let parse_address = ops.pull()?.unsigned(state)?;
+    let dictionary = ops.pull()?.try_unsigned(state)?;
+    let flag = ops.pull()?.try_unsigned(state)?;
+
+    if !matches!(flag, None | Some(0)) && !matches!(dictionary, None | Some(0)) {
+        todo!("Implement this");
+    }
+
+    let max_words = state.memory.get_byte(parse_address as usize);
+    if max_words < 6 {
+        return Err(
+            GameError::InvalidOperation("Parse buffer cannot be less than 6 bytes".into()).into(),
+        );
+    }
+
+    let mut t_cursor = text_address as usize;
+
+    let string = state.memory.read_string_array(t_cursor)?;
+
+    error!("THIS {:?}", string);
+
+    state
+        .memory
+        .parse_string(parse_address as usize, &string, max_words as usize)?;
+
+    Ok(InstructionResult::Continue)
 }
 
 /// VAR:255 Branches if the argument number (1-indexed) has been provided.
