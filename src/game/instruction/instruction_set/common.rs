@@ -834,8 +834,6 @@ pub fn print_char(state: &mut GameState, mut ops: OperandSet) -> Result<Instruct
     let c = state.memory.alphabet().decode_zscii(char_id)?;
     if let Some(c) = c {
         state.interface.print_char(c)?;
-    } else {
-        panic!("Huh?");
     }
 
     Ok(Continue)
