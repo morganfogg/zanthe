@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, prelude::*, Stdout};
+use std::mem::take;
 
 use anyhow::{anyhow, Result};
 use crossterm::{
@@ -22,17 +23,48 @@ use crate::ui::interface::{ClearMode, Interface};
 use crate::ui::Screen;
 use crate::ui::TextStyle;
 
+#[derive(Default)]
+struct Buffer {
+    pub elements: Vec<BufferElement>,
+}
+
+impl Buffer {
+    fn put_text(&mut self, value: &str) {
+            match self.elements.last_mut() {
+                None | Some(BufferElement::Attribute(_)) => {
+                    self.elements.push(BufferElement::Text(value.to_owned()));
+                }
+                Some(BufferElement::Text(s)) => {
+                    s.push_str(value);
+                }
+            }
+    }
+
+    fn put_attribute(&mut self, attribute: Attribute) {
+        self.elements.push(BufferElement::Attribute(attribute));
+    }
+
+    fn clear(&mut self) -> Vec<BufferElement> {
+        take(&mut self.elements)
+    }
+}
+
+enum BufferElement {
+    Attribute(Attribute),
+    Text(String),
+}
+
 /// A traditional terminal-based user interface.
 pub struct TerminalInterface {
     text_style: TextStyle,
     active_screen: Screen,
-    buffer_point: usize,
     old_cursor_pos: (u16, u16),
     upper_window_height: u16,
     enable_buffering: bool,
     screen_style: TextStyle,
     transcript: File,
     z_machine_version: u8,
+    buffer: Buffer,
 }
 
 impl TerminalInterface {
@@ -44,12 +76,12 @@ impl TerminalInterface {
             active_screen: Screen::Lower,
             text_style: TextStyle::default(),
             old_cursor_pos: (0, 0),
-            buffer_point: 0,
             upper_window_height: 0,
             enable_buffering: true,
             screen_style: TextStyle::default(),
             transcript: File::create("transcript.txt")?,
             z_machine_version: 5,
+            buffer: Buffer::default(),
         })
     }
 
@@ -80,7 +112,8 @@ impl TerminalInterface {
     }
 
     /// For printing to the upper screen where no buffering should take place
-    fn print_unbufferable(&self, text: &str) -> Result<()> {
+    fn print_unbufferable(&mut self, text: &str) -> Result<()> {
+        self.flush_buffer()?;
         if self.active_is_visible() {
             let mut stdout = io::stdout();
             execute!(stdout, Print(text))?;
@@ -98,20 +131,33 @@ impl TerminalInterface {
         Ok(())
     }
 
-    fn flush_buffer(&self) -> Result<()> {
+    fn flush_buffer(&mut self) -> Result<()> {
+        if self.buffer.elements.len() == 0 {
+            return Ok(());
+        }
         let mut stdout = io::stdout();
+        for element in self.buffer.clear() {
+            match element {
+                BufferElement::Attribute(attr) => {
+                    queue!(stdout, SetAttribute(attr))?;
+                }
+                BufferElement::Text(text) => {
+                    queue!(stdout, Print(text.replace("\n", "\r\n")))?;
+                }
+            }
+        }
         stdout.flush()?;
         Ok(())
     }
 
     /// For printing to the lower screen where buffering and wrapping should be attempted.
     fn print_bufferable(&mut self, text: &str, immediate: bool) -> Result<()> {
-        if self.active_is_visible() {
+        if immediate && self.active_is_visible() {
             let mut stdout = io::stdout();
-            queue!(stdout, Print(text.replace("\n", "\r\n")))?;
-            if immediate {
-                stdout.flush()?;
-            }
+            self.flush_buffer()?;
+            execute!(stdout, Print(text.replace("\n", "\r\n")))?;
+        } else {
+            self.buffer.put_text(&text);
         }
         Ok(())
     }
@@ -129,7 +175,7 @@ impl Interface for TerminalInterface {
     fn print(&mut self, text: &str) -> Result<()> {
         self.transcript.write_all(text.as_bytes())?;
         match self.active_screen {
-            Screen::Lower => self.print_bufferable(text, self.enable_buffering),
+            Screen::Lower => self.print_bufferable(text, !self.enable_buffering),
             Screen::Upper => self.print_unbufferable(text),
         }
     }
@@ -153,7 +199,9 @@ impl Interface for TerminalInterface {
         let mut stdout = io::stdout();
 
         if self.active_screen == Screen::Lower {
+            self.flush_buffer()?;
             self.old_cursor_pos = cursor_pos()?;
+            error!("{:?}", self.old_cursor_pos);
         }
 
         if new_active == Screen::Upper {
@@ -197,7 +245,6 @@ impl Interface for TerminalInterface {
             }
         }
         self.cursor_to_home()?;
-        self.buffer_point = 0;
         stdout.flush()?;
         Ok(())
     }
@@ -275,34 +322,48 @@ impl Interface for TerminalInterface {
     }
 
     fn text_style_bold(&mut self) -> Result<()> {
-        queue!(io::stdout(), SetAttribute(Attribute::Bold))?;
         self.text_style.bold = true;
+        if self.enable_buffering {
+            self.buffer.put_attribute(Attribute::Bold);
+        } else {
+            queue!(io::stdout(), SetAttribute(Attribute::Bold))?;
+        }
         Ok(())
     }
 
     fn text_style_emphasis(&mut self) -> Result<()> {
-        queue!(io::stdout(), SetAttribute(Attribute::Underlined))?;
         self.text_style.emphasis = true;
+        if self.enable_buffering {
+            self.buffer.put_attribute(Attribute::Underlined);
+        } else {
+            queue!(io::stdout(), SetAttribute(Attribute::Underlined))?;
+        }
         Ok(())
     }
 
     fn text_style_reverse(&mut self) -> Result<()> {
-        queue!(io::stdout(), SetAttribute(Attribute::Reverse))?;
         self.text_style.reverse_video = true;
+        if self.enable_buffering {
+            self.buffer.put_attribute(Attribute::Reverse);
+        } else {
+            queue!(io::stdout(), SetAttribute(Attribute::Reverse))?;
+        }
         Ok(())
     }
 
     fn text_style_fixed(&mut self) -> Result<()> {
         self.text_style.fixed_width = true;
+        // TODO
         Ok(())
     }
 
     fn text_style_clear(&mut self) -> Result<()> {
-        self.text_style.bold = false;
-        self.text_style.emphasis = false;
-        self.text_style.reverse_video = false;
-        self.text_style.fixed_width = false;
-        queue!(io::stdout(), SetAttribute(Attribute::Reset))?;
+        self.text_style = TextStyle::default();
+        if self.enable_buffering {
+            self.buffer.put_attribute(Attribute::Reset);
+        } else {
+            queue!(io::stdout(), SetAttribute(Attribute::Reset))?;
+        }
         Ok(())
     }
 
