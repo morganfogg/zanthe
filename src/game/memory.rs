@@ -536,7 +536,7 @@ impl Memory {
         }
     }
 
-    pub fn property_iter<'a>(&'a self, object: u16) -> impl Iterator<Item = Property> + 'a {
+    pub fn property_iter(&self, object: u16) -> impl Iterator<Item = Property> + '_ {
         let mut cursor = self.object_properties_table_location(object) as usize;
         let short_name_length = self.read_byte(&mut cursor) as usize * 2;
         cursor += short_name_length;

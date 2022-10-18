@@ -1,12 +1,11 @@
 use std::cmp::Ordering;
 use std::convert::TryInto;
-use tracing::{error, warn};
+use tracing::warn;
 
 use anyhow::Result;
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use std::collections::HashMap;
 
 use crate::game::error::GameError;
 use crate::game::instruction::op_code::OpCode;
@@ -714,7 +713,7 @@ pub fn print(state: &mut GameState, string: String) -> Result<InstructionResult>
 /// 0OP:179 Prints a literal string, prints a newline then returns from the current routine.
 pub fn print_ret(state: &mut GameState, string: String) -> Result<InstructionResult> {
     state.interface.print(&string)?;
-    state.interface.print(&"\n")?;
+    state.interface.print("\n")?;
 
     Ok(Return(1))
 }
@@ -736,7 +735,7 @@ pub fn quit(_: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
 
 /// 0OP:187 Prints a newline
 pub fn new_line(state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
-    state.interface.print(&"\n")?;
+    state.interface.print("\n")?;
 
     Ok(Continue)
 }

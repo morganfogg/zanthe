@@ -5,8 +5,6 @@ use backtrace::Backtrace;
 use clap::Parser;
 
 use tracing::{error, info};
-use tracing_appender;
-use tracing_subscriber;
 
 use zanthe::cli::Cli;
 use zanthe::run;
@@ -25,14 +23,17 @@ fn main() {
     tracing_subscriber::fmt()
         .with_writer(writer)
         .with_ansi(false)
-        .with_max_level(if args.debug {tracing::Level::DEBUG} else {tracing::Level::WARN})
+        .with_max_level(if args.debug {
+            tracing::Level::DEBUG
+        } else {
+            tracing::Level::WARN
+        })
         .init();
 
     panic::set_hook(Box::new(|panic_info| {
         let backtrace = Backtrace::new();
         error!("{}\n{:?}", panic_info, backtrace);
     }));
-
 
     if let Err(e) = run(args) {
         eprintln!("{}", e);

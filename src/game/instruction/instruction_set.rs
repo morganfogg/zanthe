@@ -3,8 +3,6 @@ mod version_gte3;
 mod version_gte4;
 mod version_gte5;
 
-use std::collections::HashMap;
-
 use crate::game::instruction::{Instruction, OpCode};
 
 /// Represents all the instructions available to the Z-Machine version specified in the game file.

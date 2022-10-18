@@ -15,33 +15,20 @@ pub use result::Result;
 use crate::game::state::GameState;
 use result::Result as InstructionResult;
 
+type NormalHandler = dyn Fn(&mut GameState, OperandSet) -> anyhow::Result<InstructionResult>;
+type BranchHandler =
+    dyn Fn(&mut GameState, OperandSet, bool, i16) -> anyhow::Result<InstructionResult>;
+type BranchStoreHandler =
+    dyn Fn(&mut GameState, OperandSet, bool, i16, u8) -> anyhow::Result<InstructionResult>;
+type StoreHandler = dyn Fn(&mut GameState, OperandSet, u8) -> anyhow::Result<InstructionResult>;
+type StringLiteralHandler = dyn Fn(&mut GameState, String) -> anyhow::Result<InstructionResult>;
+
 /// A wrapper for instruction functions to associate them with their argument types.
 #[derive(Clone)]
 pub enum Instruction {
-    Normal(
-        &'static dyn Fn(&mut GameState, OperandSet) -> anyhow::Result<InstructionResult>,
-        &'static str,
-    ),
-    Branch(
-        &'static dyn Fn(&mut GameState, OperandSet, bool, i16) -> anyhow::Result<InstructionResult>,
-        &'static str,
-    ),
-    BranchStore(
-        &'static dyn Fn(
-            &mut GameState,
-            OperandSet,
-            bool,
-            i16,
-            u8,
-        ) -> anyhow::Result<InstructionResult>,
-        &'static str,
-    ),
-    Store(
-        &'static dyn Fn(&mut GameState, OperandSet, u8) -> anyhow::Result<InstructionResult>,
-        &'static str,
-    ),
-    StringLiteral(
-        &'static dyn Fn(&mut GameState, String) -> anyhow::Result<InstructionResult>,
-        &'static str,
-    ),
+    Normal(&'static NormalHandler, &'static str),
+    Branch(&'static BranchHandler, &'static str),
+    BranchStore(&'static BranchStoreHandler, &'static str),
+    Store(&'static StoreHandler, &'static str),
+    StringLiteral(&'static StringLiteralHandler, &'static str),
 }

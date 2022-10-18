@@ -387,27 +387,15 @@ impl<'a> GameState<'a> {
 
     /// Retrieve a game varaible.
     pub fn get_variable(&mut self, variable: u8) -> Result<u16> {
-        let result;
-        match variable {
-            0x0 => {
-                result = self.frame().pop_stack();
-                //                 debug!(
-                //                     "GET SP = {}",
-                //                     match result {
-                //                         Ok(v) => format!("{0}, [{0:x}]", v),
-                //                         Err(_) => "ERROR".to_string(),
-                //                     }
-                //                 );
-            }
+        let result = match variable {
+            0x0 => self.frame().pop_stack(),
             0x1..=0xf => {
                 let local = self.frame().get_local(variable as usize - 0x1);
-                //debug!("GET L{:x} = {1} [{1:x}]", variable - 0x1, local);
-                result = Ok(local);
+                Ok(local)
             }
             _ => {
                 let global = self.memory.get_global(variable - 0x10);
-                //debug!("GET G{:x} = {1} [{1:x}]", variable - 0x10, global);
-                result = Ok(global);
+                Ok(global)
             }
         };
         result

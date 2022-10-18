@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 //
 use anyhow::Result;
 use itertools::Itertools;
-use tracing::{error, warn};
+use tracing::warn;
 
 use crate::game::error::GameError;
 use crate::game::instruction::op_code::OpCode;
@@ -111,8 +110,8 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
         .memory
         .write_string_array(text_address as usize, &string)?;
 
-    let mut t_addr = text_address as usize;
-    let q = state.memory.read_string_array(t_addr);
+    let t_addr = text_address as usize;
+    let _q = state.memory.read_string_array(t_addr);
 
     if let Some(parse_address) = parse_address {
         let max_words = state.memory.get_byte(parse_address as usize);
@@ -184,7 +183,7 @@ fn tokenise(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionRes
         );
     }
 
-    let mut t_cursor = text_address as usize;
+    let t_cursor = text_address as usize;
 
     let string = state.memory.read_string_array(t_cursor)?;
 
@@ -226,7 +225,7 @@ fn log_shift(
     }
 
     let result = if places < 0 {
-        number.wrapping_shr(places.abs() as u32)
+        number.wrapping_shr(places.unsigned_abs() as u32)
     } else {
         number.wrapping_shl(places as u32)
     };
@@ -250,7 +249,7 @@ fn art_shift(
     }
 
     let result = if places < 0 {
-        number.wrapping_shr(places.abs() as u32)
+        number.wrapping_shr(places.unsigned_abs() as u32)
     } else {
         number.wrapping_shl(places as u32)
     };

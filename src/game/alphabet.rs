@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 
 use anyhow::Result;
-use tracing::error;
 
 use crate::game::error::GameError;
 use crate::game::InputCode;
@@ -30,7 +29,7 @@ pub const DEFAULT_UNICODE_TABLE: &[char; 69] = &[
     'Æ', 'ç', 'Ç', 'þ', 'ð', 'Þ', 'Ð', '£', 'œ', 'Œ', '¡', '¿',
 ];
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum AlphabetTable {
     A0,
     A1,
@@ -70,7 +69,7 @@ impl Alphabet {
     fn unicode_table(&self) -> &[char] {
         match &self.unicode_table {
             None => DEFAULT_UNICODE_TABLE,
-            Some(table) => &table,
+            Some(table) => table,
         }
     }
 
@@ -87,10 +86,11 @@ impl Alphabet {
             Some((v as u8 + 6, AlphabetTable::A0))
         } else if let Some(v) = self.a1.iter().position(|&x| x == c) {
             Some((v as u8 + 6, AlphabetTable::A1))
-        } else if let Some(v) = self.a2.iter().position(|&x| x == c) {
-            Some((v as u8 + 6, AlphabetTable::A2))
         } else {
-            None
+            self.a2
+                .iter()
+                .position(|&x| x == c)
+                .map(|v| (v as u8 + 6, AlphabetTable::A2))
         }
     }
 

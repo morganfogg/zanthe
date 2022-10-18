@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use itertools::Itertools;
 
@@ -110,7 +108,7 @@ pub fn set_cursor(state: &mut GameState, mut ops: OperandSet) -> Result<Instruct
     }
     let column = ops.pull()?.unsigned(state)?;
 
-    state.interface.set_cursor((line as u16), column)?;
+    state.interface.set_cursor(line as u16, column)?;
     Ok(InstructionResult::Continue)
 }
 

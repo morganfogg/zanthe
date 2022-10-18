@@ -1,6 +1,5 @@
-use std::cell::RefCell;
 use std::fs::File;
-use std::io::{self, prelude::*, Stdout};
+use std::io::{self, prelude::*};
 use std::mem::take;
 
 use anyhow::{anyhow, Result};
@@ -30,14 +29,14 @@ struct Buffer {
 
 impl Buffer {
     fn put_text(&mut self, value: &str) {
-            match self.elements.last_mut() {
-                None | Some(BufferElement::Attribute(_)) => {
-                    self.elements.push(BufferElement::Text(value.to_owned()));
-                }
-                Some(BufferElement::Text(s)) => {
-                    s.push_str(value);
-                }
+        match self.elements.last_mut() {
+            None | Some(BufferElement::Attribute(_)) => {
+                self.elements.push(BufferElement::Text(value.to_owned()));
             }
+            Some(BufferElement::Text(s)) => {
+                s.push_str(value);
+            }
+        }
     }
 
     fn put_attribute(&mut self, attribute: Attribute) {
@@ -132,7 +131,7 @@ impl TerminalInterface {
     }
 
     fn flush_buffer(&mut self) -> Result<()> {
-        if self.buffer.elements.len() == 0 {
+        if self.buffer.elements.is_empty() {
             return Ok(());
         }
         let mut stdout = io::stdout();
@@ -142,7 +141,7 @@ impl TerminalInterface {
                     queue!(stdout, SetAttribute(attr))?;
                 }
                 BufferElement::Text(text) => {
-                    queue!(stdout, Print(text.replace("\n", "\r\n")))?;
+                    queue!(stdout, Print(text.replace('\n', "\r\n")))?;
                 }
             }
         }
@@ -155,9 +154,9 @@ impl TerminalInterface {
         if immediate && self.active_is_visible() {
             let mut stdout = io::stdout();
             self.flush_buffer()?;
-            execute!(stdout, Print(text.replace("\n", "\r\n")))?;
+            execute!(stdout, Print(text.replace('\n', "\r\n")))?;
         } else {
-            self.buffer.put_text(&text);
+            self.buffer.put_text(text);
         }
         Ok(())
     }
@@ -190,7 +189,7 @@ impl Interface for TerminalInterface {
     }
 
     fn get_screen_size(&self) -> (u16, u16) {
-        return term_size().unwrap();
+        term_size().unwrap()
     }
 
     fn set_active(&mut self, split: u16) -> Result<()> {
@@ -240,7 +239,7 @@ impl Interface for TerminalInterface {
                 self.split_screen(0)?;
                 queue!(stdout, Clear(ClearType::All))?;
             }
-            ClearMode::Single(v) => {
+            ClearMode::Single(_v) => {
                 panic!("AAAAAAAA");
             }
         }
@@ -282,7 +281,7 @@ impl Interface for TerminalInterface {
                 }
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => {
-                        self.print_bufferable(&"\n", true)?;
+                        self.print_bufferable("\n", true)?;
                         break;
                     }
                     KeyCode::Esc => {

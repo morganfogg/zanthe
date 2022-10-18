@@ -1,5 +1,5 @@
 /// Represents the different ways an instruction can be encoded in memory.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Form {
     Long,
     Short,
