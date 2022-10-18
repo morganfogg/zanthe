@@ -623,11 +623,12 @@ impl Memory {
         }
     }
 
-    pub fn read_string_array(&self, mut start: usize) -> Result<String> {
+    pub fn read_input_array(&self, mut start: usize) -> Result<String> {
         let mut output = String::new();
         let alphabet = self.alphabet();
         let version = self.version();
         if version >= 5 {
+            start += 1;
             let num_chars = self.read_byte(&mut start);
             for _ in 0..num_chars {
                 let b = self.read_byte(&mut start);
@@ -647,9 +648,15 @@ impl Memory {
         Ok(output)
     }
 
-    pub fn write_string_array(&mut self, mut start: usize, text: &str) -> Result<()> {
+    pub fn write_input_array(&mut self, mut start: usize, text: &str) -> Result<()> {
         let alphabet = self.alphabet();
         if self.version() >= 5 {
+            // Advance past the 'expected number of input characters'
+            start += 1;
+            let existing = self.get_byte(start) as i8;
+            if existing > 0 {
+                start += (existing as usize);
+            }
             self.write_byte(&mut start, text.chars().count() as u8);
         }
         for c in text.chars() {

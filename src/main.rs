@@ -3,7 +3,6 @@ use std::panic;
 
 use backtrace::Backtrace;
 use clap::Parser;
-
 use tracing::{error, info};
 
 use zanthe::cli::Cli;
