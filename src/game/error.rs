@@ -1,11 +1,19 @@
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::io::{Error as IOError};
 
 /// Errors returned by GameState.
 pub enum GameError {
     VersionSix,
     InvalidFile,
     InvalidOperation(String),
+    IOError(IOError),
+}
+
+impl GameError {
+    fn invalid_operation<T: Into<String>>(value: T) {
+        GameError::InvalidOperation(value.into())
+    }
 }
 
 impl Display for GameError {
@@ -21,6 +29,9 @@ impl Display for GameError {
                 GameError::InvalidOperation(e) => {
                     format!("Error while running game: {}", e)
                 }
+                GameError::IOError(e) => {
+                    format!("I/O Error: {}", e)
+                }
             }
         )
     }
@@ -33,3 +44,10 @@ impl Debug for GameError {
 }
 
 impl Error for GameError {}
+
+impl Into<GameError> for IOError {
+    fn into(self) -> GameError {
+        GameError::IOError(self)
+    }
+}
+

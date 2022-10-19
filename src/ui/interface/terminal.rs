@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{self, prelude::*};
 use std::mem::take;
 
-use anyhow::{anyhow, Result};
 use crossterm::{
     self,
     cursor::{position as cursor_pos, MoveLeft, MoveTo},
@@ -18,6 +17,7 @@ use num_traits::FromPrimitive;
 use tracing::{error, warn};
 
 use crate::game::InputCode;
+use crate::game::Result;
 use crate::ui::interface::{ClearMode, Interface};
 use crate::ui::Screen;
 use crate::ui::TextStyle;
@@ -193,7 +193,7 @@ impl Interface for TerminalInterface {
     }
 
     fn set_active(&mut self, split: u16) -> Result<()> {
-        let new_active = Screen::from_u16(split).ok_or_else(|| anyhow!("Invalid screen"))?;
+        let new_active = Screen::from_u16(split).ok_or_else(|| GameError::InvalidOperation("Invalid screen"))?;
 
         let mut stdout = io::stdout();
 
