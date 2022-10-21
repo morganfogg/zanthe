@@ -5,6 +5,7 @@
 //! subset is required for the Z-Machine.
 
 use std::collections::VecDeque;
+use std::mem;
 
 struct TextFormat {
     bold: bool,
@@ -53,21 +54,31 @@ impl Window {
 
 #[derive(Default)]
 struct Lineage {
-    items: Vec<Option<usize>>,
+    items: Vec<Option<WindowKind>>,
 }
 
-enum LineageKind {
+enum WindowKind {
     Window(Window),
-    Split,
+    PairWindow(Direction),
 }
 
 impl Lineage {
     fn parent(&self, child: usize) -> usize {
-        self.items[i / 2].unwrap()
+        if child == 1 {panic!("Tried to find parent of root window.")}
+        self.items[child / 2].unwrap()
     }
 
-    fn child_left(&self, parent: usize) -> Option<usize> {
-        let i = i * 2;
+    fn split(&mut self, node: usize, direction: Direction) {
+        if match!(self.items[node], WindowKind::PairWindow(_)) {
+            panic!("Can't split a window that's already split");
+        }
+
+        let window = mem::replace(self.items[node], WindowKind::PairWindow);
+
+    }
+
+    fn child_left(&self, node: usize) -> Option<usize> {
+        let i = node * 2;
         if i < self.items.len() {
             self.items[i]
         } else {
@@ -75,8 +86,8 @@ impl Lineage {
         }
     }
 
-    fn child_right(&self, parent: usize) -> Option<usize> {
-        let i = i * 2 + 1;
+    fn child_right(&self, node: usize) -> Option<usize> {
+        let i = node * 2 + 1;
         if i < self.items.len() {
             self.items[i]
         } else {
@@ -84,16 +95,34 @@ impl Lineage {
         }
     }
 
-    fn drop(&self, leaf: usize) {
-        self.items[leaf] = None;
-        let a = leaf;
-        let b = leaf;
-        loop {
-            a *= 2;
-            b = b * 2 + 1;
-            if x >= self.items.len() {
-                break;
+    /// Divides the provided window into two.
+    fn split(&mut self, node: usize, child: WindowKind) {
+        let left_index = node * 2;
+        let right_index = left_index + 1;
+
+        match self.items[node]  {
+            Some(WindowKind::PairWindow(_)) => {
+                panic!("Can't split a window that's already split!");
             }
+            None => {
+                panic!("No such window!");
+            }
+            _ => {}
+        }
+
+        let existing = mem::replace(self.items[node], Some(WindowKind::PairWindow));
+        self.items[left_index] = existing;
+        self.items[right_index] = child;
+    }
+
+    /// Drop the provided window.
+    fn destroy(&mut self, node: usize) {
+        let destroy_stack = vec![node];
+        while !destroy_stack.is_empty() {
+            if matches!(self.items[node], Some(WindowKind::PairWindow(_))) {
+                destroy_stack.extend_from_slice(&[node * 2, node * 2 + 1]);
+            }
+            self.items[node] = None;
         }
     }
 }
@@ -104,7 +133,7 @@ struct WindowManager {
     height: usize,
     windows: Vec<Window>,
     active_window: usize,
-    lineage: Lineage, 
+    lineage: Lineage,
 }
 
 impl WindowManager {
@@ -125,7 +154,7 @@ impl WindowManager {
             self.windows.append(Window::new(0, 0, self.width, self.height));
             self.active_window = 1;
         } else {
-            
+
         }
     }
 }

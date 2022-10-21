@@ -14,7 +14,7 @@ use crossterm::{
     },
 };
 use num_traits::FromPrimitive;
-use tracing::{warn};
+use tracing::warn;
 
 use super::screen::Screen;
 use super::text_style::TextStyle;
