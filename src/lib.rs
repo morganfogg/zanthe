@@ -5,8 +5,8 @@ pub mod ui;
 
 use std::fs;
 
-use crate::game::Result;
 use crate::cli::{Cli, InterfaceMode};
+use crate::game::Result;
 use game::state::GameState;
 use ui::interface::{Interface, TerminalInterface};
 
@@ -18,8 +18,7 @@ pub fn run(args: Cli) -> Result<()> {
         InterfaceMode::Terminal => Box::new(TerminalInterface::new()?),
     };
 
-    let mut game_state =
-        GameState::new(game_file, interface.as_mut())?;
+    let mut game_state = GameState::new(game_file, interface.as_mut())?;
 
     let result = game_state.run();
 

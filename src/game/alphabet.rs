@@ -99,7 +99,9 @@ impl Alphabet {
         match value {
             0 => Ok(None),
             13 => Ok(Some('\n')),
-            32..=126 => Ok(Some(char::try_from(value as u32).map_err(|_|GameError::invalid_operation("Could not decode ZSCII character"))?)),
+            32..=126 => Ok(Some(char::try_from(value as u32).map_err(|_| {
+                GameError::invalid_operation("Could not decode ZSCII character")
+            })?)),
             c @ 155..=251 => Ok(Some(self.unicode_table()[c as usize - 155])),
             _ => Err(GameError::invalid_operation("Invalid ZSCII sequence")),
         }

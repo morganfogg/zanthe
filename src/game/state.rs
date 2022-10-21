@@ -275,7 +275,8 @@ impl<'a> GameState<'a> {
         let local_count = self.memory.read_byte(&mut address) as usize;
         if local_count > 15 {
             return Err(GameError::invalid_operation(
-                "Routine tried to create more than 15 locals"));
+                "Routine tried to create more than 15 locals",
+            ));
         }
 
         let mut locals = vec![0; local_count];
@@ -375,8 +376,7 @@ impl<'a> GameState<'a> {
                 .frame()
                 .stack
                 .last_mut()
-                .ok_or_else(|| GameError::invalid_operation("Can't edit empty stack"))? =
-                value;
+                .ok_or_else(|| GameError::invalid_operation("Can't edit empty stack"))? = value;
         } else {
             self.set_variable(variable, value);
         }

@@ -39,9 +39,9 @@ impl StackFrame {
     }
 
     pub fn pop_stack(&mut self) -> Result<u16> {
-        self.stack.pop().ok_or_else(|| {
-            GameError::invalid_operation("Attempted to read from empty stack")
-        })
+        self.stack
+            .pop()
+            .ok_or_else(|| GameError::invalid_operation("Attempted to read from empty stack"))
     }
 
     pub fn push_stack(&mut self, value: u16) {
@@ -97,7 +97,8 @@ impl CallStack {
     pub fn throw(&mut self, to: usize) -> Result<()> {
         if self.frames.len() <= to as usize {
             return Err(GameError::invalid_operation(
-                "Tried to throw to an invalid stack frame"));
+                "Tried to throw to an invalid stack frame",
+            ));
         }
         self.frames.truncate(to);
         Ok(())
@@ -105,7 +106,9 @@ impl CallStack {
 
     pub fn pop(&mut self) -> Result<StackFrame> {
         if self.frames.len() <= 1 {
-            Err(GameError::invalid_operation("Tried to return from main routine"))
+            Err(GameError::invalid_operation(
+                "Tried to return from main routine",
+            ))
         } else {
             Ok(self.frames.pop().unwrap())
         }

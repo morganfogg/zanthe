@@ -123,9 +123,9 @@ pub fn set_text_style(state: &mut GameState, mut ops: OperandSet) -> Result<Inst
         4 => state.interface.text_style_emphasis()?,
         8 => state.interface.text_style_fixed()?,
         _ => {
-            return Err(
-                GameError::invalid_operation("Tried to set invalid text style"),
-            )
+            return Err(GameError::invalid_operation(
+                "Tried to set invalid text style",
+            ))
         }
     }
 

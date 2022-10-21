@@ -12,13 +12,12 @@ pub use operand::Operand;
 pub use operand_set::OperandSet;
 pub use result::Result;
 
-use crate::game::{Result as GameResult};
 use crate::game::state::GameState;
+use crate::game::Result as GameResult;
 use result::Result as InstructionResult;
 
 type NormalHandler = dyn Fn(&mut GameState, OperandSet) -> GameResult<InstructionResult>;
-type BranchHandler =
-    dyn Fn(&mut GameState, OperandSet, bool, i16) -> GameResult<InstructionResult>;
+type BranchHandler = dyn Fn(&mut GameState, OperandSet, bool, i16) -> GameResult<InstructionResult>;
 type BranchStoreHandler =
     dyn Fn(&mut GameState, OperandSet, bool, i16, u8) -> GameResult<InstructionResult>;
 type StoreHandler = dyn Fn(&mut GameState, OperandSet, u8) -> GameResult<InstructionResult>;

@@ -144,7 +144,11 @@ pub fn dec_chk(
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult> {
-    let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable_id: u8 = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let comparand = ops.pull()?.signed(state)?;
     let value = (state.peek_variable(variable_id)? as i16).wrapping_sub(1);
 
@@ -164,7 +168,11 @@ pub fn inc_chk(
     expected: bool,
     offset: i16,
 ) -> Result<InstructionResult> {
-    let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable_id: u8 = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let comparand = ops.pull()?.signed(state)?;
     let value = (state.peek_variable(variable_id)? as i16).wrapping_add(1);
 
@@ -291,7 +299,11 @@ pub fn clear_attr(state: &mut GameState, mut ops: OperandSet) -> Result<Instruct
 
 /// 2OP:13 Set the variable referenced by the operand to value
 pub fn store(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
-    let variable = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let value = ops.pull()?.unsigned(state)?;
 
     state.poke_variable(variable, value)?;
@@ -598,7 +610,11 @@ pub fn get_prop_len(
 
 /// 1OP:133 Increment the provided variable.
 pub fn inc(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
-    let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable_id: u8 = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let value = state.peek_variable(variable_id)? as i16;
 
     let result = value.wrapping_add(1) as u16;
@@ -609,7 +625,11 @@ pub fn inc(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResu
 
 /// 1OP:134 Decrement the provided variable.
 pub fn dec(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionResult> {
-    let variable_id: u8 = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable_id: u8 = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let value = state.peek_variable(variable_id)? as i16;
 
     let result = value.wrapping_sub(1) as u16;
@@ -676,7 +696,11 @@ pub fn print_paddr(state: &mut GameState, mut ops: OperandSet) -> Result<Instruc
 
 /// 1OP:142 Load the variable referred to by the operand into the result
 pub fn load(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<InstructionResult> {
-    let variable_id = ops.pull()?.unsigned(state)?.try_into().map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
+    let variable_id = ops
+        .pull()?
+        .unsigned(state)?
+        .try_into()
+        .map_err(|_| GameError::invalid_operation("Invalid variable ID"))?;
     let value = state.peek_variable(variable_id)?;
 
     state.set_variable(store_to, value);
@@ -816,7 +840,7 @@ pub fn put_prop(state: &mut GameState, mut ops: OperandSet) -> Result<Instructio
         2 => state.memory.set_word(property.data_address as usize, value),
         _ => {
             return Err(GameError::invalid_operation(
-                "Cannot assign property with length greater than 2"
+                "Cannot assign property with length greater than 2",
             ))
         }
     }

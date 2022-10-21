@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::io;
 
-
 pub struct GameError {
     kind: GameErrorKind,
     detail: Option<String>,
@@ -17,28 +16,28 @@ pub enum GameErrorKind {
 
 impl GameError {
     pub fn invalid_operation<T: Into<String>>(value: T) -> Self {
-        GameError { 
+        GameError {
             kind: GameErrorKind::InvalidOperation(value.into()),
             detail: None,
         }
     }
 
     pub fn invalid_file() -> Self {
-        GameError { 
+        GameError {
             kind: GameErrorKind::InvalidFile,
             detail: None,
         }
     }
 
     pub fn version_six() -> Self {
-        GameError { 
+        GameError {
             kind: GameErrorKind::VersionSix,
             detail: None,
         }
     }
 
     pub fn io_error(inner: io::Error) -> Self {
-        GameError { 
+        GameError {
             kind: GameErrorKind::IOError(inner),
             detail: None,
         }
@@ -79,4 +78,3 @@ impl From<io::Error> for GameError {
         GameError::io_error(other)
     }
 }
-

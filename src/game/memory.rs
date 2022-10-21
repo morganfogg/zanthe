@@ -655,7 +655,7 @@ impl Memory {
             start += 1;
             let existing = self.get_byte(start) as i8;
             if existing > 0 {
-                start += (existing as usize);
+                start += existing as usize;
             }
             self.write_byte(&mut start, text.chars().count() as u8);
         }
@@ -683,7 +683,8 @@ impl Memory {
                 1..=3 if (self.version() >= 3 || *c == 1) => {
                     if !abbreviations {
                         return Err(GameError::invalid_operation(
-                            "Found abbreviation within an abbreviation"));
+                            "Found abbreviation within an abbreviation",
+                        ));
                     }
                     if let Some(abbreviation_id) = sequence.next() {
                         let abbreviation: String = self
@@ -694,10 +695,7 @@ impl Memory {
                             .0;
                         result.append(&mut abbreviation.chars().collect());
                     } else {
-                        return Err(GameError::invalid_operation(
-                            "String ended unexpectedly"
-                        )
-                        );
+                        return Err(GameError::invalid_operation("String ended unexpectedly"));
                     }
                 }
                 2 => {

@@ -94,9 +94,9 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
 
     let max_characters = state.memory.get_byte(text_address as usize);
     if max_characters < 3 {
-        return Err(
-            GameError::invalid_operation("Text buffer cannot be less than 3 bytes"),
-        );
+        return Err(GameError::invalid_operation(
+            "Text buffer cannot be less than 3 bytes",
+        ));
     }
 
     let string = state.interface.read_line(max_characters as usize)?;
@@ -110,7 +110,7 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
         let max_words = state.memory.get_byte(parse_address as usize);
         if max_words < 6 {
             return Err(GameError::invalid_operation(
-                "Parse buffer cannot be less than 6 bytes"
+                "Parse buffer cannot be less than 6 bytes",
             ));
         }
         state
@@ -170,9 +170,9 @@ fn tokenise(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionRes
 
     let max_words = state.memory.get_byte(parse_address as usize);
     if max_words < 6 {
-        return Err(
-            GameError::invalid_operation("Parse buffer cannot be less than 6 bytes"),
-        );
+        return Err(GameError::invalid_operation(
+            "Parse buffer cannot be less than 6 bytes",
+        ));
     }
 
     let t_cursor = text_address as usize;
