@@ -14,14 +14,14 @@ use crossterm::{
     },
 };
 use num_traits::FromPrimitive;
-use tracing::{error, warn};
+use tracing::{warn};
 
+use super::screen::Screen;
+use super::text_style::TextStyle;
+use super::{ClearMode, Interface};
 use crate::game::error::GameError;
 use crate::game::InputCode;
 use crate::game::Result;
-use crate::ui::interface::{ClearMode, Interface};
-use crate::ui::Screen;
-use crate::ui::TextStyle;
 
 #[derive(Default)]
 struct Buffer {
@@ -202,7 +202,6 @@ impl Interface for TerminalInterface {
         if self.active_screen == Screen::Lower {
             self.flush_buffer()?;
             self.old_cursor_pos = cursor_pos()?;
-            error!("{:?}", self.old_cursor_pos);
         }
 
         if new_active == Screen::Upper {

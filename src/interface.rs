@@ -1,6 +1,6 @@
-//mod echo;
+pub mod screen;
 mod terminal;
-//pub use echo::EchoInterface;
+pub mod text_style;
 pub use terminal::TerminalInterface;
 
 use crate::game::Result;

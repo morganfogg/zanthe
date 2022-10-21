@@ -1,14 +1,14 @@
 pub mod cli;
 pub mod game;
 pub mod helper;
-pub mod ui;
+pub mod interface;
 
 use std::fs;
 
 use crate::cli::{Cli, InterfaceMode};
 use crate::game::Result;
 use game::state::GameState;
-use ui::interface::{Interface, TerminalInterface};
+use interface::{Interface, TerminalInterface};
 
 pub fn run(args: Cli) -> Result<()> {
     let game_file = fs::read(&args.game_file)?;

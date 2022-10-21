@@ -6,7 +6,7 @@ use crate::game::instruction::op_code::OpCode;
 use crate::game::instruction::Instruction;
 use crate::game::instruction::{OperandSet, Result as InstructionResult, Result::*};
 use crate::game::state::GameState;
-use crate::ui::interface::ClearMode;
+use crate::interface::ClearMode;
 
 pub fn instructions() -> Vec<(OpCode, Instruction)> {
     use Instruction::*;
