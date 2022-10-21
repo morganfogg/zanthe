@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::collections::VecDeque;
 use std::vec::Vec;
 
-use anyhow::Result;
+use crate::game::Result;
 use rand::{rngs::StdRng, SeedableRng};
 use tracing::debug;
 
@@ -33,7 +33,7 @@ pub struct GameState<'a> {
 }
 
 impl<'a> GameState<'a> {
-    pub fn new(data: Vec<u8>, interface: &'a mut dyn Interface) -> Result<GameState, GameError> {
+    pub fn new(data: Vec<u8>, interface: &'a mut dyn Interface) -> Result<GameState> {
         let mut memory = Memory::new(data);
         memory.validate_header()?;
         memory.set_general_headers();
@@ -212,7 +212,7 @@ impl<'a> GameState<'a> {
         let operands = OperandSet::new(operands);
 
         let instruction = self.instruction_set.get(&op_code).ok_or_else(|| {
-            GameError::InvalidOperation(format!("Illegal opcode \"{}\"", &op_code))
+            GameError::invalid_operation(format!("Illegal opcode \"{}\"", &op_code))
         })?;
 
         let frame = self.frame();
@@ -254,7 +254,7 @@ impl<'a> GameState<'a> {
             }
             Instruction::StringLiteral(f, name) => {
                 let string = self.memory.read_string(&mut pc).map_err(|e| {
-                    GameError::InvalidOperation(format!("Error reading string literal: {}", e))
+                    GameError::invalid_operation(format!("Error reading string literal: {}", e))
                 })?;
 
                 debug!("{:x} {} '{}'", instruction_pc, name, string);
@@ -274,10 +274,8 @@ impl<'a> GameState<'a> {
     ) -> Result<()> {
         let local_count = self.memory.read_byte(&mut address) as usize;
         if local_count > 15 {
-            return Err(GameError::InvalidOperation(
-                "Routine tried to create more than 15 locals".into(),
-            )
-            .into());
+            return Err(GameError::invalid_operation(
+                "Routine tried to create more than 15 locals"));
         }
 
         let mut locals = vec![0; local_count];
@@ -363,7 +361,7 @@ impl<'a> GameState<'a> {
                 .frame()
                 .stack
                 .last()
-                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))?)
+                .ok_or_else(|| GameError::invalid_operation("Can't edit empty stack"))?)
         } else {
             self.get_variable(variable)
         }
@@ -377,7 +375,7 @@ impl<'a> GameState<'a> {
                 .frame()
                 .stack
                 .last_mut()
-                .ok_or_else(|| GameError::InvalidOperation("Can't edit empty stack".into()))? =
+                .ok_or_else(|| GameError::invalid_operation("Can't edit empty stack"))? =
                 value;
         } else {
             self.set_variable(variable, value);

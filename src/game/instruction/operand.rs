@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
-use anyhow::Result;
+use crate::game::Result;
 
 use crate::game::error::GameError;
 use crate::game::state::GameState;
@@ -35,12 +35,12 @@ impl Operand {
 
     pub fn unsigned(self, state: &mut GameState) -> Result<u16> {
         self.try_unsigned(state)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
+            .ok_or_else(|| GameError::invalid_operation("Missing required operand"))
     }
 
     pub fn signed(self, state: &mut GameState) -> Result<i16> {
         self.try_signed(state)?
-            .ok_or_else(|| GameError::InvalidOperation("Missing required operand".into()).into())
+            .ok_or_else(|| GameError::invalid_operation("Missing required operand"))
     }
 }
 

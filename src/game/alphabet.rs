@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use anyhow::Result;
+use crate::game::Result;
 
 use crate::game::error::GameError;
 use crate::game::InputCode;
@@ -99,9 +99,9 @@ impl Alphabet {
         match value {
             0 => Ok(None),
             13 => Ok(Some('\n')),
-            32..=126 => Ok(Some(char::try_from(value as u32)?)),
+            32..=126 => Ok(Some(char::try_from(value as u32).map_err(|_|GameError::invalid_operation("Could not decode ZSCII character"))?)),
             c @ 155..=251 => Ok(Some(self.unicode_table()[c as usize - 155])),
-            _ => Err(GameError::InvalidOperation("Invalid ZSCII sequence".into()).into()),
+            _ => Err(GameError::invalid_operation("Invalid ZSCII sequence")),
         }
     }
 
@@ -116,7 +116,7 @@ impl Alphabet {
         } else if let Some(p) = self.unicode_table().iter().position(|&x| x == value) {
             Ok(p as u8 + 155)
         } else {
-            Err(GameError::InvalidOperation("Invalid input character".into()).into())
+            Err(GameError::invalid_operation("Invalid input character"))
         }
     }
 

@@ -12,16 +12,17 @@ pub use operand::Operand;
 pub use operand_set::OperandSet;
 pub use result::Result;
 
+use crate::game::{Result as GameResult};
 use crate::game::state::GameState;
 use result::Result as InstructionResult;
 
-type NormalHandler = dyn Fn(&mut GameState, OperandSet) -> anyhow::Result<InstructionResult>;
+type NormalHandler = dyn Fn(&mut GameState, OperandSet) -> GameResult<InstructionResult>;
 type BranchHandler =
-    dyn Fn(&mut GameState, OperandSet, bool, i16) -> anyhow::Result<InstructionResult>;
+    dyn Fn(&mut GameState, OperandSet, bool, i16) -> GameResult<InstructionResult>;
 type BranchStoreHandler =
-    dyn Fn(&mut GameState, OperandSet, bool, i16, u8) -> anyhow::Result<InstructionResult>;
-type StoreHandler = dyn Fn(&mut GameState, OperandSet, u8) -> anyhow::Result<InstructionResult>;
-type StringLiteralHandler = dyn Fn(&mut GameState, String) -> anyhow::Result<InstructionResult>;
+    dyn Fn(&mut GameState, OperandSet, bool, i16, u8) -> GameResult<InstructionResult>;
+type StoreHandler = dyn Fn(&mut GameState, OperandSet, u8) -> GameResult<InstructionResult>;
+type StringLiteralHandler = dyn Fn(&mut GameState, String) -> GameResult<InstructionResult>;
 
 /// A wrapper for instruction functions to associate them with their argument types.
 #[derive(Clone)]

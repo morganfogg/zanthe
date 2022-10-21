@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::game::Result;
 
 use crate::game::error::GameError;
 use crate::game::instruction::Result as InstructionResult;
@@ -40,7 +40,7 @@ impl StackFrame {
 
     pub fn pop_stack(&mut self) -> Result<u16> {
         self.stack.pop().ok_or_else(|| {
-            GameError::InvalidOperation("Attempted to read from empty stack".into()).into()
+            GameError::invalid_operation("Attempted to read from empty stack")
         })
     }
 
@@ -96,10 +96,8 @@ impl CallStack {
 
     pub fn throw(&mut self, to: usize) -> Result<()> {
         if self.frames.len() <= to as usize {
-            return Err(GameError::InvalidOperation(
-                "Tried to throw to an invalid stack frame".into(),
-            )
-            .into());
+            return Err(GameError::invalid_operation(
+                "Tried to throw to an invalid stack frame"));
         }
         self.frames.truncate(to);
         Ok(())
@@ -107,7 +105,7 @@ impl CallStack {
 
     pub fn pop(&mut self) -> Result<StackFrame> {
         if self.frames.len() <= 1 {
-            Err(GameError::InvalidOperation("Tried to return from main routine".into()).into())
+            Err(GameError::invalid_operation("Tried to return from main routine"))
         } else {
             Ok(self.frames.pop().unwrap())
         }

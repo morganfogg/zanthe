@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::io::{self, Stdout, Write};
 
-use anyhow::Result;
+use crate::game::Result;
 use crossterm::{
     self,
     cursor::MoveLeft,

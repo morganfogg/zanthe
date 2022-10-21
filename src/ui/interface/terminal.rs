@@ -18,6 +18,7 @@ use tracing::{error, warn};
 
 use crate::game::InputCode;
 use crate::game::Result;
+use crate::game::error::GameError;
 use crate::ui::interface::{ClearMode, Interface};
 use crate::ui::Screen;
 use crate::ui::TextStyle;
@@ -193,7 +194,7 @@ impl Interface for TerminalInterface {
     }
 
     fn set_active(&mut self, split: u16) -> Result<()> {
-        let new_active = Screen::from_u16(split).ok_or_else(|| GameError::InvalidOperation("Invalid screen"))?;
+        let new_active = Screen::from_u16(split).ok_or_else(|| GameError::invalid_operation("Invalid screen"))?;
 
         let mut stdout = io::stdout();
 

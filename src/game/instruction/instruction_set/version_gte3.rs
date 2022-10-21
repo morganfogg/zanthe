@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::game::Result;
 use tracing::warn;
 
 use crate::game::instruction::op_code::OpCode;

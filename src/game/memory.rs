@@ -2,7 +2,7 @@ use std::char;
 use std::convert::TryInto;
 use std::iter::successors;
 
-use anyhow::Result;
+use crate::game::Result;
 use tracing::{error, info, warn};
 
 use crate::game::address;
@@ -564,7 +564,7 @@ impl Memory {
         for _ in 0..count {
             let c = alphabet
                 .decode_zscii(self.read_byte(&mut cursor).into())?
-                .ok_or_else(|| GameError::InvalidOperation("No!".into()))?;
+                .ok_or_else(|| GameError::invalid_operation("Invalid word separator"))?;
             result.push(c);
         }
         Ok(result)
@@ -682,10 +682,8 @@ impl Memory {
                 0 => result.push(' '),
                 1..=3 if (self.version() >= 3 || *c == 1) => {
                     if !abbreviations {
-                        return Err(GameError::InvalidOperation(
-                            "Found abbreviation within an abbreviation".into(),
-                        )
-                        .into());
+                        return Err(GameError::invalid_operation(
+                            "Found abbreviation within an abbreviation"));
                     }
                     if let Some(abbreviation_id) = sequence.next() {
                         let abbreviation: String = self
@@ -696,10 +694,10 @@ impl Memory {
                             .0;
                         result.append(&mut abbreviation.chars().collect());
                     } else {
-                        return Err(GameError::InvalidOperation(
-                            "String ended unexpectedly".into(),
+                        return Err(GameError::invalid_operation(
+                            "String ended unexpectedly"
                         )
-                        .into());
+                        );
                     }
                 }
                 2 => {
@@ -726,10 +724,10 @@ impl Memory {
                     if table == AlphabetTable::A2 && *c == 6 {
                         // Character 6 in Alphabet 2 indicates a 10-bit ZSCII character follows.
                         let b1 = *sequence.next().ok_or_else(|| {
-                            GameError::InvalidOperation("String ended unexpectedly".into())
+                            GameError::invalid_operation("String ended unexpectedly")
                         })?;
                         let b2 = *sequence.next().ok_or_else(|| {
-                            GameError::InvalidOperation("String ended unexpectedly".into())
+                            GameError::invalid_operation("String ended unexpectedly")
                         })?;
 
                         let zscii_code = ((b1 as u16) << 5) | (b2 as u16);
@@ -836,34 +834,34 @@ impl Memory {
 
     /// Does some sanity checking on the header section of the data to
     /// ensure the input is valid.
-    pub fn validate_header(&self) -> Result<(), GameError> {
+    pub fn validate_header(&self) -> Result<()> {
         let len = self.data.len();
         if len < 64 {
             // Header alone must be at least 64 bytes long
             error!("File too small to be valid");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
 
         if self.version() == 6 {
             error!("Version 6 file provided");
-            return Err(GameError::VersionSix);
+            return Err(GameError::version_six());
         }
 
         if self.version() > 8 || self.version() == 0 {
             // Version byte is outside expected/supported range
             error!("Invalid version byte");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
         if len > self.max_file_length() {
             // File is too large for its version
             error!("Invalid file size");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
 
         let static_memory_base: usize = self.static_memory_base().into();
         if static_memory_base < 64 || static_memory_base > len - 1 {
             error!("Invalid static memory base");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
 
         let high_memory_base: usize = self.high_memory_base().into();
@@ -872,13 +870,13 @@ impl Memory {
             || high_memory_base <= static_memory_base
         {
             error!("Invalid high memory base");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
 
         let program_counter_starts: usize = self.program_counter_starts().into();
         if program_counter_starts < high_memory_base {
             error!("Program counter does not start in high memory");
-            return Err(GameError::InvalidFile);
+            return Err(GameError::invalid_file());
         }
         info!("Header validation OKAY");
         info!(

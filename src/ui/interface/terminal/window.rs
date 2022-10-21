@@ -39,7 +39,7 @@ struct Window {
 }
 
 impl Window {
-    fn new(x: usize, y: usize, width: usize, height: usize) -> Window {
+    fn new(id: u32, x: usize, y: usize, width: usize, height: usize) -> Window {
         Window {
             x,
             y,
@@ -54,6 +54,11 @@ impl Window {
 #[derive(Default)]
 struct Lineage {
     items: Vec<Option<usize>>,
+}
+
+enum LineageKind {
+    Window(Window),
+    Split,
 }
 
 impl Lineage {

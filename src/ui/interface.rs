@@ -3,7 +3,7 @@ mod terminal;
 //pub use echo::EchoInterface;
 pub use terminal::TerminalInterface;
 
-use anyhow::Result;
+use crate::game::Result;
 
 use crate::game::InputCode;
 

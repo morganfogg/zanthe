@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::game::Result;
 
 use super::OperandSet;
 use super::Result as InstructionResult;

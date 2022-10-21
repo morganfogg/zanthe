@@ -1,5 +1,5 @@
 //
-use anyhow::Result;
+use crate::game::Result;
 use itertools::Itertools;
 use tracing::warn;
 
@@ -95,7 +95,7 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
     let max_characters = state.memory.get_byte(text_address as usize);
     if max_characters < 3 {
         return Err(
-            GameError::InvalidOperation("Text buffer cannot be less than 3 bytes".into()).into(),
+            GameError::invalid_operation("Text buffer cannot be less than 3 bytes"),
         );
     }
 
@@ -109,10 +109,9 @@ fn aread(state: &mut GameState, mut ops: OperandSet, store_to: u8) -> Result<Ins
     if let Some(parse_address) = parse_address {
         let max_words = state.memory.get_byte(parse_address as usize);
         if max_words < 6 {
-            return Err(GameError::InvalidOperation(
-                "Parse buffer cannot be less than 6 bytes".into(),
-            )
-            .into());
+            return Err(GameError::invalid_operation(
+                "Parse buffer cannot be less than 6 bytes"
+            ));
         }
         state
             .memory
@@ -172,7 +171,7 @@ fn tokenise(state: &mut GameState, mut ops: OperandSet) -> Result<InstructionRes
     let max_words = state.memory.get_byte(parse_address as usize);
     if max_words < 6 {
         return Err(
-            GameError::InvalidOperation("Parse buffer cannot be less than 6 bytes".into()).into(),
+            GameError::invalid_operation("Parse buffer cannot be less than 6 bytes"),
         );
     }
 

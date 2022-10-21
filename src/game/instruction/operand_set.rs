@@ -1,4 +1,5 @@
 use crate::game::error::GameError;
+use crate::game::Result;
 use itertools::Itertools;
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -14,9 +15,9 @@ impl OperandSet {
         OperandSet { index: 0, set }
     }
 
-    pub fn pull(&mut self) -> Result<Operand, GameError> {
+    pub fn pull(&mut self) -> Result<Operand> {
         self.next()
-            .ok_or_else(|| GameError::InvalidOperation("Instruction has too few operands".into()))
+            .ok_or_else(|| GameError::invalid_operation("Instruction has too few operands"))
     }
 }
 

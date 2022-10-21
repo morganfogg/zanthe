@@ -1,18 +1,47 @@
 use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::io::{Error as IOError};
+use std::io;
 
-/// Errors returned by GameState.
-pub enum GameError {
+
+pub struct GameError {
+    kind: GameErrorKind,
+    detail: Option<String>,
+}
+
+pub enum GameErrorKind {
     VersionSix,
     InvalidFile,
     InvalidOperation(String),
-    IOError(IOError),
+    IOError(io::Error),
 }
 
 impl GameError {
-    fn invalid_operation<T: Into<String>>(value: T) {
-        GameError::InvalidOperation(value.into())
+    pub fn invalid_operation<T: Into<String>>(value: T) -> Self {
+        GameError { 
+            kind: GameErrorKind::InvalidOperation(value.into()),
+            detail: None,
+        }
+    }
+
+    pub fn invalid_file() -> Self {
+        GameError { 
+            kind: GameErrorKind::InvalidFile,
+            detail: None,
+        }
+    }
+
+    pub fn version_six() -> Self {
+        GameError { 
+            kind: GameErrorKind::VersionSix,
+            detail: None,
+        }
+    }
+
+    pub fn io_error(inner: io::Error) -> Self {
+        GameError { 
+            kind: GameErrorKind::IOError(inner),
+            detail: None,
+        }
     }
 }
 
@@ -21,15 +50,15 @@ impl Display for GameError {
         write!(
             f,
             "{}",
-            match &self {
-                GameError::VersionSix => "Version 6 story files are not supported".to_string(),
-                GameError::InvalidFile => {
+            match &self.kind {
+                GameErrorKind::VersionSix => "Version 6 story files are not supported".to_string(),
+                GameErrorKind::InvalidFile => {
                     "The file you have specified is not a supported Z-Code file".to_string()
                 }
-                GameError::InvalidOperation(e) => {
+                GameErrorKind::InvalidOperation(e) => {
                     format!("Error while running game: {}", e)
                 }
-                GameError::IOError(e) => {
+                GameErrorKind::IOError(e) => {
                     format!("I/O Error: {}", e)
                 }
             }
@@ -45,9 +74,9 @@ impl Debug for GameError {
 
 impl Error for GameError {}
 
-impl Into<GameError> for IOError {
-    fn into(self) -> GameError {
-        GameError::IOError(self)
+impl From<io::Error> for GameError {
+    fn from(other: io::Error) -> GameError {
+        GameError::io_error(other)
     }
 }
 

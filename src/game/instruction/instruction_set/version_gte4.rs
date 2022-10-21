@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::game::Result;
 use itertools::Itertools;
 
 use crate::game::error::GameError;
@@ -92,7 +92,7 @@ pub fn erase_window(state: &mut GameState, mut ops: OperandSet) -> Result<Instru
     let mode = match window {
         -1 => ClearMode::FullUnsplit,
         -2 => ClearMode::Full,
-        x if x < 0 => return Err(GameError::InvalidOperation("Bad split".to_string()).into()),
+        x if x < 0 => return Err(GameError::invalid_operation("Bad split")),
         x => ClearMode::Single(x as u16),
     };
     state.interface.clear(mode)?;
@@ -124,7 +124,7 @@ pub fn set_text_style(state: &mut GameState, mut ops: OperandSet) -> Result<Inst
         8 => state.interface.text_style_fixed()?,
         _ => {
             return Err(
-                GameError::InvalidOperation("Tried to set invalid text style".into()).into(),
+                GameError::invalid_operation("Tried to set invalid text style"),
             )
         }
     }
