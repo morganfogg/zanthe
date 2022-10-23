@@ -51,16 +51,16 @@ pub enum SplitDirection {
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 struct Cursor {
-    x: usize,
-    y: usize,
+    x: u16,
+    y: u16,
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct Window {
-    width: usize,
-    height: usize,
-    x: usize,
-    y: usize,
+    width: u16,
+    height: u16,
+    x: u16,
+    y: u16,
     lines: VecDeque<Line>,
     invalidations: Vec<usize>,
     active_format: TextFormat,
@@ -68,31 +68,33 @@ pub struct Window {
 }
 
 impl Window {
-    fn new(x: usize, y: usize, width: usize, height: usize) -> Window {
+    fn new(x: u16, y: u16, width: u16, height: u16) -> Window {
         Window {
             x,
             y,
             width,
             height,
-            lines: VecDeque::with_capacity(height),
+            lines: VecDeque::with_capacity(height as usize),
             invalidations: Vec::new(),
             active_format: TextFormat::default(),
-            cursor: Cursor::default(),
+            cursor: Cursor {x, y},
         }
     }
 
     pub fn write<T: Into<String>>(&mut self, text: T) {
         let text: String = text.into();
         let mut stdout = io::stdout();
+        queue!(stdout, MoveTo(self.x + self.cursor.x, self.y + self.cursor.y));
         for c in text.chars() {
             let mut char_buffer = [0u8; 4];
             let available_space = (self.width - self.cursor.x).saturating_sub(1);
-            let char_width = c.width().unwrap_or(0);
+            let char_width = c.width().unwrap_or(0) as u16;
             if char_width > available_space {
                 self.cursor.y += 1;
                 self.cursor.x = 0;
+                queue!(stdout, MoveTo(self.x + self.cursor.x, self.y + self.cursor.y));
             } else {
-                self.cursor.y += char_width;
+                self.cursor.x += (char_width as u16);
             }
             c.encode_utf8(&mut char_buffer);
             stdout.write(&char_buffer);
@@ -108,26 +110,23 @@ pub struct WindowManager {
 
 #[derive(Clone, Debug)]
 pub enum WindowNode {
-    Window(Window),
-    PairWindow(SplitDirection),
+    Window{ window: Window, parent: Option<usize>},
+    PairWindow{ direction: SplitDirection, parent: Option<usize>, child_left: usize, child_right: usize },
+}
+
+impl WindowNode {
+    fn set_parent(&mut self, new_parent: Option<usize>) {
+        match self {
+            WindowNode::Window { ref mut parent, ..} => *parent = new_parent,
+            WindowNode::PairWindow { ref mut parent, ..} => *parent = new_parent,
+        }
+    }
 }
 
 impl Drop for WindowManager {
     fn drop(&mut self) {
         let _ = disable_raw_mode();
     }
-}
-
-fn parent_id(id: usize) -> usize {
-    (id - 1) / 2
-}
-
-fn child_left_id(id: usize) -> usize {
-    id * 2 + 1
-}
-
-fn child_right_id(id: usize) -> usize {
-    id * 2 + 2
 }
 
 impl WindowManager {
@@ -148,75 +147,47 @@ impl WindowManager {
 
     pub fn get_mut_window(&mut self, id: usize) -> Option<&mut Window> {
         match self.get_mut_window_node(id) {
-            None | Some(WindowNode::PairWindow(_)) => None,
-            Some(WindowNode::Window(window)) => Some(window)
+            None | Some(WindowNode::PairWindow{..}) => None,
+            Some(WindowNode::Window{window, ..}) => Some(window)
         }
     }
 
     /// Retrieve the parent of the provided window, as well as its ID.
     fn parent(&self, child: usize) -> Option<(usize, &WindowNode)> {
-        if child == 0 {
-            panic!("Tried to find parent of root window.");
-        }
-        self.items[parent_id(child)].as_ref().map(|x| (parent_id(child), x))
+        todo!()
     }
 
     /// Retrieve the left-side child of the provided window, as well as its ID.
     fn child_left(&self, node: usize) -> Option<(usize, &WindowNode)> {
-        let i = child_left_id(node);
-        if i < self.items.len() {
-            self.items[i].as_ref().map(|x| (i, x))
-        } else {
-            None
-        }
+        todo!()
     }
 
     /// Retrieve the right-side child of the provided window, as well as its ID.
     fn child_right(&self, node: usize) -> Option<(usize, &WindowNode)> {
-        let i = child_right_id(node);
-        if i < self.items.len() {
-            self.items[i].as_ref().map(|x| (i, x))
-        } else {
-            None
-        }
+        todo!()
     }
 
     /// Divides the provided window into two.
-    pub fn split(&mut self, node: usize, direction: SplitDirection, size: usize) -> Result<usize> {
+    pub fn split(&mut self, node: usize, direction: SplitDirection, size: u16) -> Result<usize> {
         if self.items.is_empty() {
             let (cols, rows) = term_size()?;
             let child = Window::new(0, 0, cols.into(), rows.into());
-            self.items.push(Some(WindowNode::Window(child)));
+            self.items.push(Some(WindowNode::Window{window: child, parent: None}));
             return Ok(0)
         }
 
-        let left_index = child_left_id(node);
-        let right_index = child_right_id(node);
-
-        if right_index > 126 {
-            panic!("Maximum split depth exceeded");
-        }
-
-        if right_index >= self.items.len() {
-            self.items.resize(right_index + 1, None);
-        }
-
-        let existing = mem::replace(
-            &mut self.items[node],
-            Some(WindowNode::PairWindow(direction)),
-        );
-
-        let mut existing = match existing {
-            Some(WindowNode::PairWindow(_)) => {
+        let (mut existing, parent) = match &mut self.items[node] {
+            Some(WindowNode::PairWindow{..}) => {
                 panic!("Can't split a window that's already split!");
             }
             None => {
                 panic!("No such window!");
             }
-            Some(WindowNode::Window(x)) => x,
+            Some(WindowNode::Window{window, parent}) => (window, parent.to_owned()),
         };
 
-        let child = match direction {
+
+        let new_window = match direction {
             SplitDirection::Above => {
                 existing.y += size;
                 existing.height -= size;
@@ -237,19 +208,35 @@ impl WindowManager {
             }
         };
 
-        self.items[left_index] = Some(WindowNode::Window(existing));
-        self.items[right_index] = Some(WindowNode::Window(child));
-        Ok(right_index)
+        let new_window_id = self.insert_node(WindowNode::Window{window: new_window, parent: None});
+
+        let split_node = WindowNode::PairWindow {
+            direction,
+            parent,
+            child_left: node,
+            child_right: new_window_id,
+        };
+
+        let split_node_id = self.insert_node(split_node);
+        self.items[node].as_mut().unwrap().set_parent(Some(split_node_id));
+        self.items[new_window_id].as_mut().unwrap().set_parent(Some(split_node_id));
+
+        Ok(new_window_id)
+    }
+
+    fn insert_node(&mut self, node: WindowNode) -> usize {
+        for i in 0..self.items.len() {
+            if matches!(self.items[i], None) {
+                self.items[i] = Some(node);
+                return i;
+            }
+        }
+        self.items.push(Some(node));
+        self.items.len() - 1
     }
 
     /// Drop the provided window id.
     fn destroy(&mut self, node: usize) {
-        let mut destroy_stack = vec![node];
-        while !destroy_stack.is_empty() {
-            if matches!(self.items[node], Some(WindowNode::PairWindow(_))) {
-                destroy_stack.extend_from_slice(&[child_left_id(node), child_right_id(node)]);
-            }
-            self.items[node] = None;
-        }
+        todo!();
     }
 }
