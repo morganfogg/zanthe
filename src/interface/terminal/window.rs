@@ -5,9 +5,10 @@
 //! subset is required for the Z-Machine.
 
 use std::collections::VecDeque;
-use std::io;
+use std::io::{self, Write};
 use std::mem;
 
+use unicode_width::UnicodeWidthChar;
 use crossterm::{
     self,
     cursor::{position as cursor_pos, MoveLeft, MoveTo},
@@ -22,7 +23,7 @@ use crossterm::{
 
 use crate::game::Result;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct TextFormat {
     bold: bool,
     italic: bool,
@@ -48,6 +49,12 @@ pub enum SplitDirection {
     Right,
 }
 
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+struct Cursor {
+    x: usize,
+    y: usize,
+}
+
 #[derive(Default, Clone, Debug)]
 pub struct Window {
     width: usize,
@@ -56,6 +63,8 @@ pub struct Window {
     y: usize,
     lines: VecDeque<Line>,
     invalidations: Vec<usize>,
+    active_format: TextFormat,
+    cursor: Cursor,
 }
 
 impl Window {
@@ -67,7 +76,28 @@ impl Window {
             height,
             lines: VecDeque::with_capacity(height),
             invalidations: Vec::new(),
+            active_format: TextFormat::default(),
+            cursor: Cursor::default(),
         }
+    }
+
+    pub fn write<T: Into<String>>(&mut self, text: T) {
+        let text: String = text.into();
+        let mut stdout = io::stdout();
+        for c in text.chars() {
+            let mut char_buffer = [0u8; 4];
+            let available_space = (self.width - self.cursor.x).saturating_sub(1);
+            let char_width = c.width().unwrap_or(0);
+            if char_width > available_space {
+                self.cursor.y += 1;
+                self.cursor.x = 0;
+            } else {
+                self.cursor.y += char_width;
+            }
+            c.encode_utf8(&mut char_buffer);
+            stdout.write(&char_buffer);
+        }
+        stdout.flush();
     }
 }
 
@@ -108,12 +138,25 @@ impl WindowManager {
         Ok(())
     }
 
+    pub fn get_mut_window_node(&mut self, id: usize) -> Option<&mut WindowNode> {
+        if id >= self.items.len() {
+            None
+        } else {
+            self.items[id].as_mut()
+        }
+    }
+
+    pub fn get_mut_window(&mut self, id: usize) -> Option<&mut Window> {
+        match self.get_mut_window_node(id) {
+            None | Some(WindowNode::PairWindow(_)) => None,
+            Some(WindowNode::Window(window)) => Some(window)
+        }
+    }
+
     /// Retrieve the parent of the provided window, as well as its ID.
     fn parent(&self, child: usize) -> Option<(usize, &WindowNode)> {
-        if child == 1 {
-            panic!("Tried to find parent of root window.")
-        } else if child == 0 {
-            panic!("Invalid window ID");
+        if child == 0 {
+            panic!("Tried to find parent of root window.");
         }
         self.items[parent_id(child)].as_ref().map(|x| (parent_id(child), x))
     }
@@ -150,7 +193,7 @@ impl WindowManager {
         let left_index = child_left_id(node);
         let right_index = child_right_id(node);
 
-        if right_index > 64 {
+        if right_index > 126 {
             panic!("Maximum split depth exceeded");
         }
 
