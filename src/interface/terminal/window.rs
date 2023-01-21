@@ -8,7 +8,6 @@ use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::mem;
 
-use unicode_width::UnicodeWidthChar;
 use crossterm::{
     self,
     cursor::{position as cursor_pos, MoveLeft, MoveTo},
@@ -20,6 +19,7 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
+use unicode_width::UnicodeWidthChar;
 
 use crate::game::Result;
 
@@ -36,9 +36,20 @@ struct Chunk {
     value: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct Line {
     chunks: Vec<Chunk>,
+}
+
+impl Line {
+    fn with_initial_chunk<S: Into<String>>(value: S, style: TextFormat) -> Line {
+        Line {
+            chunks: vec![Chunk {
+                value: value.into(),
+                format: style,
+            }],
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -77,22 +88,33 @@ impl Window {
             lines: VecDeque::with_capacity(height as usize),
             invalidations: Vec::new(),
             active_format: TextFormat::default(),
-            cursor: Cursor {x, y},
+            cursor: Cursor { x, y },
         }
     }
 
-    pub fn write<T: Into<String>>(&mut self, text: T) {
-        let text: String = text.into();
+    pub fn write(&mut self, text: &str) {
+        if self.width == 0 {
+            return;
+        }
         let mut stdout = io::stdout();
-        queue!(stdout, MoveTo(self.x + self.cursor.x, self.y + self.cursor.y));
-        for c in text.chars() {
+        queue!(
+            stdout,
+            MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
+        );
+        let mut last_line_break = 0;
+        for (i, c) in text.chars().enumerate() {
             let mut char_buffer = [0u8; 4];
-            let available_space = (self.width - self.cursor.x).saturating_sub(1);
+            let available_space = (self.width - self.cursor.x);
             let char_width = c.width().unwrap_or(0) as u16;
-            if char_width > available_space {
-                self.cursor.y += 1;
+            if c == '\n' {
                 self.cursor.x = 0;
-                queue!(stdout, MoveTo(self.x + self.cursor.x, self.y + self.cursor.y));
+                if self.cursor.y == self.width - 1 {}
+                self.cursor.y += 1;
+            } else if char_width > available_space {
+                self.cursor.x = 0;
+                self.cursor.y += 1;
+                last_line_break = i;
+                self.lines.push_back(Line::default());
             } else {
                 self.cursor.x += (char_width as u16);
             }
@@ -110,15 +132,23 @@ pub struct WindowManager {
 
 #[derive(Clone, Debug)]
 pub enum WindowNode {
-    Window{ window: Window, parent: Option<usize>},
-    PairWindow{ direction: SplitDirection, parent: Option<usize>, child_left: usize, child_right: usize },
+    Window {
+        window: Window,
+        parent: Option<usize>,
+    },
+    PairWindow {
+        direction: SplitDirection,
+        parent: Option<usize>,
+        child_left: usize,
+        child_right: usize,
+    },
 }
 
 impl WindowNode {
     fn set_parent(&mut self, new_parent: Option<usize>) {
         match self {
-            WindowNode::Window { ref mut parent, ..} => *parent = new_parent,
-            WindowNode::PairWindow { ref mut parent, ..} => *parent = new_parent,
+            WindowNode::Window { ref mut parent, .. } => *parent = new_parent,
+            WindowNode::PairWindow { ref mut parent, .. } => *parent = new_parent,
         }
     }
 }
@@ -147,8 +177,8 @@ impl WindowManager {
 
     pub fn get_mut_window(&mut self, id: usize) -> Option<&mut Window> {
         match self.get_mut_window_node(id) {
-            None | Some(WindowNode::PairWindow{..}) => None,
-            Some(WindowNode::Window{window, ..}) => Some(window)
+            None | Some(WindowNode::PairWindow { .. }) => None,
+            Some(WindowNode::Window { window, .. }) => Some(window),
         }
     }
 
@@ -172,20 +202,22 @@ impl WindowManager {
         if self.items.is_empty() {
             let (cols, rows) = term_size()?;
             let child = Window::new(0, 0, cols.into(), rows.into());
-            self.items.push(Some(WindowNode::Window{window: child, parent: None}));
-            return Ok(0)
+            self.items.push(Some(WindowNode::Window {
+                window: child,
+                parent: None,
+            }));
+            return Ok(0);
         }
 
         let (mut existing, parent) = match &mut self.items[node] {
-            Some(WindowNode::PairWindow{..}) => {
+            Some(WindowNode::PairWindow { .. }) => {
                 panic!("Can't split a window that's already split!");
             }
             None => {
                 panic!("No such window!");
             }
-            Some(WindowNode::Window{window, parent}) => (window, parent.to_owned()),
+            Some(WindowNode::Window { window, parent }) => (window, parent.to_owned()),
         };
-
 
         let new_window = match direction {
             SplitDirection::Above => {
@@ -195,7 +227,12 @@ impl WindowManager {
             }
             SplitDirection::Below => {
                 existing.height -= size;
-                Window::new(existing.x, existing.y + existing.height, existing.width, size)
+                Window::new(
+                    existing.x,
+                    existing.y + existing.height,
+                    existing.width,
+                    size,
+                )
             }
             SplitDirection::Left => {
                 existing.x += size;
@@ -204,11 +241,19 @@ impl WindowManager {
             }
             SplitDirection::Right => {
                 existing.width -= size;
-                Window::new(existing.x + existing.width, existing.y, size, existing.height)
+                Window::new(
+                    existing.x + existing.width,
+                    existing.y,
+                    size,
+                    existing.height,
+                )
             }
         };
 
-        let new_window_id = self.insert_node(WindowNode::Window{window: new_window, parent: None});
+        let new_window_id = self.insert_node(WindowNode::Window {
+            window: new_window,
+            parent: None,
+        });
 
         let split_node = WindowNode::PairWindow {
             direction,
@@ -218,8 +263,14 @@ impl WindowManager {
         };
 
         let split_node_id = self.insert_node(split_node);
-        self.items[node].as_mut().unwrap().set_parent(Some(split_node_id));
-        self.items[new_window_id].as_mut().unwrap().set_parent(Some(split_node_id));
+        self.items[node]
+            .as_mut()
+            .unwrap()
+            .set_parent(Some(split_node_id));
+        self.items[new_window_id]
+            .as_mut()
+            .unwrap()
+            .set_parent(Some(split_node_id));
 
         Ok(new_window_id)
     }

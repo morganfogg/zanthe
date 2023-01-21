@@ -31,7 +31,7 @@ pub mod flags1_bits_post_v4 {
 
 pub mod flags2 {
     pub const TRANSCRIPTING_ON: u16 = 0;
-    pub const _FORCE_FIXED_PITCH: u16 = 1;
+    pub const FORCE_FIXED_PITCH: u16 = 1;
     pub const _REQUEST_REDRAW: u16 = 2;
     pub const PICTURE_SUPPORT: u16 = 3;
     pub const UNDO_SUPPORT: u16 = 4;

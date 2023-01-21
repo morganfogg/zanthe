@@ -63,6 +63,7 @@ pub fn instructions() -> Vec<(OpCode, Instruction)> {
         (ZeroOp(0x2), StringLiteral(&print, "PRINT")),
         (ZeroOp(0x3), StringLiteral(&print_ret, "PRINT_RET")),
         (ZeroOp(0x4), Normal(&nop, "NOP")),
+        (ZeroOp(0x7), Normal(&restart, "RESTART")),
         (ZeroOp(0x8), Normal(&ret_popped, "RET_POPPED")),
         (ZeroOp(0xA), Normal(&quit, "QUIT")),
         (ZeroOp(0xB), Normal(&new_line, "NEW_LINE")),
@@ -745,6 +746,13 @@ pub fn print_ret(state: &mut GameState, string: String) -> Result<InstructionRes
 /// 0OP:180 Does nothing.
 pub fn nop(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Continue)
+}
+
+/// 0OP:183 Restart the game. The only preserved information are the 'transcribing to printer' bit
+/// and the 'use fixed pitch font' bit.
+
+pub fn restart(state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
+    Ok(Restart)
 }
 
 /// 0OP:184 Returns the top of the stack.

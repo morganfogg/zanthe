@@ -250,6 +250,14 @@ impl Memory {
         }
     }
 
+    fn flag(&self, mut address: usize, mut bit: u16) -> bool {
+        if bit >= 8 {
+            address += 1;
+            bit -= 8;
+        }
+        (self.data[address] & (1 << bit)) != 0
+    }
+
     fn set_flag(&mut self, mut address: usize, mut bit: u16, set: bool) {
         if bit >= 8 {
             address += 1;
@@ -260,6 +268,22 @@ impl Memory {
         } else {
             self.data[address] &= !(1 << bit);
         }
+    }
+
+    pub fn transcribing(&self) -> bool {
+        self.flag(address::FLAGS_2, address::flags2::TRANSCRIPTING_ON)
+    }
+
+    pub fn set_transcribing(&mut self, value: bool) {
+        self.set_flag(address::FLAGS_2, address::flags2::TRANSCRIPTING_ON, value);
+    }
+
+    pub fn force_fixed_font(&self) -> bool {
+        self.flag(address::FLAGS_2, address::flags2::FORCE_FIXED_PITCH)
+    }
+
+    pub fn set_force_fixed_font(&mut self, value: bool) {
+        self.set_flag(address::FLAGS_2, address::flags2::FORCE_FIXED_PITCH, value);
     }
 
     /// Set universal headers

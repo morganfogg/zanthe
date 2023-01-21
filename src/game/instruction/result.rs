@@ -6,6 +6,8 @@ pub enum Result {
     Return(u16),
     /// Quit the game.
     Quit,
+    /// Restart the game.
+    Restart,
     /// Call a new routine.
     Invoke {
         address: usize,

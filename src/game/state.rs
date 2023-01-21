@@ -28,6 +28,7 @@ pub struct GameState<'a> {
     pub instruction_set: InstructionSet,
     pub interface: &'a mut dyn Interface,
     pub rng: StdRng,
+    initial_memory: Memory,
     call_stack: CallStack,
     undo_buffer: VecDeque<UndoBufferEntry>,
 }
@@ -47,6 +48,7 @@ impl<'a> GameState<'a> {
             call_stack: CallStack::new(),
             undo_buffer: VecDeque::new(),
             rng: StdRng::from_entropy(),
+            initial_memory: memory.clone(),
             memory,
             interface,
         })
@@ -63,6 +65,7 @@ impl<'a> GameState<'a> {
         loop {
             match self.next_op()? {
                 InstructionResult::Continue => {}
+                InstructionResult::Restart => self.restart(),
                 InstructionResult::Quit => return Ok(()),
                 InstructionResult::Return(result) => self.return_with(result)?,
                 InstructionResult::Invoke {
@@ -109,6 +112,23 @@ impl<'a> GameState<'a> {
         } else {
             false
         }
+    }
+
+    fn restart(&mut self) {
+        self.memory = self.initial_memory.clone();
+        self.memory.set_general_headers();
+        let (width, height) = self.interface.get_screen_size();
+        self.memory.set_screen_size(width, height);
+        self.call_stack = CallStack::new();
+        self.undo_buffer = VecDeque::new();
+        self.rng = StdRng::from_entropy();
+
+        self.call_stack.push(StackFrame::new(
+            self.memory.program_counter_starts().into(),
+            Vec::new(),
+            0,
+            None,
+        ));
     }
 
     fn branch_offset(&self, pc: &mut usize) -> i16 {
@@ -320,6 +340,10 @@ impl<'a> GameState<'a> {
             match self.next_op()? {
                 InstructionResult::Continue => {}
                 InstructionResult::Quit => return Ok(None),
+                InstructionResult::Restart => {
+                    self.restart();
+                    return Ok(None);
+                }
                 InstructionResult::Return(result) => {
                     if self.call_stack.depth() == starting_depth {
                         return Ok(Some(result));
