@@ -6,38 +6,77 @@
 
 use std::collections::VecDeque;
 use std::io::{self, Write};
-use std::mem;
+use unicode_width::{UnicodeWidthStr, UnicodeWidthChar};
 
 use crossterm::{
     self,
-    cursor::{position as cursor_pos, MoveLeft, MoveTo},
-    event::{self, read, Event, KeyCode, KeyEvent},
+    cursor::MoveTo,
     execute, queue,
-    style::{Attribute, Print, SetAttribute},
+    style::{SetAttribute, Attribute},
+    cursor,
     terminal::{
         disable_raw_mode, enable_raw_mode, size as term_size, Clear, ClearType,
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use unicode_width::UnicodeWidthChar;
 
 use crate::game::Result;
 
-#[derive(Clone, Debug, Default)]
-struct TextFormat {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TextFormat {
     bold: bool,
     italic: bool,
     reverse: bool,
 }
 
+impl TextFormat {
+    pub fn update_terminal(&self, old: TextFormat) {
+        if self == &old {
+            return;
+        }
+
+        let mut stdout = io::stdout();
+        let mut intensity_cleared = false;
+
+        if (!self.bold && old.bold) || (!self.italic && old.italic) {
+            queue!(stdout, SetAttribute(Attribute::NormalIntensity)).unwrap();
+            intensity_cleared = true;
+        }
+        if self.bold && (!old.bold || intensity_cleared) {
+            queue!(stdout, SetAttribute(Attribute::Bold)).unwrap();
+        }
+        if self.italic && (!old.italic || intensity_cleared) {
+            queue!(stdout, SetAttribute(Attribute::Italic)).unwrap();
+        }
+
+        if self.reverse && !old.reverse {
+            queue!(stdout, SetAttribute(Attribute::Reverse)).unwrap();
+        } else if !self.reverse && old.reverse {
+            queue!(stdout, SetAttribute(Attribute::NoReverse)).unwrap();
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
-struct Chunk {
+pub struct Chunk {
     format: TextFormat,
     value: String,
 }
 
+impl Chunk {
+    pub fn new(format: TextFormat, value: &str) -> Chunk {
+        return Chunk {
+            value: value.to_owned(),
+            format,
+        };
+    }
+    pub fn put(&mut self, value: &str) {
+        self.value.push_str(value);
+    }
+}
+
 #[derive(Clone, Debug, Default)]
-struct Line {
+pub struct Line {
     chunks: Vec<Chunk>,
 }
 
@@ -49,6 +88,10 @@ impl Line {
                 format: style,
             }],
         }
+    }
+
+    fn add_chunk(&mut self, chunk: Chunk) {
+        self.chunks.push(chunk);
     }
 }
 
@@ -73,7 +116,6 @@ pub struct Window {
     x: u16,
     y: u16,
     lines: VecDeque<Line>,
-    invalidations: Vec<usize>,
     active_format: TextFormat,
     cursor: Cursor,
 }
@@ -86,42 +128,122 @@ impl Window {
             width,
             height,
             lines: VecDeque::with_capacity(height as usize),
-            invalidations: Vec::new(),
             active_format: TextFormat::default(),
             cursor: Cursor { x, y },
         }
+    }
+
+    pub fn line_break(&mut self) {
+        self.lines.push_back(Line::default());
+    }
+
+    pub fn add_chunk(&mut self, chunk: Chunk) {
+        self.lines
+            .get_mut(self.lines.len() - 1)
+            .unwrap()
+            .add_chunk(chunk);
+    }
+
+    fn full_write(&mut self) {
+        let mut stdout = io::stdout();
+        let mut active_format = TextFormat::default();
+        queue!( 
+            stdout,
+            SetAttribute(Attribute::Reset),
+            SetAttribute(Attribute::NoReverse),
+        ).unwrap();
+
+        let start = if self.lines.len() > self.height as usize {
+            self.lines.len() - self.height as usize
+        } else {
+            0
+        };
+        for (i, line) in self.lines.range(start..self.lines.len()).enumerate() {
+            queue!( 
+                stdout,
+                MoveTo(self.x, self.y + (i as u16)),
+            ).unwrap();
+            eprintln!("{:?}", line);
+            let mut consumed_width = 0;
+            for chunk in line.chunks.iter() {
+                chunk.format.update_terminal(active_format);
+                active_format = chunk.format;
+                stdout.write(chunk.value.as_bytes()).unwrap();
+                consumed_width += chunk.value.width();
+            }
+            eprintln!("{}", consumed_width);
+            // if consumed_width < self.width as usize {
+            //     for c in 0..(self.width as usize - consumed_width) {
+            //         stdout.write(b" ").unwrap();
+            //     }
+            // }
+        }
+        stdout.flush().unwrap();
+        let (cols, rows) = cursor::position().unwrap();
+        self.cursor.x = cols - self.x;
+        self.cursor.y = rows - self.y;
     }
 
     pub fn write(&mut self, text: &str) {
         if self.width == 0 {
             return;
         }
+
+        if self.lines.is_empty() {
+            self.lines.push_back(Line::default());
+        }
+
         let mut stdout = io::stdout();
+        let mut last_line_break = 0;
+        let mut need_full_write = false;
+
         queue!(
             stdout,
             MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
-        );
-        let mut last_line_break = 0;
-        for (i, c) in text.chars().enumerate() {
+        )
+        .unwrap();
+
+        for (i, c) in text.char_indices() {
             let mut char_buffer = [0u8; 4];
-            let available_space = (self.width - self.cursor.x);
-            let char_width = c.width().unwrap_or(0) as u16;
-            if c == '\n' {
-                self.cursor.x = 0;
-                if self.cursor.y == self.width - 1 {}
-                self.cursor.y += 1;
-            } else if char_width > available_space {
-                self.cursor.x = 0;
-                self.cursor.y += 1;
-                last_line_break = i;
-                self.lines.push_back(Line::default());
+            let available_width = self.width - self.cursor.x;
+            let available_height = self.height - self.cursor.y;
+            let char_width = c.width().unwrap_or(1) as u16;
+            if c == '\n' || char_width > available_width {
+                if available_height <= 1 {
+                    need_full_write = true;
+                } else {
+                    self.cursor.x = 0;
+                    self.cursor.y += 1;
+                }
+                if !need_full_write {
+                    queue!(
+                        stdout,
+                        MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
+                    )
+                    .unwrap();
+                }
+                let mut chunk = Chunk::new(self.active_format, &text[last_line_break..=i]);
+                last_line_break = i + c.width().unwrap_or(1);
+                self.add_chunk(chunk);
+                self.line_break();
             } else {
-                self.cursor.x += (char_width as u16);
+                self.cursor.x += char_width as u16;
             }
-            c.encode_utf8(&mut char_buffer);
-            stdout.write(&char_buffer);
+            if !need_full_write {
+                c.encode_utf8(&mut char_buffer);
+                stdout.write(&char_buffer).unwrap();
+            }
         }
-        stdout.flush();
+        if last_line_break < text.len() - 1 {
+            let mut chunk = Chunk::new(self.active_format, &text[last_line_break..text.len()]);
+            self.add_chunk(chunk);
+        }
+
+        if need_full_write {
+            self.full_write();
+        }
+
+        stdout.flush().unwrap();
     }
 }
 
@@ -155,6 +277,8 @@ impl WindowNode {
 
 impl Drop for WindowManager {
     fn drop(&mut self) {
+        let mut stdout = io::stdout();
+        let _ = execute!(stdout, Clear(ClearType::All), LeaveAlternateScreen);
         let _ = disable_raw_mode();
     }
 }
@@ -162,7 +286,12 @@ impl Drop for WindowManager {
 impl WindowManager {
     pub fn init() -> Result<()> {
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, MoveTo(0, 0))?;
+        execute!(
+            stdout,
+            EnterAlternateScreen,
+            MoveTo(0, 0),
+            Clear(ClearType::All)
+        )?;
         enable_raw_mode()?;
         Ok(())
     }
@@ -183,17 +312,17 @@ impl WindowManager {
     }
 
     /// Retrieve the parent of the provided window, as well as its ID.
-    fn parent(&self, child: usize) -> Option<(usize, &WindowNode)> {
+    fn parent(&self, _child: usize) -> Option<(usize, &WindowNode)> {
         todo!()
     }
 
     /// Retrieve the left-side child of the provided window, as well as its ID.
-    fn child_left(&self, node: usize) -> Option<(usize, &WindowNode)> {
+    fn child_left(&self, _node: usize) -> Option<(usize, &WindowNode)> {
         todo!()
     }
 
     /// Retrieve the right-side child of the provided window, as well as its ID.
-    fn child_right(&self, node: usize) -> Option<(usize, &WindowNode)> {
+    fn child_right(&self, _node: usize) -> Option<(usize, &WindowNode)> {
         todo!()
     }
 
@@ -287,7 +416,7 @@ impl WindowManager {
     }
 
     /// Drop the provided window id.
-    fn destroy(&mut self, node: usize) {
+    fn destroy(&mut self, _node: usize) {
         todo!();
     }
 }

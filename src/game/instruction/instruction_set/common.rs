@@ -751,7 +751,7 @@ pub fn nop(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
 /// 0OP:183 Restart the game. The only preserved information are the 'transcribing to printer' bit
 /// and the 'use fixed pitch font' bit.
 
-pub fn restart(state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
+pub fn restart(_state: &mut GameState, _: OperandSet) -> Result<InstructionResult> {
     Ok(Restart)
 }
 
