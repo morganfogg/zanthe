@@ -6,14 +6,13 @@
 
 use std::collections::VecDeque;
 use std::io::{self, Write};
-use unicode_width::{UnicodeWidthStr, UnicodeWidthChar};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crossterm::{
-    self,
+    self, cursor,
     cursor::MoveTo,
     execute, queue,
-    style::{SetAttribute, Attribute},
-    cursor,
+    style::{Attribute, SetAttribute},
     terminal::{
         disable_raw_mode, enable_raw_mode, size as term_size, Clear, ClearType,
         EnterAlternateScreen, LeaveAlternateScreen,
@@ -147,41 +146,41 @@ impl Window {
     fn full_write(&mut self) {
         let mut stdout = io::stdout();
         let mut active_format = TextFormat::default();
-        queue!( 
+        queue!(
             stdout,
             SetAttribute(Attribute::Reset),
             SetAttribute(Attribute::NoReverse),
-        ).unwrap();
+        )
+        .unwrap();
 
         let start = if self.lines.len() > self.height as usize {
             self.lines.len() - self.height as usize
         } else {
             0
         };
+        let mut consumed_width = 0;
         for (i, line) in self.lines.range(start..self.lines.len()).enumerate() {
-            queue!( 
-                stdout,
-                MoveTo(self.x, self.y + (i as u16)),
-            ).unwrap();
-            eprintln!("{:?}", line);
-            let mut consumed_width = 0;
+            queue!(stdout, MoveTo(self.x, self.y + (i as u16)),).unwrap();
+            consumed_width = 0;
             for chunk in line.chunks.iter() {
                 chunk.format.update_terminal(active_format);
                 active_format = chunk.format;
                 stdout.write(chunk.value.as_bytes()).unwrap();
                 consumed_width += chunk.value.width();
             }
-            eprintln!("{}", consumed_width);
-            // if consumed_width < self.width as usize {
-            //     for c in 0..(self.width as usize - consumed_width) {
-            //         stdout.write(b" ").unwrap();
-            //     }
-            // }
+            if consumed_width < self.width as usize {
+                for c in 0..(self.width as usize - consumed_width) {
+                    stdout.write(b" ").unwrap();
+                }
+            }
         }
         stdout.flush().unwrap();
-        let (cols, rows) = cursor::position().unwrap();
-        self.cursor.x = cols - self.x;
-        self.cursor.y = rows - self.y;
+        self.cursor.x = consumed_width as u16;
+        self.cursor.y = if self.lines.len() > self.height as usize {
+            self.height - 1
+        } else {
+            self.lines.len() as u16
+        };
     }
 
     pub fn write(&mut self, text: &str) {
@@ -206,15 +205,14 @@ impl Window {
         for (i, c) in text.char_indices() {
             let mut char_buffer = [0u8; 4];
             let available_width = self.width - self.cursor.x;
-            let available_height = self.height - self.cursor.y;
+            let available_height = self.height.saturating_sub(self.cursor.y);
             let char_width = c.width().unwrap_or(1) as u16;
             if c == '\n' || char_width > available_width {
                 if available_height <= 1 {
                     need_full_write = true;
-                } else {
-                    self.cursor.x = 0;
-                    self.cursor.y += 1;
                 }
+                self.cursor.x = 0;
+                self.cursor.y += 1;
                 if !need_full_write {
                     queue!(
                         stdout,
@@ -222,7 +220,7 @@ impl Window {
                     )
                     .unwrap();
                 }
-                let mut chunk = Chunk::new(self.active_format, &text[last_line_break..=i]);
+                let mut chunk = Chunk::new(self.active_format, &text[last_line_break..i]);
                 last_line_break = i + c.width().unwrap_or(1);
                 self.add_chunk(chunk);
                 self.line_break();
