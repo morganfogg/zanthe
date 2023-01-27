@@ -17,6 +17,9 @@ pub enum ClearMode {
 
 /// The user interface. Responsible for both rendering the game and recieving input.
 pub trait Interface {
+    /// Prepare the interface.
+    fn init(&mut self) -> Result<()>;
+
     /// Print text to the UI
     fn print(&mut self, text: &str) -> Result<()>;
 

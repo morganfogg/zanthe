@@ -6,10 +6,14 @@
 
 use std::collections::VecDeque;
 use std::io::{self, Write};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use std::ops::RangeBounds;
+use std::mem;
 
+use itertools::Itertools;
+use itertools::FoldWhile;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use crossterm::{
-    self, cursor,
+    self,
     cursor::MoveTo,
     execute, queue,
     style::{Attribute, SetAttribute},
@@ -63,20 +67,43 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn new(format: TextFormat, value: &str) -> Chunk {
+    pub fn new<T: Into<String>>(format: TextFormat, value: T) -> Chunk {
         return Chunk {
-            value: value.to_owned(),
+            value: value.into(),
             format,
         };
     }
+
     pub fn put(&mut self, value: &str) {
         self.value.push_str(value);
+    }
+
+    pub fn wrap(&mut self, split: usize) -> Option<Chunk> {
+        let mut split_point = 0;
+        for (i, c) in self.value.char_indices() {
+            let char_width = c.width().unwrap_or(0);
+            if char_width + split_point > split {
+                break;
+            }
+            split_point += char_width;
+        }
+
+        if split_point >= self.value.len() {
+            None
+        } else {
+            let remaining = Chunk {
+                value: self.value[split_point..].to_owned(),
+                format: self.format,
+            };
+            self.value.truncate(split_point);
+            Some(remaining)
+        }
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Line {
-    chunks: Vec<Chunk>,
+    pub chunks: Vec<Chunk>,
 }
 
 impl Line {
@@ -114,10 +141,14 @@ pub struct Window {
     height: u16,
     x: u16,
     y: u16,
+    buffer: Vec<Chunk>,
+    buffered: bool,
     lines: VecDeque<Line>,
     active_format: TextFormat,
     cursor: Cursor,
 }
+
+trait Printable {}
 
 impl Window {
     fn new(x: u16, y: u16, width: u16, height: u16) -> Window {
@@ -126,10 +157,29 @@ impl Window {
             y,
             width,
             height,
+            buffered: false,
+            buffer: Vec::default(),
             lines: VecDeque::with_capacity(height as usize),
             active_format: TextFormat::default(),
             cursor: Cursor { x, y },
         }
+    }
+
+
+    pub fn bold(&mut self) {
+        self.active_format.bold = true;
+    }
+
+    pub fn emphasis(&mut self) {
+        self.active_format.italic = true;
+    }
+
+    pub fn reverse(&mut self) {
+        self.active_format.reverse = true;
+    }
+
+    pub fn reset_style(&mut self) {
+        self.active_format = TextFormat::default();
     }
 
     pub fn line_break(&mut self) {
@@ -142,6 +192,107 @@ impl Window {
             .unwrap()
             .add_chunk(chunk);
     }
+
+    fn print_char(&mut self, text: char) -> Result<()> {
+        match self.buffer.last_mut() {
+            Some(x) if x.format == self.active_format => {
+                x.value.push(text);
+            }
+            _ => {
+                self.buffer.push(Chunk::new(self.active_format, text));
+            }
+        }
+        if !self.buffered {
+            self.flush_buffer()?;
+        }
+        Ok(())
+    }
+
+    fn print(&mut self, text: &str) -> Result<()> {
+        match self.buffer.last_mut() {
+            Some(x) if x.format == self.active_format => {
+                x.value.push_str(text);
+            }
+            _ => {
+                self.buffer.push(Chunk::new(self.active_format, text));
+            }
+        }
+        if !self.buffered {
+            self.flush_buffer()?;
+        }
+        Ok(())
+    }
+
+    fn flush_buffer(&mut self) -> Result<()> {
+        let mut line_remaining = self.cursor.x;
+        let mut buffer = mem::take(&mut self.buffer);
+
+        if self.width == 0 || self.height == 0 {
+            return Ok(())
+        }
+
+        let from_line = self.lines.len();
+        let from_chunk = self.lines.back()
+                .map(|x| x.chunks.len()).unwrap_or(0);
+        for mut chunk in buffer.drain(..) {
+            while let Some(other) = chunk.wrap(line_remaining as usize) {
+                line_remaining = 0;
+                self.add_chunk(chunk);
+                self.line_break();
+                chunk = other;
+            }
+        }
+        let mut offset = 0;
+        let mut stdout = io::stdout();
+        for line in self.lines.range(from_line..) {
+            for chunk in line.chunks[offset..].iter() {
+                chunk.format.update_terminal(self.active_format);
+                self.active_format = chunk.format;
+                stdout.write(chunk.value.as_bytes())?;
+            }
+            offset = 0;
+        }
+        stdout.flush()?;
+        Ok(())
+    }
+
+    // fn flush_buffer(&mut self) {
+    //     for chunk in self.buffer() {
+    //         chunk.format.update_terminal(active_format);
+    //         active_format = chunk.format;
+    //         for c in chunk.value() {
+    //             let mut char_buffer = [0u8; 4];
+    //             let available_width = self.width - self.cursor.x;
+    //             let available_height = self.height.saturating_sub(self.cursor.y);
+    //             let char_width = c.width().unwrap_or(0) as u16;
+    //             if c == '\n' || char_width > available_width {
+    //                 if available_height <= 1 {
+    //                     self.more_prompt();
+    //                 }
+    //                 self.cursor.x = 0;
+    //                 self.cursor.y += 1;
+    //                 if !need_full_write {
+    //                     queue!(
+    //                         stdout,
+    //                         MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
+    //                     )
+    //                     .unwrap();
+    //                 }
+    //                 let chunk = Chunk::new(self.active_format, &self.buffer[last_line_break..i]);
+    //                 last_line_break = i + c.width().unwrap_or(1);
+    //                 self.add_chunk(chunk);
+    //                 self.line_break();
+    //             } else {
+    //                 self.cursor.x += char_width as u16;
+    //             }
+    //             if !need_full_write {
+    //                 c.encode_utf8(&mut char_buffer);
+    //                 stdout.write(&char_buffer).unwrap();
+    //             }
+    //         }
+    //     }
+    //     self.buffer.truncate(0);
+    // }
 
     fn full_write(&mut self) {
         let mut stdout = io::stdout();
@@ -169,7 +320,7 @@ impl Window {
                 consumed_width += chunk.value.width();
             }
             if consumed_width < self.width as usize {
-                for c in 0..(self.width as usize - consumed_width) {
+                for _ in 0..(self.width as usize - consumed_width) {
                     stdout.write(b" ").unwrap();
                 }
             }
@@ -183,71 +334,76 @@ impl Window {
         };
     }
 
-    pub fn write(&mut self, text: &str) {
-        if self.width == 0 {
-            return;
-        }
+    // pub fn _flush_buffer(&mut self) {
+    //     if self.width == 0 {
+    //         return;
+    //     }
 
-        if self.lines.is_empty() {
-            self.lines.push_back(Line::default());
-        }
+    //     if self.lines.is_empty() {
+    //         self.lines.push_back(Line::default());
+    //     }
 
-        let mut stdout = io::stdout();
-        let mut last_line_break = 0;
-        let mut need_full_write = false;
+    //     let mut stdout = io::stdout();
+    //     let mut last_line_break = 0;
+    //     let mut need_full_write = false;
 
-        queue!(
-            stdout,
-            MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
-        )
-        .unwrap();
+    //     queue!(
+    //         stdout,
+    //         MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
+    //     )
+    //     .unwrap();
 
-        for (i, c) in text.char_indices() {
-            let mut char_buffer = [0u8; 4];
-            let available_width = self.width - self.cursor.x;
-            let available_height = self.height.saturating_sub(self.cursor.y);
-            let char_width = c.width().unwrap_or(1) as u16;
-            if c == '\n' || char_width > available_width {
-                if available_height <= 1 {
-                    need_full_write = true;
-                }
-                self.cursor.x = 0;
-                self.cursor.y += 1;
-                if !need_full_write {
-                    queue!(
-                        stdout,
-                        MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
-                    )
-                    .unwrap();
-                }
-                let mut chunk = Chunk::new(self.active_format, &text[last_line_break..i]);
-                last_line_break = i + c.width().unwrap_or(1);
-                self.add_chunk(chunk);
-                self.line_break();
-            } else {
-                self.cursor.x += char_width as u16;
-            }
-            if !need_full_write {
-                c.encode_utf8(&mut char_buffer);
-                stdout.write(&char_buffer).unwrap();
-            }
-        }
-        if last_line_break < text.len() - 1 {
-            let mut chunk = Chunk::new(self.active_format, &text[last_line_break..text.len()]);
-            self.add_chunk(chunk);
-        }
+    //     for (i, c) in self.buffer.char_indices() {
+    //         let mut char_buffer = [0u8; 4];
+    //         let available_width = self.width - self.cursor.x;
+    //         let available_height = self.height.saturating_sub(self.cursor.y);
+    //         let char_width = c.width().unwrap_or(1) as u16;
+    //         if c == '\n' || char_width > available_width {
+    //             if available_height <= 1 {
+    //                 need_full_write = true;
+    //             }
+    //             self.cursor.x = 0;
+    //             self.cursor.y += 1;
+    //             if !need_full_write {
+    //                 queue!(
+    //                     stdout,
+    //                     MoveTo(self.x + self.cursor.x, self.y + self.cursor.y)
+    //                 )
+    //                 .unwrap();
+    //             }
+    //             let chunk = Chunk::new(self.active_format, &self.buffer[last_line_break..i]);
+    //             last_line_break = i + c.width().unwrap_or(1);
+    //             self.add_chunk(chunk);
+    //             self.line_break();
+    //         } else {
+    //             self.cursor.x += char_width as u16;
+    //         }
+    //         if !need_full_write {
+    //             c.encode_utf8(&mut char_buffer);
+    //             stdout.write(&char_buffer).unwrap();
+    //         }
+    //     }
+    //     if last_line_break < self.buffer.len() - 1 {
+    //         let chunk = Chunk::new(
+    //             self.active_format,
+    //             &self.buffer[last_line_break..self.buffer.len()],
+    //         );
+    //         self.add_chunk(chunk);
+    //     }
 
-        if need_full_write {
-            self.full_write();
-        }
+    //     if &&need_full_write {
+    //         self.full_write();
+    //     }
 
-        stdout.flush().unwrap();
-    }
+    //     stdout.flush().unwrap();
+    //     self.buffer.truncate(0);
+    // }
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct WindowManager {
     items: Vec<Option<WindowNode>>,
+    active_window: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -291,6 +447,64 @@ impl WindowManager {
             Clear(ClearType::All)
         )?;
         enable_raw_mode()?;
+        Ok(())
+    }
+
+    pub fn print(&mut self, text: &str) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.print(text)?;
+        Ok(())
+    }
+
+    pub fn print_char(&mut self, text: char) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.print_char(text)?;
+        Ok(())
+    }
+
+    pub fn flush(&mut self) -> Result<()> {
+        for item in self.items {
+            match item {
+                Some(WindowNode::Window{window, ..}) => {
+                    window.flush()?;
+                },
+                _ => {}
+            }
+        }
+    }
+
+    pub fn bold(&mut self) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.bold();
+        Ok(())
+    }
+
+    pub fn emphasis(&mut self) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.emphasis();
+        Ok(())
+    }
+    pub fn reverse(&mut self) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.reverse();
+        Ok(())
+    }
+
+    pub fn reset_style(&mut self) -> Result<()> {
+        let window = self
+            .get_mut_window(self.active_window)
+            .expect("Tried to write to non-existant window");
+        window.reset_style();
         Ok(())
     }
 
