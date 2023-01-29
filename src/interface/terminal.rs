@@ -1,177 +1,154 @@
-pub mod window;
+mod window;
 
-use std::fs::File;
-use std::io::{self, prelude::*};
-use std::mem::take;
+use std::{
+    error::Error,
+    io,
+    time::{Duration, Instant},
+};
 
 use crossterm::{
-    self,
-    cursor::{position as cursor_pos, MoveLeft, MoveTo},
-    event::{self, read, Event, KeyCode, KeyEvent},
-    execute, queue,
-    style::{Attribute, Print, SetAttribute},
-    terminal::{
-        disable_raw_mode, enable_raw_mode, size as term_size, Clear, ClearType,
-        EnterAlternateScreen, LeaveAlternateScreen,
-    },
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Alignment, Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Span, Spans},
+    widgets::{Block, Borders, Paragraph, Wrap},
+    Frame, Terminal,
 };
 
 use crate::game::Result;
-use crate::interface::{Interface, ClearMode, InputCode};
-use super::window::{Window, WindowManager, SplitDirection};
+use crate::interface::{ClearMode, InputCode, Interface};
+use window::{SplitDirection, SplitSize, TextStream, WindowKind, WindowManager};
 
 pub struct TerminalInterface {
-    window_manager: WindowManager,
-    upper_window_id: usize,
-    lower_window_id: usize,
+    wm: WindowManager,
 }
 
 impl TerminalInterface {
-    pub fn new() -> Result<TerminalInterface> {
-        Ok(TerminalInterface {
-            upper_window_id: 0,
-            lower_window_id: 0,
-            window_manager: WindowManager::default(),
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            wm: WindowManager::new()?,
         })
     }
 }
 
 impl Interface for TerminalInterface {
     fn init(&mut self) -> Result<()> {
-        WindowManager::init()?;
-        self.lower_window_id = self.window_manager.split(0, SplitDirection::Above, 0)?;
-        self.upper_window_id = self.window_manager.split(0, SplitDirection::Above, 0)?;
+        self.wm.init()?;
+        let main = self.wm.split(
+            0,
+            SplitDirection::Above,
+            SplitSize::Unlimited,
+            WindowKind::TextStream(TextStream::default()),
+        )?;
+        let status = self.wm.split(
+            main,
+            SplitDirection::Above,
+            SplitSize::Fixed(10),
+            WindowKind::TextStream(TextStream::default()),
+        )?;
         Ok(())
     }
 
     fn print(&mut self, text: &str) -> Result<()> {
-        self.window_manager.print(text)?;
+        self.wm.print(text);
+        Ok(())
     }
 
+    /// Print a single character to the UI
     fn print_char(&mut self, text: char) -> Result<()> {
-        self.window_manager.print_char(text)?;
-    }
-
-    fn done(&mut self) -> Result<()> {
-        let mut stdout = io::stdout();
-        print!("[Press any key to exit]");
-        stdout.flush()?;
+        self.wm.print_char(text);
         Ok(())
     }
 
+    /// Clear the entire window
     fn clear(&mut self, mode: ClearMode) -> Result<()> {
-        todo!();
+        // todo!();
+        Ok(())
     }
 
+    /// The game exited successfully, show a message then quit
+    fn done(&mut self) -> Result<()> {
+        // todo!();
+        Ok(())
+    }
+
+    /// Set the text style to bold
     fn text_style_bold(&mut self) -> Result<()> {
-        self.window_manager.bold()?;
+        // todo!();
         Ok(())
     }
 
+    /// Set the text style to emphais (italics)
     fn text_style_emphasis(&mut self) -> Result<()> {
-        self.window_manager.emphasis()?;
+        // todo!();
         Ok(())
     }
 
+    /// Set the text style to reverse video.
     fn text_style_reverse(&mut self) -> Result<()> {
-        self.window_manager.reverse()?;
+        // todo!();
         Ok(())
     }
 
+    /// Set the text style to fixed-width
     fn text_style_fixed(&mut self) -> Result<()> {
+        // todo!();
         Ok(())
     }
 
+    /// Remove all text styles
     fn text_style_clear(&mut self) -> Result<()> {
-        self.window_manager.reset_style()?;
+        // todo!();
         Ok(())
     }
 
     fn set_z_machine_version(&mut self, version: u8) {
+        // todo!();
+    }
+
+    fn read_line(&mut self, max_chars: usize) -> Result<String> {
+        use std::thread;
+        use std::time::Duration;
+
+        self.wm.render();
+        thread::sleep(Duration::from_millis(4000));
         todo!();
     }
 
     fn read_char(&mut self) -> Result<InputCode> {
-        self.window_manager.flush()?;
-        loop {
-            match event::read()? {
-                Event::Key(KeyEvent { code, .. }) => match code {
-                    KeyCode::Enter => return Ok(InputCode::Newline),
-                    KeyCode::Char(c) => {
-                        self.print_bufferable(&c.to_string(), true)?;
-                        return Ok(InputCode::Character(c));
-                    }
-                    KeyCode::Up => return Ok(InputCode::CursorUp),
-                    KeyCode::Down => return Ok(InputCode::CursorDown),
-                    KeyCode::Left => return Ok(InputCode::CursorLeft),
-                    KeyCode::Right => return Ok(InputCode::CursorRight),
-                    KeyCode::Backspace | KeyCode::Delete => return Ok(InputCode::Delete),
-                    KeyCode::Esc => return Ok(InputCode::Escape),
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-    }
-
-    fn read_line(&mut self, max_chars: usize) -> Result<String> {
-        self.flush_buffer()?;
-        let mut line = String::new();
-        loop {
-            match event::read()? {
-                Event::Resize(..) => {
-                    // Todo
-                }
-                Event::Key(KeyEvent { code, .. }) => match code {
-                    KeyCode::Enter => {
-                        self.print_char('\n', true)?;
-                        break;
-                    }
-                    KeyCode::Esc => {
-                        panic!("Yes");
-                    }
-                    KeyCode::Char(c) => {
-                        if line.len() < max_chars {
-                            self.print_bufferable(&c.to_string(), true)?;
-                            self.window_manager.flush()
-                            line.push(c);
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        if !line.is_empty() {
-                            self.backspace()?;
-                            self.window_manager.flush()
-                            line.pop();
-                        }
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-        Ok(line)
+        todo!();
     }
 
     fn split_screen(&mut self, split: u16) -> Result<()> {
-        todo!();
+        // todo!();
+        Ok(())
     }
 
     fn get_screen_size(&self) -> (u16, u16) {
-        term_size()
+        self.wm.size()
     }
 
     fn set_active(&mut self, active: u16) -> Result<()> {
-        todo!();
+        // todo!();
+        Ok(())
     }
 
     fn set_cursor(&mut self, line: u16, column: u16) -> Result<()> {
-        todo!();
+        // todo!();
+        Ok(())
     }
 
     fn buffer_mode(&mut self, enable: bool) -> Result<()> {
-        todo!();
+        // todo!();
+        Ok(())
     }
 
+    /// Close the UI immediately.
     fn quit(&mut self) {
         todo!();
     }

@@ -1,7 +1,6 @@
 pub mod screen;
 mod terminal;
 pub mod text_style;
-pub use terminal::window;
 pub use terminal::TerminalInterface;
 
 use crate::game::Result;

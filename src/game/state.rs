@@ -56,6 +56,7 @@ impl<'a> GameState<'a> {
 
     /// Start the game
     pub fn run(&mut self) -> Result<()> {
+        self.interface.init()?;
         self.call_stack.push(StackFrame::new(
             self.memory.program_counter_starts().into(),
             Vec::new(),
