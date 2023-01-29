@@ -26,12 +26,16 @@ use window::{SplitDirection, SplitSize, TextStream, WindowKind, WindowManager};
 
 pub struct TerminalInterface {
     wm: WindowManager,
+    upper_screen_id: usize,
+    lower_screen_id: usize,
 }
 
 impl TerminalInterface {
     pub fn new() -> Result<Self> {
         Ok(Self {
             wm: WindowManager::new()?,
+            upper_screen_id: 0,
+            lower_screen_id: 0,
         })
     }
 }
@@ -39,14 +43,14 @@ impl TerminalInterface {
 impl Interface for TerminalInterface {
     fn init(&mut self) -> Result<()> {
         self.wm.init()?;
-        let main = self.wm.split(
+        self.lower_screen_id = self.wm.split(
             0,
             SplitDirection::Above,
             SplitSize::Unlimited,
             WindowKind::TextStream(TextStream::default()),
         )?;
-        let status = self.wm.split(
-            main,
+        self.upper_screen_id = self.wm.split(
+            self.lower_screen_id,
             SplitDirection::Above,
             SplitSize::Fixed(10),
             WindowKind::TextStream(TextStream::default()),
@@ -121,6 +125,11 @@ impl Interface for TerminalInterface {
     }
 
     fn read_char(&mut self) -> Result<InputCode> {
+        use std::thread;
+        use std::time::Duration;
+
+        self.wm.render();
+        thread::sleep(Duration::from_millis(4000));
         todo!();
     }
 
@@ -134,7 +143,11 @@ impl Interface for TerminalInterface {
     }
 
     fn set_active(&mut self, active: u16) -> Result<()> {
-        // todo!();
+        self.wm.set_active(match active {
+            1 => self.upper_screen_id,
+            0 => self.lower_screen_id,
+            _ => todo!(),
+        });
         Ok(())
     }
 

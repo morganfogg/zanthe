@@ -291,7 +291,7 @@ impl Memory {
         if self.version() < 4 {
             use address::flags1_bits_pre_v4::*;
             self.set_flag(address::FLAGS_1, STATUS_LINE_UNAVAILABLE, true);
-            self.set_flag(address::FLAGS_1, SCREEN_SPLITTING_AVAILABLE, false);
+            self.set_flag(address::FLAGS_1, SCREEN_SPLITTING_AVAILABLE, true);
             self.set_flag(address::FLAGS_1, VARIABLE_PITCH_FONT_DEFAULT, true);
         } else {
             use address::flags1_bits_post_v4::*;

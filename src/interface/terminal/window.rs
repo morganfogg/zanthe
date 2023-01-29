@@ -1,7 +1,7 @@
 use std::io;
 
 use crossterm::execute;
-use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen};
+use crossterm::terminal::{Clear, ClearType,enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -32,7 +32,7 @@ impl SplitSize {
     fn as_constraint(&self) -> Constraint {
         match self {
             Self::Fixed(size) => Constraint::Length(*size),
-            Self::Unlimited => Constraint::Min(0),
+            Self::Unlimited => Constraint::Min(100),
         }
     }
 }
@@ -111,7 +111,6 @@ impl Window {
     pub fn render(&mut self, frame: &mut Frame<CrosstermBackend<io::Stdout>>, rect: Rect) {
         match &self.kind {
             WindowKind::TextStream(text) => {
-                warn!("LINES {:#?}", text.lines);
                 let lines: Vec<_> = text
                     .lines
                     .iter()
@@ -188,6 +187,13 @@ pub struct WindowManager {
     items: Vec<Option<WindowNode>>,
     active_window: usize,
     root_window: usize,
+    active: bool,
+}
+
+impl Drop for WindowManager {
+    fn drop(&mut self) {
+        let _ = self.cleanup();
+    }
 }
 
 impl WindowManager {
@@ -201,14 +207,28 @@ impl WindowManager {
             items: Vec::default(),
             active_window: 0,
             root_window: 0,
+            active: false,
         })
     }
 
-    pub fn init(&self) -> Result<()> {
+    pub fn init(&mut self) -> Result<()> {
+        self.active = true;
         let mut stdout = io::stdout();
         enable_raw_mode()?;
-        execute!(stdout, EnterAlternateScreen)?;
+        execute!(stdout, EnterAlternateScreen, Clear(ClearType::All))?;
         Ok(())
+    }
+
+    pub fn cleanup(&mut self) -> Result<()> {
+        if !self.active {return Ok(());}
+        let mut stdout = io::stdout();
+        disable_raw_mode()?;
+        execute!(stdout, Clear(ClearType::All), LeaveAlternateScreen)?;
+        Ok(())
+    }
+
+    pub fn set_active(&mut self, id: usize) {
+        self.active_window = id;
     }
 
     pub fn print(&mut self, text: &str) {
@@ -361,8 +381,9 @@ impl WindowManager {
             .as_mut()
             .unwrap()
             .set_parent(Some(split_node_id));
+
         if node == self.root_window {
-            self.root_window = node;
+            self.root_window = split_node_id;
         }
         Ok(new_window_id)
     }
