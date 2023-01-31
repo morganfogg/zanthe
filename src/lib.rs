@@ -2,6 +2,7 @@ pub mod cli;
 pub mod game;
 pub mod helper;
 pub mod interface;
+pub mod loader;
 
 use std::fs;
 

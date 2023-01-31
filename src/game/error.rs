@@ -42,6 +42,11 @@ impl GameError {
             detail: None,
         }
     }
+
+    pub fn detail<T: Into<String>>(&mut self, detail: T) -> &mut Self {
+        self.detail = Some(detail.into());
+        self
+    }
 }
 
 impl Display for GameError {

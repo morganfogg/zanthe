@@ -7,9 +7,15 @@ use std::{
 };
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    self,
+    cursor::{position as cursor_pos, MoveLeft, MoveTo},
+    event::{self, read, Event, KeyCode, KeyEvent},
+    execute, queue,
+    style::{Attribute, Print, SetAttribute},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, size as term_size, Clear, ClearType,
+        EnterAlternateScreen, LeaveAlternateScreen,
+    },
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
@@ -115,22 +121,65 @@ impl Interface for TerminalInterface {
         // todo!();
     }
 
-    fn read_line(&mut self, max_chars: usize) -> Result<String> {
-        use std::thread;
-        use std::time::Duration;
-
+    fn read_char(&mut self) -> Result<InputCode> {
         self.wm.render();
-        thread::sleep(Duration::from_millis(4000));
-        todo!();
+        loop {
+            match event::read()? {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => return Ok(InputCode::Newline),
+                    KeyCode::Char(c) => {
+                        self.print_char(c)?;
+                        return Ok(InputCode::Character(c));
+                    }
+                    KeyCode::Up => return Ok(InputCode::CursorUp),
+                    KeyCode::Down => return Ok(InputCode::CursorDown),
+                    KeyCode::Left => return Ok(InputCode::CursorLeft),
+                    KeyCode::Right => return Ok(InputCode::CursorRight),
+                    KeyCode::Backspace | KeyCode::Delete => return Ok(InputCode::Delete),
+                    KeyCode::Esc => return Ok(InputCode::Escape),
+                    _ => {}
+                },
+                _ => {}
+            }
+            self.wm.render();
+        }
     }
 
-    fn read_char(&mut self) -> Result<InputCode> {
-        use std::thread;
-        use std::time::Duration;
-
+    fn read_line(&mut self, max_chars: usize) -> Result<String> {
         self.wm.render();
-        thread::sleep(Duration::from_millis(4000));
-        todo!();
+        let mut line = String::new();
+        loop {
+            match event::read()? {
+                Event::Resize(..) => {
+                    // Todo
+                }
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => {
+                        self.print_char('\n')?;
+                        break;
+                    }
+                    KeyCode::Esc => {
+                        panic!("Yes");
+                    }
+                    KeyCode::Char(c) => {
+                        if line.len() < max_chars {
+                            self.print_char(c)?;
+                            line.push(c);
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if !line.is_empty() {
+                            self.wm.backspace();
+                            line.pop();
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+            self.wm.render();
+        }
+        Ok(line)
     }
 
     fn split_screen(&mut self, split: u16) -> Result<()> {

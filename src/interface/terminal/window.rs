@@ -1,7 +1,10 @@
 use std::io;
 
 use crossterm::execute;
-use crossterm::terminal::{Clear, ClearType,enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
+};
+use tracing::warn;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -10,7 +13,6 @@ use tui::{
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame, Terminal,
 };
-use tracing::warn;
 
 use crate::game::Result;
 
@@ -56,7 +58,7 @@ impl TextStream {
                 self.lines.push(Vec::new());
             }
             let last_line = self.lines.last_mut().unwrap();
-            let matching_chunk = last_line.last_mut().filter(|x| x.style != style);
+            let matching_chunk = last_line.last_mut().filter(|x| x.style == style);
             match matching_chunk {
                 None => {
                     last_line.push(Chunk {
@@ -73,13 +75,16 @@ impl TextStream {
 
     pub fn print_char(&mut self, text: char, style: Style) {
         if text == '\n' {
-            self.lines.push(vec![Chunk{text: "$".to_owned(), style}]);
+            self.lines.push(vec![Chunk {
+                text: "".to_owned(),
+                style,
+            }]);
         } else {
             if self.lines.is_empty() {
                 self.lines.push(Vec::new());
             }
             let last_line = self.lines.last_mut().unwrap();
-            let matching_chunk = last_line.last_mut().filter(|x| x.style != style);
+            let matching_chunk = last_line.last_mut().filter(|x| x.style == style);
             match matching_chunk {
                 None => {
                     last_line.push(Chunk {
@@ -89,6 +94,19 @@ impl TextStream {
                 }
                 Some(x) => {
                     x.text.push(text);
+                }
+            }
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        for line in self.lines.iter_mut().rev() {
+            while let Some(chunk) = line.last_mut() {
+                if chunk.text.is_empty() {
+                    line.pop();
+                } else {
+                    chunk.text.pop();
+                    return;
                 }
             }
         }
@@ -145,6 +163,15 @@ impl Window {
         match &mut self.kind {
             WindowKind::TextStream(stream) => {
                 stream.print_char(text, self.active_style);
+            }
+            _ => todo!(),
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        match &mut self.kind {
+            WindowKind::TextStream(stream) => {
+                stream.backspace();
             }
             _ => todo!(),
         }
@@ -220,7 +247,9 @@ impl WindowManager {
     }
 
     pub fn cleanup(&mut self) -> Result<()> {
-        if !self.active {return Ok(());}
+        if !self.active {
+            return Ok(());
+        }
         let mut stdout = io::stdout();
         disable_raw_mode()?;
         execute!(stdout, Clear(ClearType::All), LeaveAlternateScreen)?;
@@ -244,6 +273,15 @@ impl WindowManager {
         match &mut self.items[self.active_window] {
             Some(WindowNode::Window { window, .. }) => {
                 window.print_char(text);
+            }
+            _ => todo!(), // TODO
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        match &mut self.items[self.active_window] {
+            Some(WindowNode::Window { window, .. }) => {
+                window.backspace();
             }
             _ => todo!(), // TODO
         }

@@ -7,7 +7,6 @@ mod memory;
 mod property;
 mod stack;
 pub mod state;
-
 pub use input_code::InputCode;
 
 pub type Result<T> = std::result::Result<T, error::GameError>;
