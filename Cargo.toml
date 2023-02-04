@@ -10,7 +10,6 @@ rand = "0.8"
 clap = {version = "4.0", features=["derive"]}
 itertools = "0.10"
 crossterm = "0.25"
-tui = "0.19"
 backtrace = "0.3"
 num-derive = "0.3"
 num-traits = "0.2"

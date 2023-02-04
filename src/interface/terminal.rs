@@ -1,4 +1,4 @@
-mod window;
+pub mod window;
 
 use std::{
     error::Error,
@@ -17,18 +17,11 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph, Wrap},
-    Frame, Terminal,
-};
+use tracing::warn;
 
 use crate::game::Result;
 use crate::interface::{ClearMode, InputCode, Interface};
-use window::{SplitDirection, SplitSize, TextStream, WindowKind, WindowManager};
+use window::{Constraint, Direction, TextStream, WindowKind, WindowManager};
 
 pub struct TerminalInterface {
     wm: WindowManager,
@@ -39,7 +32,7 @@ pub struct TerminalInterface {
 impl TerminalInterface {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            wm: WindowManager::new()?,
+            wm: WindowManager::new(),
             upper_screen_id: 0,
             lower_screen_id: 0,
         })
@@ -51,27 +44,27 @@ impl Interface for TerminalInterface {
         self.wm.init()?;
         self.lower_screen_id = self.wm.split(
             0,
-            SplitDirection::Above,
-            SplitSize::Unlimited,
+            Direction::Above,
+            Constraint::RightFixed(0),
             WindowKind::TextStream(TextStream::default()),
         )?;
         self.upper_screen_id = self.wm.split(
             self.lower_screen_id,
-            SplitDirection::Above,
-            SplitSize::Fixed(10),
+            Direction::Above,
+            Constraint::RightFixed(5),
             WindowKind::TextStream(TextStream::default()),
         )?;
         Ok(())
     }
 
     fn print(&mut self, text: &str) -> Result<()> {
-        self.wm.print(text);
+        self.wm.print(text, false);
         Ok(())
     }
 
     /// Print a single character to the UI
     fn print_char(&mut self, text: char) -> Result<()> {
-        self.wm.print_char(text);
+        self.wm.print_char(text, false);
         Ok(())
     }
 
@@ -122,13 +115,14 @@ impl Interface for TerminalInterface {
     }
 
     fn read_char(&mut self) -> Result<InputCode> {
-        self.wm.render();
+        self.wm.flush_buffer();
+        self.wm.set_active(self.lower_screen_id)?;
         loop {
             match event::read()? {
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => return Ok(InputCode::Newline),
                     KeyCode::Char(c) => {
-                        self.print_char(c)?;
+                        self.wm.print_char(c, true)?;
                         return Ok(InputCode::Character(c));
                     }
                     KeyCode::Up => return Ok(InputCode::CursorUp),
@@ -141,12 +135,12 @@ impl Interface for TerminalInterface {
                 },
                 _ => {}
             }
-            self.wm.render();
         }
     }
 
     fn read_line(&mut self, max_chars: usize) -> Result<String> {
-        self.wm.render();
+        self.wm.flush_buffer();
+        self.wm.set_active(self.lower_screen_id)?;
         let mut line = String::new();
         loop {
             match event::read()? {
@@ -155,7 +149,7 @@ impl Interface for TerminalInterface {
                 }
                 Event::Key(KeyEvent { code, .. }) => match code {
                     KeyCode::Enter => {
-                        self.print_char('\n')?;
+                        self.wm.print_char('\n', true)?;
                         break;
                     }
                     KeyCode::Esc => {
@@ -163,7 +157,7 @@ impl Interface for TerminalInterface {
                     }
                     KeyCode::Char(c) => {
                         if line.len() < max_chars {
-                            self.print_char(c)?;
+                            self.wm.print_char(c, true)?;
                             line.push(c);
                         }
                     }
@@ -177,7 +171,6 @@ impl Interface for TerminalInterface {
                 },
                 _ => {}
             }
-            self.wm.render();
         }
         Ok(line)
     }

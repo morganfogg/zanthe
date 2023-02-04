@@ -1,5 +1,5 @@
 pub mod screen;
-mod terminal;
+pub mod terminal;
 pub mod text_style;
 pub use terminal::TerminalInterface;
 

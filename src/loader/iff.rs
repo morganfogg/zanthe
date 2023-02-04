@@ -9,10 +9,8 @@ use thiserror::Error;
 pub enum IffReadError {
     #[error("IO error")]
     IoError(#[from] io::Error),
-    #[error("Trailing data")]
-    TrailingData,
-    #[error("Not an IFF file")]
-    NotIff,
+    #[error("Format error: {0}")]
+    FormatError(String),
 }
 
 type Result<T> = std::result::Result<T, IffReadError>;
@@ -54,7 +52,7 @@ impl<F: Read + Seek> IffReader<F> {
         self.reader.read_exact(&mut len)?;
         let len = u32::from_be_bytes(len);
 
-        match &word {
+        let result = match &word {
             b"FORM" => {
                 let mut kind = [0u8; 4];
                 self.reader.read_exact(&mut kind)?;
@@ -69,7 +67,7 @@ impl<F: Read + Seek> IffReader<F> {
             }
             _ => {
                 if len < 4 {
-                    return Err(IffReadError::NotIff);
+                    return Err(IffReadError::FormatError("Invalid length specifier".into()));
                 }
                 let mut data = vec![0u8; len as usize - 4];
                 let mut kind = [0u8; 4];
@@ -77,14 +75,18 @@ impl<F: Read + Seek> IffReader<F> {
                 self.reader.read_exact(&mut data)?;
                 Ok(Chunk::Data(DataChunk { kind, data }))
             }
+        };
+        if self.reader.stream_position()? % 2 == 1 {
+            self.reader.seek(SeekFrom::Current(1))?;
         }
+        result
     }
 
     pub fn load(&mut self) -> Result<Chunk> {
         let mut word = [0u8; 4];
         self.reader.read_exact(&mut word)?;
         if !matches!(&word, b"FORM" | b"LIST" | b"CAT ") {
-            return Err(IffReadError::NotIff);
+            return Err(IffReadError::FormatError("Not an IFF file".into()));
         }
 
         self.reader.rewind()?;
@@ -95,7 +97,7 @@ impl<F: Read + Seek> IffReader<F> {
         let end = self.reader.seek(SeekFrom::End(0))?;
 
         if pos != end {
-            return Err(IffReadError::TrailingData);
+            return Err(IffReadError::FormatError("Trailing data".into()));
         }
 
         Ok(chunk)
